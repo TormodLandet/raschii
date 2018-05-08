@@ -44,7 +44,7 @@ out of date. All pull requests and issues should go to the Bitbucket repository.
 Raschii is automatically tested on `CircleCI <https://circleci.com/bb/trlandet/raschii/tree/master>`_  
 and the current CI build status is |circleci_status|.
 
-.. |circleci_status| image:: https://circleci.com/bb/trlandet/raschii.svg?style=svg&circle-token=XXX
+.. |circleci_status| image:: https://circleci.com/bb/trlandet/raschii.svg?style=svg&circle-token=d0d6c55654d1c7ba49a9679d7dd1623e1b52b748
   :target: https://circleci.com/bb/trlandet/raschii/tree/master
 
 
