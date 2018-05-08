@@ -1,0 +1,10 @@
+syntax: glob
+.*
+!/.gitignore
+!/.flake8
+!/.circleci
+*.pyc
+*.png
+build/
+dist/
+*egg-info*

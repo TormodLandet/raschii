@@ -1,0 +1,24 @@
+version: 2
+
+jobs:
+  python3:
+    docker:
+      - image: circleci/python:3.6.1
+    steps:
+      - checkout
+      - run:
+          name: Install test dependencies
+          command: sudo pip3 install pip pytest flake8 --upgrade
+      - run:
+          name: Install Raschii with its dependencies
+          command: sudo pip3 install .
+      - run:
+          name: Flake8
+          command: python3 -m flake8 raschii
+      - run:
+          name: Run unit tests
+          command: python3 -m pytest -v tests/ --junitxml=/reports/pytest/py3.xml --durations=10
+      - store_test_results:
+          path: /reports
+      - store_artifacts:
+          path: /reports
