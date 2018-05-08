@@ -17,8 +17,8 @@ jobs:
           command: python3 -m flake8 raschii
       - run:
           name: Run unit tests
-          command: python3 -m pytest -v tests/ --junitxml=/reports/pytest/py3.xml --durations=10
+          command: python3 -m pytest -v tests/ --junitxml=~/reports/pytest/py3.xml --durations=10
       - store_test_results:
-          path: /reports
+          path: ~/reports
       - store_artifacts:
-          path: /reports
+          path: ~/reports
