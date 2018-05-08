@@ -1,12 +1,9 @@
 Raschii
 =======
 
-Raschii is a Python implementation of stream function waves theory
-
-.. contents:: Contents
-
-Rashii is named after the `Thysanoessa raschii <https://en.wikipedia.org/wiki/Thysanoessa_raschii>`_
-Arctic Krill.
+Raschii is a Python implementation of stream function waves theory and is named
+after `Thysanoessa raschii <https://en.wikipedia.org/wiki/Thysanoessa_raschii>`_,
+the Arctic Krill.
 
 
 Installation and running
@@ -22,15 +19,10 @@ An example of using Raschii from Python::
 
     import raschii
     
-    fwave = raschii.FentonWave(height=0.25, depth=0.5, length=2.0)
-    print(fwave.coefficients)
+    fwave = raschii.FentonWave(height=0.25, depth=0.5, length=2.0, N=20)
+    print(fwave.surface_elevation(x=0))
+    print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
     print(fwave.velocity(x=0, z=0.2))
-
-
-Documentation
--------------
-
-TODO
 
 
 Development
