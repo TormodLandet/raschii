@@ -19,14 +19,11 @@ class FentonWave:
         self.length = length
         self.N = N
         
-        self.coeffs = fenton_coefficients(height, depth, length, N)
-        self.B = self.coeffs['B']
-        self.Q = self.coeffs['Q']
-        self.R = self.coeffs['R']
-        self.eta = self.coeffs['eta'] * depth
-        self.x = self.coeffs['x'] * depth
-        self.k = self.coeffs['k'] / depth
-        self.c = self.coeffs['B'][0] * (g * depth)**0.5
+        self.data = fenton_coefficients(height, depth, length, N, g)
+        self.eta = self.data['eta']
+        self.x = self.data['x']
+        self.k = self.data['k']
+        self.c = self.data['B'][0]
         self.T = length / self.c
     
     @property
@@ -40,7 +37,7 @@ class FentonWave:
         return None
 
 
-def fenton_coefficients(height, depth, length, N, relax=1.0):
+def fenton_coefficients(height, depth, length, N, g=9.8, relax=0.3):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
     """
@@ -65,7 +62,7 @@ def fenton_coefficients(height, depth, length, N, relax=1.0):
     Q = c
     R = 1 + 0.5 * c**2
     
-    def optimize(B, Q, R, eta, maxiter=100, tol=1e-6, relax=1.0):
+    def optimize(B, Q, R, eta, maxiter=100, tol=1e-8, relax=1.0):
         """
         Find B, Q and R by Newton iterations starting from the given initial
         guesses. According to Rienecker and Fenton (1981) a linear theory
@@ -87,22 +84,26 @@ def fenton_coefficients(height, depth, length, N, relax=1.0):
             from matplotlib import pyplot
             pyplot.clf()
             for i, ci in enumerate(allc):
+                pyplot.subplot(211)
                 pyplot.plot(ci[N + 1:2 * N + 2], label=str(i))
-                pyplot.plot(ci[:N + 1], ls=':', label=str(i) + 'b')
+                pyplot.subplot(212)
+                pyplot.plot(ci[:N + 1], label=str(i))
             pyplot.legend()
             pyplot.show()
         
         for i in range(maxiter):
             jac = fprime(coeffs, H, k, D, J, M)
-            print('Iteration %2d has condition number %.3e' % (i + 1, cond(jac)))
             delta = solve(jac, -f)
             coeffs += delta * relax
             f = func(coeffs, H, k, D, J, M)
             
-            allc.append(coeffs.copy())
-            # DEBUG: pl()
+            # DEBUG
+            # allc.append(coeffs.copy())
+            # pl()
             
             error = abs(f).max()
+            print('Iteration %2d has condition number %.3e, error %.3e' %
+                  (i + 1, cond(jac), error))
             if not isfinite(error):
                 raise NonConvergenceError('Optimization did not converge. Got '
                                           '%r in iteration %d' % (error, i + 1))
@@ -118,14 +119,20 @@ def fenton_coefficients(height, depth, length, N, relax=1.0):
     # Perform optimization
     B, eta, Q, R, error = optimize(B, Q, R, eta, relax=relax)
     
-    return dict(B=B, eta=eta, Q=Q, R=R, k=k, c=c, error=error, x=x)
+    return {'B': B * (g * depth)**0.5,
+            'eta': eta * depth,
+            'Q': Q * (g * depth**3)**0.5,
+            'R': R * g * depth,
+            'k': k / depth,
+            'c': c * (g * depth)**0.5,
+            'error': error,
+            'x': x * depth}
 
 
 def func(coeffs, H, k, D, J, M):
     "The function to minimize"
     N_unknowns = coeffs.size
-    N = (coeffs.size - 4) // 2
-    assert N == 10
+    N = J.size
     
     B0 = coeffs[0]
     B = coeffs[1:N + 1]
@@ -166,9 +173,6 @@ def func(coeffs, H, k, D, J, M):
 def fprime_num(coeffs, H, k, D, J, M):
     "The Jacobian of the function to minimize (numerical version)"
     N_unknowns = coeffs.size
-    N = (coeffs.size - 4) // 2
-    assert N == 10
-    
     dc = 1e-10
     jac = zeros((N_unknowns, N_unknowns), float)
     f0 = func(coeffs, H, k, D, J, M)
@@ -176,15 +180,14 @@ def fprime_num(coeffs, H, k, D, J, M):
         incr = zeros(N_unknowns, float)
         incr[i] = dc
         f1 = func(coeffs + incr, H, k, D, J, M)
-        jac[i] = (f1 - f0) / dc
+        jac[:, i] = (f1 - f0) / dc
     return jac
 
 
 def fprime(coeffs, H, k, D, J, M):
     "The Jacobian of the function to minimize"
     N_unknowns = coeffs.size
-    N = (coeffs.size - 4) // 2
-    assert N == 10
+    N = J.size
     
     jac = zeros((N_unknowns, N_unknowns), float)
     B0 = coeffs[0]
@@ -208,29 +211,30 @@ def fprime(coeffs, H, k, D, J, M):
         vm = 0 + k * J.dot(B * SS)
         
         # Derivatives of the eq. for the streamline along the free surface
-        jac[N + 1 + m, m] = um
-        jac[0, 0:N + 1] = eta  # FIXME: this is different sign than in the paper <--------------------------
-        jac[1:N + 1, m] = SC
-        jac[-2, m] = 1
+        jac[m, N + 1 + m] = um
+        jac[0:N + 1, 0] = eta  # FIXME: this is different sign than in the paper <--------------------------
+        jac[m, 1:N + 1] = SC
+        jac[m, -2] = 1
         
         # Derivatives of the dynamic free surface boundary condition
         jac[N + 1 + m, N + 1 + m] = 1 + (um * k**2 * B.dot(J**2 * SC) +
                                          vm * k**2 * B.dot(J**2 * CS))
-        jac[-1, N + 1 + m] = -1
-        jac[0, N + 1 + m] = um  # FIXME: this is different sign than in the paper <--------------------------
-        jac[1:N + 1, N + 1 + m] = k * um * J * CC + k * vm * J * SS
+        jac[N + 1 + m, -1] = -1
+        jac[N + 1 + m, 0] = um  # FIXME: this is different sign than in the paper <--------------------------
+        jac[N + 1 + m, 1:N + 1] = k * um * J * CC + k * vm * J * SS
     
     # Derivative of mean(eta) = 1
-    jac[N + 1:2 * N + 2, -2] = M * 0 + 1 / N
-    jac[N + 1, -2] = 1 / (2 * N)
-    jac[2 * N + 1, -2] = 1 / (2 * N)
+    jac[-2, N + 1:2 * N + 2] = M * 0 + 1 / N
+    jac[-2, N + 1] = 1 / (2 * N)
+    jac[-2, 2 * N + 1] = 1 / (2 * N)
     
     # Derivative of the wave height criterion
-    jac[N + 1, -1] = 1
-    jac[2 * N + 1, -1] = -1
+    jac[-1, N + 1] = 1
+    jac[-1, 2 * N + 1] = -1
     
     # For debugging and comparing to fprime_num
     # print('coeffs = [%s]' % ', '.join(repr(ci) for ci in coeffs))
     # print('H, k, D, J, M =', ', '.join(repr(ci) for ci in (H, k, D, J, M)))
     
     return jac
+

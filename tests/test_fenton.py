@@ -36,7 +36,7 @@ def _test_long_flat_wave():
     fwave = FentonWave(height=1, depth=5000, length=100, N=10)
     
     h = fwave.surface_elevation(0)
-    assert abs(h - 1) < 1e-6
+    assert abs(h - 0.5) < 1e-6
 
 
 def test_compare_fenton_m_01():
@@ -46,7 +46,8 @@ def test_compare_fenton_m_01():
     """
     from raschii import FentonWave
     
-    fwave = FentonWave(height=0.1, depth=0.5, length=2, N=10)
+    fwave = FentonWave(height=0.2, depth=0.5, length=2, N=10)
+    py_res = fwave.data
     
     ml_eta = [625.633134481387e-3, 608.838129402900e-3, 574.190216147621e-3,
               538.287549720044e-3, 506.621746098552e-3, 480.480195361792e-3,
@@ -56,15 +57,27 @@ def test_compare_fenton_m_01():
             131.328047779987e-6, 34.6376174890207e-6, 6.11862403532633e-6,
             1.09123607695571e-6, 238.738040611394e-6, 55.1743593679826e-6,
             11.0463615856899e-6]
-    ml_Q = 799.771104212840e-003
-    ml_R = 6.26369379030432e+000
-    ml_k = 4.18879020478639e+000
+    ml_res = {'eta': array(ml_eta), 'B': array([-1.8] + ml_B), 'Q': 799.771104212840e-3,
+              'R': 6.26369379030432, 'k': 4.18879020478639}
     
-    assert abs(fwave.eta - ml_eta).max() < 1e-15
-    assert abs(fwave.B - ml_B).max() < 1e-15
-    assert abs(fwave.Q - ml_Q) < 1e-15
-    assert abs(fwave.R - ml_R) < 1e-15
-    assert abs(fwave.coeffs['k'] - ml_k) < 1e-15
+    has_err = False
+    for name in ml_res:
+        ml = ml_res[name]
+        py = py_res[name]
+        print('%4s ml: %r\n%4s py: %r' % (name, ml, name, py), end=' ')
+
+        if hasattr(ml, 'size'):
+            err = abs(py - ml).max()
+        else:
+            err = abs(py - ml)
+
+        if err > 1e-2:
+            print('%r <--- ERROR' % err)
+            has_err = True
+        else:
+            print('%r' % err)
+    
+    assert not has_err
 
 
 if __name__ == '__main__':
@@ -73,3 +86,4 @@ if __name__ == '__main__':
     numpy.set_printoptions(linewidth=200, precision=3, suppress=True)
     test_fenton_jacobian()
     test_compare_fenton_m_01()
+
