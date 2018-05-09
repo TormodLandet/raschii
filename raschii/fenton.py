@@ -1,5 +1,5 @@
 from numpy import pi, sinh, cosh, tanh, cos, sin, zeros, arange, trapz, isfinite
-from numpy.linalg import solve
+from numpy.linalg import solve, cond
 from . import NonConvergenceError
 
 
@@ -19,13 +19,15 @@ class FentonWave:
         self.length = length
         self.N = N
         
-        self.coeffs = fenton_coefficients(height, depth, length, N, g)
+        self.coeffs = fenton_coefficients(height, depth, length, N)
         self.B = self.coeffs['B']
         self.Q = self.coeffs['Q']
         self.R = self.coeffs['R']
         self.eta = self.coeffs['eta'] * depth
         self.x = self.coeffs['x'] * depth
         self.k = self.coeffs['k'] / depth
+        self.c = self.coeffs['B'][0] * (g * depth)**0.5
+        self.T = length / self.c
     
     @property
     def coefficients(self):
@@ -38,7 +40,7 @@ class FentonWave:
         return None
 
 
-def fenton_coefficients(height, depth, length, N, g):
+def fenton_coefficients(height, depth, length, N, relax=1.0):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
     """
@@ -46,12 +48,12 @@ def fenton_coefficients(height, depth, length, N, g):
     H = height / depth
     lam = length / depth
     k = 2 * pi / lam
-    c = (tanh(k) / k) ** 0.5
+    c = (tanh(k) / k)**0.5
     D = 1
-    N_unknowns = 2 * N + 5
+    N_unknowns = 2 * (N + 1) + 2
     
     # Input data arrays
-    J = arange(0, N)
+    J = arange(1, N + 1)
     M = arange(0, N + 1)
     x = M * lam / (2 * N)
     
@@ -63,7 +65,7 @@ def fenton_coefficients(height, depth, length, N, g):
     Q = c
     R = 1 + 0.5 * c**2
     
-    def optimize(B, Q, R, eta, k, maxiter=100, tol=1e-6):
+    def optimize(B, Q, R, eta, maxiter=100, tol=1e-6, relax=1.0):
         """
         Find B, Q and R by Newton iterations starting from the given initial
         guesses. According to Rienecker and Fenton (1981) a linear theory
@@ -71,77 +73,164 @@ def fenton_coefficients(height, depth, length, N, g):
         guess from the optimization routine run with a slightly lower H should
         be used instead
         """
-        # Initial guess
+        # Insert initial guesses into coefficient vector
         coeffs = zeros(N_unknowns, float)
         coeffs[:N + 1] = B
         coeffs[N + 1:2 * N + 2] = eta
         coeffs[2 * N + 2] = Q
         coeffs[2 * N + 3] = R
-        coeffs[2 * N + 4] = k
-        f = func(coeffs)
+        f = func(coeffs, H, k, D, J, M)
         
-        for _ in range(maxiter):
-            jac = fprime(coeffs)
+        allc = [coeffs.copy()]
+        
+        def pl():
+            from matplotlib import pyplot
+            pyplot.clf()
+            for i, ci in enumerate(allc):
+                pyplot.plot(ci[N + 1:2 * N + 2], label=str(i))
+                pyplot.plot(ci[:N + 1], ls=':', label=str(i) + 'b')
+            pyplot.legend()
+            pyplot.show()
+        
+        for i in range(maxiter):
+            jac = fprime(coeffs, H, k, D, J, M)
+            print('Iteration %2d has condition number %.3e' % (i + 1, cond(jac)))
             delta = solve(jac, -f)
-            coeffs += delta
-            f = func(coeffs)
+            coeffs += delta * relax
+            f = func(coeffs, H, k, D, J, M)
             
-            assert all(isfinite(f))
+            allc.append(coeffs.copy())
+            # DEBUG: pl()
+            
             error = abs(f).max()
-            if error < tol:
-                return B, eta, Q, R, k, error
-        raise NonConvergenceError('Optimization did not converge, err = %r'
-                                  % error)
-    
-    def func(coeffs):
-        "The function to minimize"
-        B0 = coeffs[0]
-        B = coeffs[1:N + 1]
-        eta = coeffs[N + 1:2 * N + 2]
-        Q = coeffs[2 * N + 2]
-        R = coeffs[2 * N + 3]
-        k = coeffs[2 * N + 4]
-        
-        f = zeros(N_unknowns, float)
-        for m in range(N + 1):
-            S = sinh(J * k * eta[m])
-            C = cosh(J * k * eta[m])
-            c = cos(J * m * pi / N)
-            s = sin(J * m * pi / N)
-            CD = cosh(J * k * D)
-            
-            # Velocity at the free surface
-            um = B0 + k * J.dot(B * C / CD * c)
-            vm = 0 + k * J.dot(B * S / CD * s)
-            
-            # Enforce a streamline along the free surface
-            f[m] = B0 * eta[m] + B.dot(S / CD * c + Q)
-            
-            # Enforce the dynamic free surface boundary condition
-            f[N + 1 + m] = um**2 + vm**2 + eta[m] - R
-            
-        # Enforce mean(eta) = D
-        f[2 * N + 2] = 1 / (2 * N) * trapz(eta) - 1
-            
-        # Enforce eta_0 - eta_N = H
-        f[2 * N + 3] = eta[0] - eta[-1] - H
-        
-        # Enforce k = 2*pi/lambda
-        f[2 * N + 4] = k - 2 * pi / lam
-        
-        return f
-    
-    def fprime(coeffs):
-        "The Jacobian of the function to minimize"
-        dc = 1e-10
-        jac = zeros((N_unknowns, N_unknowns), float)
-        for i in range(N_unknowns):
-            cpdc = coeffs.copy()
-            cpdc[i] += dc
-            jac[i] = (func(cpdc) - func(coeffs)) / dc
-        return jac
+            if not isfinite(error):
+                raise NonConvergenceError('Optimization did not converge. Got '
+                                          '%r in iteration %d' % (error, i + 1))
+            elif error < tol:
+                B = coeffs[:N + 1]
+                eta = coeffs[N + 1:2 * N + 2]
+                Q = coeffs[2 * N + 2]
+                R = coeffs[2 * N + 3]
+                return B, eta, Q, R, error
+        raise NonConvergenceError('Optimization did not converge after %d'
+                                  'iterations, error = %r' % (i + 1, error))
     
     # Perform optimization
-    B, eta, Q, R, k, error = optimize(B, Q, R, eta, k)
+    B, eta, Q, R, error = optimize(B, Q, R, eta, relax=relax)
     
     return dict(B=B, eta=eta, Q=Q, R=R, k=k, c=c, error=error, x=x)
+
+
+def func(coeffs, H, k, D, J, M):
+    "The function to minimize"
+    N_unknowns = coeffs.size
+    N = (coeffs.size - 4) // 2
+    assert N == 10
+    
+    B0 = coeffs[0]
+    B = coeffs[1:N + 1]
+    eta = coeffs[N + 1:2 * N + 2]
+    Q = coeffs[2 * N + 2]
+    R = coeffs[2 * N + 3]
+    
+    # The function to me minimized
+    f = zeros(N_unknowns, float)
+    
+    # Loop over the N + 1 points along the half wave
+    for m in M:
+        S1 = sinh(J * k * eta[m])
+        C1 = cosh(J * k * eta[m])
+        S2 = sin(J * m * pi / N)
+        C2 = cos(J * m * pi / N)
+        CD = cosh(J * k * D)
+        
+        # Velocity at the free surface
+        um = B0 + k * J.dot(B * C1 / CD * C2)
+        vm = 0 + k * J.dot(B * S1 / CD * S2)
+        
+        # Enforce a streamline along the free surface
+        f[m] = B0 * eta[m] + B.dot(S1 / CD * C2) + Q
+        
+        # Enforce the dynamic free surface boundary condition
+        f[N + 1 + m] = (um**2 + vm**2) / 2 + eta[m] - R
+        
+    # Enforce mean(eta) = D
+    f[-2] = trapz(eta) / N - 1
+        
+    # Enforce eta_0 - eta_N = H, the wave height criterion
+    f[-1] = eta[0] - eta[-1] - H
+    
+    return f
+
+
+def fprime_num(coeffs, H, k, D, J, M):
+    "The Jacobian of the function to minimize (numerical version)"
+    N_unknowns = coeffs.size
+    N = (coeffs.size - 4) // 2
+    assert N == 10
+    
+    dc = 1e-10
+    jac = zeros((N_unknowns, N_unknowns), float)
+    f0 = func(coeffs, H, k, D, J, M)
+    for i in range(N_unknowns):
+        incr = zeros(N_unknowns, float)
+        incr[i] = dc
+        f1 = func(coeffs + incr, H, k, D, J, M)
+        jac[i] = (f1 - f0) / dc
+    return jac
+
+
+def fprime(coeffs, H, k, D, J, M):
+    "The Jacobian of the function to minimize"
+    N_unknowns = coeffs.size
+    N = (coeffs.size - 4) // 2
+    assert N == 10
+    
+    jac = zeros((N_unknowns, N_unknowns), float)
+    B0 = coeffs[0]
+    B = coeffs[1:N + 1]
+    eta = coeffs[N + 1:2 * N + 2]
+    
+    for m in range(N + 1):
+        S1 = sinh(J * k * eta[m])
+        C1 = cosh(J * k * eta[m])
+        S2 = sin(J * m * pi / N)
+        C2 = cos(J * m * pi / N)
+        CD = cosh(J * k * D)
+        
+        SC = S1 / CD * C2
+        SS = S1 / CD * S2
+        CC = C1 / CD * C2
+        CS = C1 / CD * S2
+        
+        # Velocity at the free surface
+        um = B0 + k * J.dot(B * CC)
+        vm = 0 + k * J.dot(B * SS)
+        
+        # Derivatives of the eq. for the streamline along the free surface
+        jac[N + 1 + m, m] = um
+        jac[0, 0:N + 1] = eta  # FIXME: this is different sign than in the paper <--------------------------
+        jac[1:N + 1, m] = SC
+        jac[-2, m] = 1
+        
+        # Derivatives of the dynamic free surface boundary condition
+        jac[N + 1 + m, N + 1 + m] = 1 + (um * k**2 * B.dot(J**2 * SC) +
+                                         vm * k**2 * B.dot(J**2 * CS))
+        jac[-1, N + 1 + m] = -1
+        jac[0, N + 1 + m] = um  # FIXME: this is different sign than in the paper <--------------------------
+        jac[1:N + 1, N + 1 + m] = k * um * J * CC + k * vm * J * SS
+    
+    # Derivative of mean(eta) = 1
+    jac[N + 1:2 * N + 2, -2] = M * 0 + 1 / N
+    jac[N + 1, -2] = 1 / (2 * N)
+    jac[2 * N + 1, -2] = 1 / (2 * N)
+    
+    # Derivative of the wave height criterion
+    jac[N + 1, -1] = 1
+    jac[2 * N + 1, -1] = -1
+    
+    # For debugging and comparing to fprime_num
+    # print('coeffs = [%s]' % ', '.join(repr(ci) for ci in coeffs))
+    # print('H, k, D, J, M =', ', '.join(repr(ci) for ci in (H, k, D, J, M)))
+    
+    return jac
