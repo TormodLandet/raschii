@@ -124,7 +124,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, relax=0.3):
             'Q': Q * (g * depth**3)**0.5,
             'R': R * g * depth,
             'k': k / depth,
-            'c': c * (g * depth)**0.5,
+            'c': B[0] * (g * depth)**0.5,
             'error': error,
             'x': x * depth}
 
