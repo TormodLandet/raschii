@@ -5,6 +5,8 @@ syntax: glob
 !/.circleci
 *.pyc
 *.png
+*.js
+*.map
 build/
 dist/
 *egg-info*
