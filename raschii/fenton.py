@@ -1,6 +1,6 @@
 import math
-from numpy import (pi, cos, sin, zeros, ones, arange, trapz,
-                   isfinite, newaxis, array, linspace)
+from numpy import (pi, cos, sin, zeros, ones, arange, trapz, isfinite, newaxis,
+                   array, asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
 from . import NonConvergenceError
 
@@ -34,7 +34,7 @@ class FentonWave:
         self.eta = data['eta']         # Wave elevation at colocation points
         self.x = data['x']             # Positions of colocation points
         self.k = data['k']             # Wave number
-        self.c = data['B'][0]          # Phase speed
+        self.c = data['c']             # Phase speed
         self.cs = self.c - data['Q']   # Mean Stokes drift speed
         self.T = self.length / self.c  # Wave period
         
@@ -45,22 +45,50 @@ class FentonWave:
         self.E = trapz(self.eta * cos(J * J[:, newaxis] * pi / N))
     
     def surface_elevation(self, x, t=0):
+        """
+        Compute the surface elavation at time t for position(s) x
+        """
+        if isinstance(x, (float, int)):
+            x = array([x], float)
+        x = asarray(x)
+        
         # Cosine transformation of the elevation
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
         return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
     
-    def velocity(self, x, z):
+    def velocity(self, x, z, t=0):
+        """
+        Compute the fluid velocity at time t for position(s) (x, z)
+        """
         if isinstance(x, (float, int)):
-            x = array([x], float)
-            z = array([z], float)
-        vel = zeros((x.size, 2), float)
-        return vel + 1
+            x, z = [x], [z]
+        x = asarray(x, dtype=float)
+        z = asarray(z, dtype=float)
+        
+        N = len(self.eta) - 1
+        B = self.data['B']
+        k = self.k
+        c = self.c
+        x = x - c * t
+        J = arange(1, N + 1)
+        
+        vel = zeros((x.size, 2), float) + 1
+        vel[:, 0] = k * (B[1:] * cos(J * k * x[:, newaxis]) *
+                         cosh(J * k * z[:, newaxis]) /
+                         cosh(J * k * self.depth)).dot(J)
+        vel[:, 1] = k * (B[1:] * sin(J * k * x[:, newaxis]) *
+                         sinh(J * k * z[:, newaxis]) /
+                         cosh(J * k * self.depth)).dot(J)
+        zmax = self.surface_elevation(x, t)
+        vel[z > zmax] = 0
+        
+        return vel
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
-                        tolerance=1e-8, relax=1.0, num_steps=10):
+                        tolerance=1e-8, relax=1.0, num_steps=None):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
     
@@ -85,7 +113,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         Initial guesses for the unknowns (linear wave)
         """
         B = zeros(N + 1, float)
-        B[0] = -c
+        B[0] = c
         B[1] = -H / (4 * c * k)
         eta = 1 + H / 2 * cos(k * x)
         Q = c
@@ -202,11 +230,13 @@ def func(coeffs, H, k, D, J, M):
         C2 = cos(J * m * pi / N)
         
         # Velocity at the free surface
-        um = B0 + k * J.dot(B * C1 * C2)
+        # The sign of B0 is swapped from what is in the paper
+        um = -B0 + k * J.dot(B * C1 * C2)
         vm = 0 + k * J.dot(B * S1 * S2)
         
         # Enforce a streamline along the free surface
-        f[m] = B0 * eta[m] + B.dot(S1 * C2) + Q
+        # The sign of B0 is swapped from what is in the paper
+        f[m] = -B0 * eta[m] + B.dot(S1 * C2) + Q
         
         # Enforce the dynamic free surface boundary condition
         f[N + 1 + m] = (um**2 + vm**2) / 2 + eta[m] - R
@@ -256,12 +286,12 @@ def fprime(coeffs, H, k, D, J, M):
         CS = C1 * S2
         
         # Velocity at the free surface
-        um = B0 + k * J.dot(B * CC)
+        um = -B0 + k * J.dot(B * CC)
         vm = 0 + k * J.dot(B * SS)
         
         # Derivatives of the eq. for the streamline along the free surface
         jac[m, N + 1 + m] = um
-        jac[0:N + 1, 0] = eta  # sign swapped from what is in the paper
+        jac[0:N + 1, 0] = -eta
         jac[m, 1:N + 1] = SC
         jac[m, -2] = 1
         
@@ -269,7 +299,7 @@ def fprime(coeffs, H, k, D, J, M):
         jac[N + 1 + m, N + 1 + m] = 1 + (um * k**2 * B.dot(J**2 * SC) +
                                          vm * k**2 * B.dot(J**2 * CS))
         jac[N + 1 + m, -1] = -1
-        jac[N + 1 + m, 0] = um  # sign swapped from what is in the paper
+        jac[N + 1 + m, 0] = -um
         jac[N + 1 + m, 1:N + 1] = k * um * J * CC + k * vm * J * SS
     
     # Derivative of mean(eta) = 1

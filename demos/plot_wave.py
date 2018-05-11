@@ -13,8 +13,22 @@ def plot_wave(wave_type, height, depth, length, N, linear):
         args['N'] = N
     wave = WaveClass(**args)
     
+    # Vertical axis limits
+    ymax = depth + height
+    ymin = max(depth - length * 2, 0)    # Include only 2 wave lengths dept,
+    ymin = max(depth - height *10, ymin) # but no more than 10 wave heights
+    
+    # Get elevation
     x = numpy.linspace(0, length/2, 200)
     eta = wave.surface_elevation(x)
+    
+    # Get velocity
+    X, Y = numpy.meshgrid(numpy.linspace(x[0], x[-1], 11),
+                          numpy.linspace(ymin, eta.max(), 11))
+    vel = wave.velocity(X.ravel(), Y.ravel())
+    U = vel[:,0].reshape(X.shape)
+    V = vel[:,1].reshape(X.shape)
+    # mag_max = (vel[:,0]**2 + vel[:,1]**2)**0.5
     
     fig = pyplot.figure()
     ax = fig.add_subplot(111)
@@ -27,11 +41,10 @@ def plot_wave(wave_type, height, depth, length, N, linear):
     # Plot surface elevation (with colocation points)
     ax.plot(x, eta)
     ax.plot(wave.x, wave.eta, 'kx', ms=2)
-    
-    ymax = depth + height
-    ymin = max(depth - length * 2, 0)    # Include only 2 wave lengths dept,
-    ymin = max(depth - height *10, ymin) # but no more than 10 wave heights
     ax.set_ylim(ymin, ymax)
+    
+    # Plot the velocity components
+    ax.quiver(X, Y, U, V)
     
     pyplot.show()
 
