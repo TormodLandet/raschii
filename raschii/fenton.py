@@ -1,10 +1,14 @@
-from numpy import pi, sinh, cosh, tanh, cos, sin, zeros, arange, trapz, isfinite
-from numpy.linalg import solve, cond
+import math
+from numpy import (pi, cos, sin, zeros, ones, arange, trapz,
+                   isfinite, newaxis, array)
+from numpy.linalg import solve
 from . import NonConvergenceError
 
 
 class FentonWave:
-    def __init__(self, height, depth, length, N, g=9.81):
+    required_input = ('height', 'depth', 'length', 'N')
+    
+    def __init__(self, height, depth, length, N, g=9.81, relax=0.3):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
@@ -18,34 +22,56 @@ class FentonWave:
         self.depth = depth
         self.length = length
         self.N = N
+        self.g = g
+        self.relax = relax
         
-        self.data = fenton_coefficients(height, depth, length, N, g)
-        self.eta = self.data['eta']
-        self.x = self.data['x']
-        self.k = self.data['k']
-        self.c = self.data['B'][0]
-        self.T = length / self.c
+        # Find the coeffients through optimization
+        data = fenton_coefficients(height, depth, length, N, g, relax=relax)
+        self.set_data(data)
     
-    @property
-    def coefficients(self):
-        return (self.B, self.Q, self.R)
+    def set_data(self, data):
+        self.data = data
+        self.eta = data['eta']         # Wave elevation at colocation points
+        self.x = data['x']             # Positions of colocation points
+        self.k = data['k']             # Wave number
+        self.c = data['B'][0]          # Phase speed
+        self.cs = self.c - data['Q']   # Mean Stokes drift speed
+        self.T = self.length / self.c  # Wave period
+        
+        # Cosine series coefficients for the elevation
+        N = len(self.eta) - 1
+        self.E = zeros(N + 1, float)
+        I = arange(0, N + 1)
+        self.E = trapz(self.eta * cos(I * I[:, newaxis] * pi / N))
     
-    def surface_elevation(self, x):
-        return None
+    def surface_elevation(self, x, t=0):
+        # Cosine transformation of the elevation
+        N = len(self.eta) - 1
+        I = arange(0, N + 1)
+        k, c = self.k, self.c
+        return 2 * trapz(self.E * cos(I * k * (x[:, newaxis] - c * t))) / N
     
     def velocity(self, x, z):
-        return None
+        if isinstance(x, (float, int)):
+            x = array([x], float)
+            z = array([z], float)
+        vel = zeros((x.size, 2), float)
+        return vel + 1
 
 
-def fenton_coefficients(height, depth, length, N, g=9.8, relax=0.3):
+def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
+                        tolerance=1e-8, relax=1.0):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
+    
+    Using relaxation can help in some difficult cases, try a value less than 1
+    to decrease convergence speed, but increase chances of converging.
     """
     # Non dimensionalised input
     H = height / depth
     lam = length / depth
     k = 2 * pi / lam
-    c = (tanh(k) / k)**0.5
+    c = (math.tanh(k) / k)**0.5
     D = 1
     N_unknowns = 2 * (N + 1) + 2
     
@@ -54,21 +80,25 @@ def fenton_coefficients(height, depth, length, N, g=9.8, relax=0.3):
     M = arange(0, N + 1)
     x = M * lam / (2 * N)
     
-    # Initial guesses for the unknowns (linear wave)
-    B = zeros(N + 1, float)
-    B[0] = -c
-    B[1] = -H / (4 * c * k)
-    eta = 1 + H / 2 * cos(k * x)
-    Q = c
-    R = 1 + 0.5 * c**2
+    def initial_guess(H):
+        """
+        Initial guesses for the unknowns (linear wave)
+        """
+        B = zeros(N + 1, float)
+        B[0] = -c
+        B[1] = -H / (4 * c * k)
+        eta = 1 + H / 2 * cos(k * x)
+        Q = c
+        R = 1 + 0.5 * c**2
+        return B, Q, R, eta
     
-    def optimize(B, Q, R, eta, maxiter=100, tol=1e-8, relax=1.0):
+    def optimize(B, Q, R, eta, H):
         """
         Find B, Q and R by Newton iterations starting from the given initial
         guesses. According to Rienecker and Fenton (1981) a linear theory
         initial guess should work unless H close to breaking, then an initial
         guess from the optimization routine run with a slightly lower H should
-        be used instead
+        be used instead.
         """
         # Insert initial guesses into coefficient vector
         coeffs = zeros(N_unknowns, float)
@@ -78,55 +108,60 @@ def fenton_coefficients(height, depth, length, N, g=9.8, relax=0.3):
         coeffs[2 * N + 3] = R
         f = func(coeffs, H, k, D, J, M)
         
-        allc = [coeffs.copy()]
-        
-        def pl():
-            from matplotlib import pyplot
-            pyplot.clf()
-            for i, ci in enumerate(allc):
-                pyplot.subplot(211)
-                pyplot.plot(ci[N + 1:2 * N + 2], label=str(i))
-                pyplot.subplot(212)
-                pyplot.plot(ci[:N + 1], label=str(i))
-            pyplot.legend()
-            pyplot.show()
-        
-        for i in range(maxiter):
+        for it in range(1, maxiter+1):
             jac = fprime(coeffs, H, k, D, J, M)
             delta = solve(jac, -f)
             coeffs += delta * relax
             f = func(coeffs, H, k, D, J, M)
             
-            # DEBUG
-            # allc.append(coeffs.copy())
-            # pl()
-            
+            # Check the progress
             error = abs(f).max()
-            print('Iteration %2d has condition number %.3e, error %.3e' %
-                  (i + 1, cond(jac), error))
-            if not isfinite(error):
+            eta_max = coeffs[N + 1:2 * N + 2].max()
+            eta_min = coeffs[N + 1:2 * N + 2].min()
+            if eta_max > depth * 2:
                 raise NonConvergenceError('Optimization did not converge. Got '
-                                          '%r in iteration %d' % (error, i + 1))
-            elif error < tol:
+                    'max(eta)/depth = %r in iteration %d' % (eta_max, it))
+            elif eta_min < 0.1 * depth:
+                raise NonConvergenceError('Optimization did not converge. Got '
+                    'min(eta)/depth = %r in iteration %d' % (eta_min, it))
+            elif not isfinite(error):
+                raise NonConvergenceError('Optimization did not converge. Got '
+                    'error %r in iteration %d' % (error, it))
+            elif error < tolerance:
                 B = coeffs[:N + 1]
                 eta = coeffs[N + 1:2 * N + 2]
                 Q = coeffs[2 * N + 2]
                 R = coeffs[2 * N + 3]
-                return B, eta, Q, R, error
-        raise NonConvergenceError('Optimization did not converge after %d'
-                                  'iterations, error = %r' % (i + 1, error))
+                return B, Q, R, eta, error, it
+        raise NonConvergenceError('Optimization did not converge after %d '
+                                  'iterations, error = %r' % (it, error))
+    
+    # Compute the breaking height to select our strategy
+    Hb = 0.142 * math.tanh(2 * pi * depth / length) * length
     
     # Perform optimization
-    B, eta, Q, R, error = optimize(B, Q, R, eta, relax=relax)
+    if height < 0.60 * Hb:
+        # Go right for the correct wave height
+        B, Q, R, eta = initial_guess(H)
+        B, Q, R, eta, error, niter = optimize(B, Q, R, eta, H)
+    else:
+        # Try with progressively higher waves to get better initial conditions
+        B, Q, R, eta = initial_guess(H * 0.60)
+        for fac in (0.60, 0.70, 0.80, 0.90, 0.95, 1.0):
+            B, Q, R, eta, error, niter = optimize(B, Q, R, eta, H * fac)
     
-    return {'B': B * (g * depth)**0.5,
+    # Scale back to physical space
+    B[0] *= (g * depth)**0.5
+    B[1:] *= (g * depth**2)**0.5
+    return {'x': x * depth,
             'eta': eta * depth,
+            'B': B,
             'Q': Q * (g * depth**3)**0.5,
             'R': R * g * depth,
             'k': k / depth,
-            'c': B[0] * (g * depth)**0.5,
+            'c': B[0],
             'error': error,
-            'x': x * depth}
+            'niter': niter}
 
 
 def func(coeffs, H, k, D, J, M):
@@ -145,18 +180,17 @@ def func(coeffs, H, k, D, J, M):
     
     # Loop over the N + 1 points along the half wave
     for m in M:
-        S1 = sinh(J * k * eta[m])
-        C1 = cosh(J * k * eta[m])
+        S1 = sinh_by_cosh(J * k * eta[m], J * k * D)
+        C1 = cosh_by_cosh(J * k * eta[m], J * k * D)
         S2 = sin(J * m * pi / N)
         C2 = cos(J * m * pi / N)
-        CD = cosh(J * k * D)
         
         # Velocity at the free surface
-        um = B0 + k * J.dot(B * C1 / CD * C2)
-        vm = 0 + k * J.dot(B * S1 / CD * S2)
+        um = B0 + k * J.dot(B * C1 * C2)
+        vm = 0 + k * J.dot(B * S1 * S2)
         
         # Enforce a streamline along the free surface
-        f[m] = B0 * eta[m] + B.dot(S1 / CD * C2) + Q
+        f[m] = B0 * eta[m] + B.dot(S1 * C2) + Q
         
         # Enforce the dynamic free surface boundary condition
         f[N + 1 + m] = (um**2 + vm**2) / 2 + eta[m] - R
@@ -195,16 +229,15 @@ def fprime(coeffs, H, k, D, J, M):
     eta = coeffs[N + 1:2 * N + 2]
     
     for m in range(N + 1):
-        S1 = sinh(J * k * eta[m])
-        C1 = cosh(J * k * eta[m])
+        S1 = sinh_by_cosh(J * k * eta[m], J * k * D)
+        C1 = cosh_by_cosh(J * k * eta[m], J * k * D)
         S2 = sin(J * m * pi / N)
         C2 = cos(J * m * pi / N)
-        CD = cosh(J * k * D)
         
-        SC = S1 / CD * C2
-        SS = S1 / CD * S2
-        CC = C1 / CD * C2
-        CS = C1 / CD * S2
+        SC = S1 * C2
+        SS = S1 * S2
+        CC = C1 * C2
+        CS = C1 * S2
         
         # Velocity at the free surface
         um = B0 + k * J.dot(B * CC)
@@ -212,7 +245,7 @@ def fprime(coeffs, H, k, D, J, M):
         
         # Derivatives of the eq. for the streamline along the free surface
         jac[m, N + 1 + m] = um
-        jac[0:N + 1, 0] = eta  # FIXME: this is different sign than in the paper <--------------------------
+        jac[0:N + 1, 0] = eta  # sign swapped from what is in the paper
         jac[m, 1:N + 1] = SC
         jac[m, -2] = 1
         
@@ -220,7 +253,7 @@ def fprime(coeffs, H, k, D, J, M):
         jac[N + 1 + m, N + 1 + m] = 1 + (um * k**2 * B.dot(J**2 * SC) +
                                          vm * k**2 * B.dot(J**2 * CS))
         jac[N + 1 + m, -1] = -1
-        jac[N + 1 + m, 0] = um  # FIXME: this is different sign than in the paper <--------------------------
+        jac[N + 1 + m, 0] = um  # sign swapped from what is in the paper
         jac[N + 1 + m, 1:N + 1] = k * um * J * CC + k * vm * J * SS
     
     # Derivative of mean(eta) = 1
@@ -232,9 +265,42 @@ def fprime(coeffs, H, k, D, J, M):
     jac[-1, N + 1] = 1
     jac[-1, 2 * N + 1] = -1
     
-    # For debugging and comparing to fprime_num
-    # print('coeffs = [%s]' % ', '.join(repr(ci) for ci in coeffs))
-    # print('H, k, D, J, M =', ', '.join(repr(ci) for ci in (H, k, D, J, M)))
-    
     return jac
 
+
+def sinh_by_cosh(a, b):
+    """
+    A version of sinh(a)/cosh(b) where "b = a * f" and f is close
+    to 1. This can then be written exp(a * (1 - f)) for large a
+    """
+    ans = zeros(a.size, float)
+    for i, (ai, bi) in enumerate(zip(a, b)):
+        if ai == 0:
+            continue
+        f = bi / ai
+        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+            ans[i] = math.exp(ai * (1 - f))
+        else:
+            sa = math.sinh(ai)
+            cb = math.cosh(bi)
+            ans[i] = sa / cb 
+    return ans
+
+
+def cosh_by_cosh(a, b):
+    """
+    A version of cosh(a)/cosh(b) where "b = a * f" and f is close
+    to 1. This can then be written exp(a * (1 - f)) for large a
+    """
+    ans = ones(a.size, float)
+    for i, (ai, bi) in enumerate(zip(a, b)):
+        if ai == 0:
+            continue
+        f = bi / ai
+        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+            ans[i] = math.exp(ai * (1 - f))
+        else:
+            ca = math.cosh(ai)
+            cb = math.cosh(bi)
+            ans[i] = ca / cb
+    return ans

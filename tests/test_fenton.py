@@ -1,4 +1,61 @@
+import numpy
 from numpy import array
+
+
+def test_sinh_by_cosh():
+    from raschii.fenton import sinh_by_cosh
+    
+    end = 45
+    worst_err1 = worst_err2 = 0
+    for f in numpy.linspace(0.001, 2, 100):
+        # Compute the two approximations
+        a = numpy.linspace(0, end, 1001)
+        b = numpy.linspace(0, end, 1001) * f
+        f1 = numpy.sinh(a) / numpy.cosh(b)
+        f2 = sinh_by_cosh(a, b)
+        
+        # Compute the absolute and the relative error
+        err = abs(f1 - f2)
+        imax = numpy.argmax(err)
+        if err.max() == 0:
+            e1 = e2 = 0
+        else:
+            e1 = err.max()
+            e2 = err[imax] / f1[imax]
+        
+        worst_err1 = max(worst_err1, e1)
+        worst_err2 = max(worst_err2, e2)
+    print('Worst error is', worst_err1, worst_err2)
+    assert worst_err1 < 1e-6
+    assert worst_err2 < 1e-12
+
+
+def test_cosh_by_cosh():
+    from raschii.fenton import cosh_by_cosh
+    
+    end = 45
+    worst_err1 = worst_err2 = 0
+    for f in numpy.linspace(0.001, 2, 100):
+        # Compute the two approximations
+        a = numpy.linspace(0, end, 1001)
+        b = numpy.linspace(0, end, 1001) * f
+        f1 = numpy.cosh(a) / numpy.cosh(b)
+        f2 = cosh_by_cosh(a, b)
+        
+        # Compute the absolute and the relative error
+        err = abs(f1 - f2)
+        imax = numpy.argmax(err)
+        if err.max() == 0:
+            e1 = e2 = 0
+        else:
+            e1 = err.max()
+            e2 = err[imax] / f1[imax]
+        
+        worst_err1 = max(worst_err1, e1)
+        worst_err2 = max(worst_err2, e2)
+    print('Worst error is', worst_err1, worst_err2)
+    assert worst_err1 < 1e-6
+    assert worst_err2 < 1e-12
 
 
 def test_fenton_jacobian():
@@ -105,8 +162,8 @@ def test_compare_fenton_m_01():
               'k': 3.14159265358979, 'c': ml_B[0]}
 
     # FIXME: what is this factor?
-    ml_B[1:] /= 0.8889151855881596
-  
+    ml_B[1:] /= 1.25711591
+    
     if False:
         from matplotlib import pyplot
         pyplot.plot(fwave.x, fwave.eta)
@@ -117,25 +174,24 @@ def test_compare_fenton_m_01():
     for name in ml_res:
         ml = ml_res[name]
         py = py_res[name]
-        print('%4s ml: %r\n%4s py: %r' % (name, ml, name, py), end=' ')
-
+        print('%s ml:\n%r\n%s py:\n%r' % (name, ml, name, py))
+        
         if hasattr(ml, 'size'):
             err = 1e100 if ml.size != py.size else abs(py - ml).max()
         else:
             err = abs(py - ml)
         
-        if err > 1e-2:
-            print('%r <--- ERROR' % err)
+        if err > 1e-7:
+            print('ERROR %s: %r' % (name, err))
             has_err = True
         else:
-            print('%r' % err)
+            print('diff %s: %r' % (name, err))
     
     assert not has_err
 
 
 if __name__ == '__main__':
     # For testing the tests
-    import numpy
     numpy.set_printoptions(linewidth=200, precision=3, suppress=True)
     test_fenton_jacobian()
     test_compare_fenton_m_01()
