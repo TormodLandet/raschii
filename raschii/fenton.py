@@ -1,6 +1,6 @@
 import math
 from numpy import (pi, cos, sin, zeros, ones, arange, trapz,
-                   isfinite, newaxis, array)
+                   isfinite, newaxis, array, linspace)
 from numpy.linalg import solve
 from . import NonConvergenceError
 
@@ -8,7 +8,7 @@ from . import NonConvergenceError
 class FentonWave:
     required_input = ('height', 'depth', 'length', 'N')
     
-    def __init__(self, height, depth, length, N, g=9.81, relax=0.3):
+    def __init__(self, height, depth, length, N, g=9.81, relax=0.5):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
@@ -60,7 +60,7 @@ class FentonWave:
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
-                        tolerance=1e-8, relax=1.0):
+                        tolerance=1e-8, relax=1.0, num_steps=10):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
     
@@ -108,7 +108,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         coeffs[2 * N + 3] = R
         f = func(coeffs, H, k, D, J, M)
         
-        for it in range(1, maxiter+1):
+        for it in range(1, maxiter + 1):
             jac = fprime(coeffs, H, k, D, J, M)
             delta = solve(jac, -f)
             coeffs += delta * relax
@@ -118,15 +118,15 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
             error = abs(f).max()
             eta_max = coeffs[N + 1:2 * N + 2].max()
             eta_min = coeffs[N + 1:2 * N + 2].min()
-            if eta_max > depth * 2:
+            if eta_max > 2:
                 raise NonConvergenceError('Optimization did not converge. Got '
-                    'max(eta)/depth = %r in iteration %d' % (eta_max, it))
-            elif eta_min < 0.1 * depth:
+                                          'max(eta)/depth = %r in iteration %d' % (eta_max, it))
+            elif eta_min < 0.1:
                 raise NonConvergenceError('Optimization did not converge. Got '
-                    'min(eta)/depth = %r in iteration %d' % (eta_min, it))
+                                          'min(eta)/depth = %r in iteration %d' % (eta_min, it))
             elif not isfinite(error):
                 raise NonConvergenceError('Optimization did not converge. Got '
-                    'error %r in iteration %d' % (error, it))
+                                          'error %r in iteration %d' % (error, it))
             elif error < tolerance:
                 B = coeffs[:N + 1]
                 eta = coeffs[N + 1:2 * N + 2]
@@ -136,19 +136,11 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         raise NonConvergenceError('Optimization did not converge after %d '
                                   'iterations, error = %r' % (it, error))
     
-    # Compute the breaking height to select our strategy
-    Hb = 0.142 * math.tanh(2 * pi * depth / length) * length
-    
-    # Perform optimization
-    if height < 0.60 * Hb:
-        # Go right for the correct wave height
-        B, Q, R, eta = initial_guess(H)
-        B, Q, R, eta, error, niter = optimize(B, Q, R, eta, H)
-    else:
-        # Try with progressively higher waves to get better initial conditions
-        B, Q, R, eta = initial_guess(H * 0.60)
-        for fac in (0.60, 0.70, 0.80, 0.90, 0.95, 1.0):
-            B, Q, R, eta, error, niter = optimize(B, Q, R, eta, H * fac)
+    # Perform the optimization, optionally in steps gradually increasing H
+    steps = wave_height_steps(num_steps, D, lam, H)
+    B, Q, R, eta = initial_guess(steps[0])
+    for Hi in steps:
+        B, Q, R, eta, error, niter = optimize(B, Q, R, eta, Hi)
     
     # Scale back to physical space
     B[0] *= (g * depth)**0.5
@@ -162,6 +154,30 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
             'c': B[0],
             'error': error,
             'niter': niter}
+
+
+def wave_height_steps(num_steps, D, lam, H):
+    """
+    Compute the breaking height and use this to select how many steps take when
+    gradually increasing the wave height to improve convergence on high waves
+    """
+    # Breaking height
+    Hb = 0.142 * math.tanh(2 * pi * D / lam) * lam
+    
+    # Try with progressively higher waves to get better initial conditions
+    if num_steps is not None:
+        pass
+    if H > 0.75 * Hb:
+        num_steps = 10
+    elif H > 0.65 * Hb:
+        num_steps = 5
+    else:
+        num_steps = 3
+    
+    if num_steps == 1:
+        return [H]
+    else:
+        return linspace(H / num_steps, H, num_steps)
 
 
 def func(coeffs, H, k, D, J, M):
@@ -283,7 +299,7 @@ def sinh_by_cosh(a, b):
         else:
             sa = math.sinh(ai)
             cb = math.cosh(bi)
-            ans[i] = sa / cb 
+            ans[i] = sa / cb
     return ans
 
 

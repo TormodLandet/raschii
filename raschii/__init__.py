@@ -26,7 +26,7 @@ def check_breaking_criteria(height, depth, length):
     being close to a breaking criterion
     """
     from math import pi, tanh
-    h1 = 0.14 * length 
+    h1 = 0.14 * length
     h2 = 0.78 * depth
     h3 = 0.142 * tanh(2 * pi * depth / length) * length
     
@@ -38,5 +38,5 @@ def check_breaking_criteria(height, depth, length):
             err += '%s is exceeded, %.2f > %.2f\n' % (name, height, hmax)
         elif height > hmax * 0.9:
             warn += '%s is close to exceeded, %.2f = %.2f * %.3f\n' % \
-                (name, height, hmax, height/hmax)
+                (name, height, hmax, height / hmax)
     return err, warn

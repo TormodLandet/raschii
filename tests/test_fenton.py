@@ -101,9 +101,13 @@ def test_compare_fenton_m_01():
     Compare with results obtained by
     https://github.com/roenby/fentonWave/blob/master/tests/fenton.m
     """
-    from raschii import FentonWave
-    
-    fwave = FentonWave(height=0.2, depth=0.5, length=2, N=30)
+    from raschii import FentonWave, check_breaking_criteria
+    height = 0.2
+    depth = 0.5
+    length = 2
+    N = 30
+    print(*check_breaking_criteria(height, depth, length))
+    fwave = FentonWave(height, depth, length, N)
     py_res = fwave.data
     
     ml_eta = array([6.256332118992537e-01, 6.235402803532166e-01,
