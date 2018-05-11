@@ -41,15 +41,15 @@ class FentonWave:
         # Cosine series coefficients for the elevation
         N = len(self.eta) - 1
         self.E = zeros(N + 1, float)
-        I = arange(0, N + 1)
-        self.E = trapz(self.eta * cos(I * I[:, newaxis] * pi / N))
+        J = arange(0, N + 1)
+        self.E = trapz(self.eta * cos(J * J[:, newaxis] * pi / N))
     
     def surface_elevation(self, x, t=0):
         # Cosine transformation of the elevation
         N = len(self.eta) - 1
-        I = arange(0, N + 1)
+        J = arange(0, N + 1)
         k, c = self.k, self.c
-        return 2 * trapz(self.E * cos(I * k * (x[:, newaxis] - c * t))) / N
+        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
     
     def velocity(self, x, z):
         if isinstance(x, (float, int)):
