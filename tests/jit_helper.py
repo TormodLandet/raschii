@@ -14,7 +14,7 @@ pybind11_add_module(MODNAME jitmod.cpp)
 """
 
 
-def jit_compile(cpp_code, cache_dir):
+def jit_compile(cpp_code, cache_dir, verbose=True):
     """
     A simple JIT for C++ code using pybind11, included to test the generated C++
     code from the tests
@@ -47,12 +47,8 @@ def jit_compile(cpp_code, cache_dir):
         f.write(CMAKE_TEMPLATE.replace('MODNAME', modname))
     
     # Compile the module
-    try:
-        compile_mod(dirname)
-    except Exception:
-        print('Could not compile module', out=sys.stderr)
-        print('You can see the error in %s' % dirname, out=sys.stderr)
-        raise
+    if not compile_mod(dirname, verbose):
+        raise ValueError('Could not compile module in %s' % dirname)
     
     # Import the compiled module
     mod = import_mod(dirname, modname)
@@ -73,7 +69,7 @@ def import_mod(dirname, modname):
         del sys.path[0]
 
 
-def compile_mod(dirname):
+def compile_mod(dirname, verbose):
     # Compile the module
     stdoutf = os.path.join(dirname, 'stdout.txt')
     stderrf = os.path.join(dirname, 'stderr.txt')
@@ -84,7 +80,18 @@ def compile_mod(dirname):
         sh.write('cmake .\n')
         sh.write('make\n')
     with open(stdoutf, 'wb') as out, open(stderrf, 'wb') as err:
-        p = subprocess.Popen(['sh', shellscript], cwd=dirname,
-                             stdout=out, stderr=err)
-        assert p.wait() == 0
-
+        try:
+            p = subprocess.Popen(['sh', shellscript], cwd=dirname,
+                                 stdout=out, stderr=err)
+            ok = p.wait() == 0
+        except Exception as e:
+            err.write('\n\nGOT Python EXCEPTION\n%r' % repr(e))
+            ok = False
+    
+    if not ok:
+        print('#############################################################')
+        print('Compiler stdout:\n' + open(stdoutf, 'rt').read())
+        print('#############################################################')
+        print('Compiler stderr:\n' + open(stderrf, 'rt').read())
+        print('#############################################################')
+    return ok
