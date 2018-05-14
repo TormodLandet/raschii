@@ -7,8 +7,26 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install test dependencies
+          name: Install apt test dependencies
+          environment:
+              PYBIND11_VERSION=2.2.3
+          command: |
+              sudo apt install python3-dev cmake g++ wget
+      - run:
+          name: Install pip test dependencies
           command: sudo pip3 install pip pytest flake8 --upgrade
+      - run:
+          name: Install pybind11 (for testing generated C++ code)
+          environment:
+              PYBIND11_VERSION=2.2.3
+          command: |
+              mkdir build_pybind && cd build_pybind
+              wget -nc --quiet https://github.com/pybind/pybind11/archive/v${PYBIND11_VERSION}.tar.gz
+              tar -xf v${PYBIND11_VERSION}.tar.gz
+              cd pybind11-${PYBIND11_VERSION} && mkdir build && cd build
+              cmake -DPYBIND11_TEST=False ../
+              make && sudo make install
+              cd ../.. && rm -rf build_pybind
       - run:
           name: Install Raschii with its dependencies
           command: sudo pip3 install .
