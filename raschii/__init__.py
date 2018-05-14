@@ -8,11 +8,13 @@ SPDX-License-Identifier: Apache-2.0
 """
 __version__ = '1.0.0.dev0'
 from .common import check_breaking_criteria, RasciiError, NonConvergenceError
+from .airy import AiryWave
 from .fenton import FentonWave
 
 
 # The available wave models
 WAVE_MODELS = {
+    'Airy': AiryWave,
     'Fenton': FentonWave
 }
 

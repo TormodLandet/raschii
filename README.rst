@@ -1,9 +1,21 @@
 Raschii
 =======
 
-Raschii is a Python implementation of stream function wave theory and is named
-after `Thysanoessa raschii <https://en.wikipedia.org/wiki/Thysanoessa_raschii>`_,
-the Arctic Krill.
+Raschii is a Python library for constructing non-linear regular waves and is
+named after `Thysanoessa raschii
+<https://en.wikipedia.org/wiki/Thysanoessa_raschii>`_, the Arctic Krill.
+
+Supported wave models are currently:
+
+- Stream function waves (M. M. Rienecker and J. D. Fenton, 1981)
+- Airy waves, standard linar waves for completeness 
+
+Raschii includes a command line program to plot regular waves from the suported
+wave models and C++ code generation for using the results in other programs, 
+such as in FEniCS_ expressions for initial and boundary conditions in a FEM 
+solver.
+
+.. _FEniCS: https://www.fenicsproject.org/
 
 
 Installation and running
@@ -53,6 +65,9 @@ Version 1.0.0 - May XX. 2018
 The initial release of Raschii
 
 - Support for Fenton stream functions (Rienecker and Fenton, 1981)
+- Support for Airy waves
+- Support for C++ code generation (for FEniCS expressions etc)
+- Command line program for plotting waves
 
 
 Copyright and license
