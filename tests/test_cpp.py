@@ -59,4 +59,4 @@ def test_cpp_vs_py_elevation(tmpdir):
             e_py = model.surface_elevation(pos[0], t=1.3)[0]
             err = abs(e_cpp - e_py)
             print(model.__class__.__name__, pos, e_cpp, e_py, err)
-            assert err < 1e-16
+            assert err < 1e-14
