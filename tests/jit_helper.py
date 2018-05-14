@@ -75,8 +75,8 @@ def compile_mod(dirname, verbose):
     stderrf = os.path.join(dirname, 'stderr.txt')
     shellscript = os.path.join(dirname, 'runme.sh')
     with open(shellscript, 'wt') as sh:
-        sh.write('#!/bin/bash\n')
-        sh.write('set -euo pipefail\n')
+        sh.write('#!/bin/sh\n')
+        sh.write('set -eu\n')
         sh.write('cmake .\n')
         sh.write('make\n')
     with open(stdoutf, 'wb') as out, open(stderrf, 'wb') as err:
