@@ -2,7 +2,7 @@ import math
 from numpy import (pi, cos, sin, zeros, ones, arange, trapz, isfinite, newaxis,
                    array, asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
-from . import NonConvergenceError
+from .common import NonConvergenceError
 
 
 class FentonWave:
