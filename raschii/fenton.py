@@ -49,14 +49,14 @@ class FentonWave:
         Compute the surface elavation at time t for position(s) x
         """
         if isinstance(x, (float, int)):
-            x = array([x], float)
+            x = array([x, 0], float)
         x = asarray(x)
         
         # Cosine transformation of the elevation
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] + c * t))) / N
     
     def velocity(self, x, z, t=0):
         """
@@ -71,7 +71,7 @@ class FentonWave:
         B = self.data['B']
         k = self.k
         c = self.c
-        x = x - c * t
+        x = x + c * t
         J = arange(1, N + 1)
         
         vel = zeros((x.size, 2), float) + 1
@@ -85,6 +85,19 @@ class FentonWave:
         vel[z > zmax] = 0
         
         return vel
+    
+    def elevation_cpp(self):
+        """
+        Return C++ code for evaluating the elevation of this specific wave
+        """
+        N = self.E.size - 1
+        facs = self.E * 2 / N
+        facs[0] *= 0.5
+        facs[-1] *= 0.5
+        code = ' + '.join('%r * cos(%d * %r * (x[0] + %r * t))' %
+                          (facs[j], j, self.k, self.c)
+                          for j in range(0, N + 1))
+        return code
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,

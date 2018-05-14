@@ -45,16 +45,18 @@ def test_cpp_vs_py_elevation(tmpdir):
     """
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
-    # fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
+    # Create wave models
     airy = get_wave_model('Airy')(height=1, depth=10, length=20)
+    fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
     
     # Check that each model produces the same results in C++ and Python
-    for model in [airy]:
+    for model in [airy, fenton]:
         cpp = model.elevation_cpp()
         mod = jit_compile(cpp_wrapper.replace('CODE_GOES_HERE', cpp), cache_dir)
         
         for pos in ([0.0, 0.0], [4.0, 7.0]):
             e_cpp = mod.elevation(pos, t=1.3)
-            e_py = model.surface_elevation(pos[0], t=1.3)
-            print(model.__class__.__name__, pos, e_cpp, e_py)
-            assert abs(e_cpp - e_py[0]) < 1e-16
+            e_py = model.surface_elevation(pos[0], t=1.3)[0]
+            err = abs(e_cpp - e_py)
+            print(model.__class__.__name__, pos, e_cpp, e_py, err)
+            assert err < 1e-16
