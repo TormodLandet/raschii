@@ -53,10 +53,20 @@ class AiryWave:
         return vel
     
     def elevation_cpp(self):
+        """
+        Return C++ code for evaluating the elevation of this specific wave.
+        The positive traveling direction is x[0]
+        """
         return '%r + %r / 2.0 * cos(%r * (x[0] + %r * t))' % \
             (self.depth, self.height, self.k, self.c)
     
     def velocity_cpp(self):
+        """
+        Return C++ code for evaluating the particle velocities of this specific
+        wave. Returns the x and z components only with z positive upwards. The
+        positive traveling direction is x[0] and the vertical coordinate is x[2]
+        which is zero at the bottom and equal to +depth at the mean water level.
+        """
         H = self.height
         k = self.k
         d = self.depth

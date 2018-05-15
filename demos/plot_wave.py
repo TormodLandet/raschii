@@ -11,6 +11,7 @@ def plot_wave(model_names, height, depth, length, N):
     fig = pyplot.figure()
     ax = fig.add_subplot(111)
     
+    # Print some summary info about the waves
     head_format = '%15s  %10s %10s %10s %10s'
     info_format = '%15s  %10.3e %10.3e %10.3e %10.3e'
     print(head_format % ('', 'c', 'eta_max', 'eta_min', 'vel_max'))
@@ -61,8 +62,10 @@ def plot_wave(model_names, height, depth, length, N):
         vel_max = ((vel[:,0]**2 + vel[:,1]**2)**0.5).max()
         print(info_format % (model_name, wave.c, eta.max(), eta.min(), vel_max))
     
+    # Print the velocity scale
     print(head_format % ('scale', '', '', '', '%10.3e' % Uscale))
     
+    # Show a legend if there are more than one wave model being plotted
     if len(model_names) > 1:    
         ax.legend(loc='lower right')
         ax.set_title('Wave models %s' % ' and '.join(model_names))
