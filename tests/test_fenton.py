@@ -165,8 +165,8 @@ def test_compare_fenton_m_01():
               'Q': 0.873795415021738, 'R': 6.53355446469293,
               'k': 3.14159265358979, 'c': ml_B[0]}
 
-    # FIXME: what is this factor?
-    ml_B[1:] /= 1.25711591
+    # Scale the fenton.m results
+    ml_B[1:] *= (9.81 / ml_res['k']**3)**0.5
     
     if False:
         from matplotlib import pyplot

@@ -61,6 +61,7 @@ class FentonWave:
     def velocity(self, x, z, t=0):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
+        where z is 0 at the bottom and equal to depth at the free surface
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
@@ -88,7 +89,8 @@ class FentonWave:
     
     def elevation_cpp(self):
         """
-        Return C++ code for evaluating the elevation of this specific wave
+        Return C++ code for evaluating the elevation of this specific wave.
+        The positive traveling direction is x[0]
         """
         N = self.E.size - 1
         facs = self.E * 2 / N
@@ -98,6 +100,23 @@ class FentonWave:
                           (facs[j], j, self.k, self.c)
                           for j in range(0, N + 1))
         return code
+    
+    def velocity_cpp(self):
+        """
+        Return C++ code for evaluating the particle velocities of this specific
+        wave. Returns the x and z components only with z positive upwards. The
+        positive traveling direction is x[0] and the vertical coordinate is x[2]
+        which is zero at the bottom and equal to +depth at the mean water level.
+        """
+        
+#         N = len(self.eta) - 1
+#         J = arange(1, N + 1)
+#         B = self.data['B']
+#         k = self.k
+#         w = self.c * k
+#         s
+#         Jk = J * k
+#         facs = B[1:] * k * cosh(J * k * self.depth)
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
@@ -185,7 +204,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
     
     # Scale back to physical space
     B[0] *= (g * depth)**0.5
-    B[1:] *= (g * depth**2)**0.5
+    B[1:] *= (g * depth**3)**0.5
     return {'x': x * depth,
             'eta': eta * depth,
             'B': B,
