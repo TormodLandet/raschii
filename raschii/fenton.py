@@ -109,14 +109,23 @@ class FentonWave:
         which is zero at the bottom and equal to +depth at the mean water level.
         """
         
-#         N = len(self.eta) - 1
-#         J = arange(1, N + 1)
-#         B = self.data['B']
-#         k = self.k
-#         w = self.c * k
-#         s
-#         Jk = J * k
-#         facs = B[1:] * k * cosh(J * k * self.depth)
+        N = len(self.eta) - 1
+        J = arange(1, N + 1)
+        B = self.data['B']
+        k = self.k
+        w = self.c * k
+        
+        Jk = J * k
+        facs = J * B[1:] * k / cosh(Jk * self.depth)
+        
+        cpp_x = ' + '.join('%r * cos(%f * x[0] + %r * t) * cosh(%r * x[2])' %
+                           (facs[i], Jk[i], w, Jk[i]) for i in range(N))
+        cpp_z = ' + '.join('%r * sin(%f * x[0] + %r * t) * sinh(%r * x[2])' %
+                           (facs[i], Jk[i], w, Jk[i]) for i in range(N))
+        e_cpp = self.elevation_cpp()
+        
+        return ('x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_x),
+                'x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_z))
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,

@@ -93,10 +93,10 @@ def test_cpp_vs_py_velocity(tmpdir):
     
     # Create wave models
     airy = get_wave_model('Airy')(height=1, depth=10, length=20)
-    # fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
+    fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
     
     # Check that each model produces the same results in C++ and Python
-    for model in [airy]:
+    for model in [airy, fenton]:
         cppx, cppz = model.velocity_cpp()
         cpp = cpp_wrapper.replace('CODE_X_GOES_HERE', cppx)\
                          .replace('CODE_Z_GOES_HERE', cppz)\
@@ -108,6 +108,9 @@ def test_cpp_vs_py_velocity(tmpdir):
             vx_cpp = mod.vel_x(pos, t)
             vz_cpp = mod.vel_z(pos, t)
             vx_py, vz_py = model.velocity(pos[0], pos[1], t)[0]
-            err = abs(vx_cpp - vx_py) + abs(vz_cpp - vz_py)
-            print(model.__class__.__name__, pos, (vx_cpp, vz_cpp), (vx_py, vz_py), err)
-            assert err < 1e-14
+            
+            # Compute the relative error
+            rerr = abs((vx_cpp - vx_py) / vx_py) + abs((vz_cpp - vz_py) / vz_py)
+            print(model.__class__.__name__, pos, (vx_cpp, vz_cpp),
+                  (vx_py, vz_py), rerr)
+            assert rerr < 1e-2
