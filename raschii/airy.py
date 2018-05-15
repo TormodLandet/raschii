@@ -27,12 +27,12 @@ class AiryWave:
         if isinstance(x, (float, int)):
             x = array([x], float)
         x = asarray(x)
-        x = x + self.c * t
-        return self.depth + self.height / 2 * cos(self.k * x)
+        return self.depth + self.height / 2 * cos(self.k * x + self.omega * t)
     
     def velocity(self, x, z, t=0):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
+        where z is 0 at the bottom and equal to depth at the free surface
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
@@ -40,15 +40,13 @@ class AiryWave:
         z = asarray(z, dtype=float)
         
         H = self.height
-        c = self.c
         k = self.k
         d = self.depth
         w = self.omega
-        x = x + c * t
         
         vel = zeros((x.size, 2), float) + 1
-        vel[:, 0] = w * H / 2 * cosh(k * (z + d)) / sinh(k * d) * cos(k * x)
-        vel[:, 1] = w * H / 2 * sinh(k * (z + d)) / sinh(k * d) * sin(k * x)
+        vel[:, 0] = w * H / 2 * cosh(k * z) / sinh(k * d) * cos(k * x + w * t)
+        vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x + w * t)
         zmax = self.surface_elevation(x, t)
         vel[z > zmax] = 0
         
@@ -57,3 +55,18 @@ class AiryWave:
     def elevation_cpp(self):
         return '%r + %r / 2.0 * cos(%r * (x[0] + %r * t))' % \
             (self.depth, self.height, self.k, self.c)
+    
+    def velocity_cpp(self):
+        H = self.height
+        k = self.k
+        d = self.depth
+        w = self.omega
+        
+        cpp_x = '%r * cosh(%r * x[2]) * cos(%r * x[0] + %r * t)' %\
+                (w * H / (2 * sinh(k * d)), k, k, w)
+        cpp_z = '%r * sinh(%r * x[2]) * sin(%r * x[0] + %r * t)' %\
+                (w * H / (2 * sinh(k * d)), k, k, w)
+        e_cpp = self.elevation_cpp()
+        
+        return ('x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_x),
+                'x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_z))
