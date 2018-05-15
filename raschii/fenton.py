@@ -1,14 +1,17 @@
 import math
-from numpy import (pi, cos, sin, zeros, ones, arange, trapz, isfinite, newaxis,
-                   array, asarray, linspace, cosh, sinh)
+from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
+                   asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
-from .common import NonConvergenceError
+from .common import NonConvergenceError, sinh_by_cosh, cosh_by_cosh
+from .air_phase import StreamFunctionAirPhase
 
 
 class FentonWave:
-    required_input = ('height', 'depth', 'length', 'N')
+    required_input = {'height', 'depth', 'length', 'N'}
+    optional_input = {'relax': 0.5, 'g': 9.81, 'depth_air': None}
     
-    def __init__(self, height, depth, length, N, g=9.81, relax=0.5):
+    def __init__(self, height, depth, length, N, g=9.81, relax=0.5,
+                 depth_air=None):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
@@ -24,10 +27,17 @@ class FentonWave:
         self.N = N
         self.g = g
         self.relax = relax
+        self.depth_air = depth_air
+        self.include_air_phase = (depth_air is not None)
         
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
         self.set_data(data)
+        
+        # Provide velocities also in the air phase
+        if self.include_air_phase:
+            self.air = StreamFunctionAirPhase(self.x, self.eta, self.c, self.k,
+                                              depth, depth_air)
     
     def set_data(self, data):
         self.data = data
@@ -56,7 +66,7 @@ class FentonWave:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] + c * t))) / N
+        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
     
     def velocity(self, x, z, t=0):
         """
@@ -72,10 +82,10 @@ class FentonWave:
         B = self.data['B']
         k = self.k
         c = self.c
-        x = x + c * t
+        x = x - c * t
         J = arange(1, N + 1)
         
-        vel = zeros((x.size, 2), float) + 1
+        vel = zeros((x.size, 2), float)
         vel[:, 0] = k * (B[1:] * cos(J * k * x[:, newaxis]) *
                          cosh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
@@ -83,7 +93,13 @@ class FentonWave:
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
         zmax = self.surface_elevation(x, t)
-        vel[z > zmax] = 0
+        
+        above = z > zmax
+        if self.include_air_phase:
+            vel_air = self.air.velocity(x[above], z[above], t)
+            vel[above] = vel_air
+        else:
+            vel[above] = 0
         
         return vel
     
@@ -96,7 +112,7 @@ class FentonWave:
         facs = self.E * 2 / N
         facs[0] *= 0.5
         facs[-1] *= 0.5
-        code = ' + '.join('%r * cos(%d * %r * (x[0] + %r * t))' %
+        code = ' + '.join('%r * cos(%d * %r * (x[0] - %r * t))' %
                           (facs[j], j, self.k, self.c)
                           for j in range(0, N + 1))
         return code
@@ -118,9 +134,9 @@ class FentonWave:
         Jk = J * k
         facs = J * B[1:] * k / cosh(Jk * self.depth)
         
-        cpp_x = ' + '.join('%r * cos(%f * x[0] + %r * t) * cosh(%r * x[2])' %
+        cpp_x = ' + '.join('%r * cos(%f * x[0] - %r * t) * cosh(%r * x[2])' %
                            (facs[i], Jk[i], w, Jk[i]) for i in range(N))
-        cpp_z = ' + '.join('%r * sin(%f * x[0] + %r * t) * sinh(%r * x[2])' %
+        cpp_z = ' + '.join('%r * sin(%f * x[0] - %r * t) * sinh(%r * x[2])' %
                            (facs[i], Jk[i], w, Jk[i]) for i in range(N))
         e_cpp = self.elevation_cpp()
         
@@ -353,41 +369,3 @@ def fprime(coeffs, H, k, D, J, M):
     jac[-1, 2 * N + 1] = -1
     
     return jac
-
-
-def sinh_by_cosh(a, b):
-    """
-    A version of sinh(a)/cosh(b) where "b = a * f" and f is close
-    to 1. This can then be written exp(a * (1 - f)) for large a
-    """
-    ans = zeros(a.size, float)
-    for i, (ai, bi) in enumerate(zip(a, b)):
-        if ai == 0:
-            continue
-        f = bi / ai
-        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
-            ans[i] = math.exp(ai * (1 - f))
-        else:
-            sa = math.sinh(ai)
-            cb = math.cosh(bi)
-            ans[i] = sa / cb
-    return ans
-
-
-def cosh_by_cosh(a, b):
-    """
-    A version of cosh(a)/cosh(b) where "b = a * f" and f is close
-    to 1. This can then be written exp(a * (1 - f)) for large a
-    """
-    ans = ones(a.size, float)
-    for i, (ai, bi) in enumerate(zip(a, b)):
-        if ai == 0:
-            continue
-        f = bi / ai
-        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
-            ans[i] = math.exp(ai * (1 - f))
-        else:
-            ca = math.cosh(ai)
-            cb = math.cosh(bi)
-            ans[i] = ca / cb
-    return ans

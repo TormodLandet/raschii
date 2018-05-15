@@ -3,6 +3,7 @@ from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
 
 class AiryWave:
     required_input = ('height', 'depth', 'length')
+    optional_input = {'g': 9.81}
     
     def __init__(self, height, depth, length, g=9.81):
         """
@@ -27,7 +28,7 @@ class AiryWave:
         if isinstance(x, (float, int)):
             x = array([x], float)
         x = asarray(x)
-        return self.depth + self.height / 2 * cos(self.k * x + self.omega * t)
+        return self.depth + self.height / 2 * cos(self.k * x - self.omega * t)
     
     def velocity(self, x, z, t=0):
         """
@@ -45,8 +46,8 @@ class AiryWave:
         w = self.omega
         
         vel = zeros((x.size, 2), float) + 1
-        vel[:, 0] = w * H / 2 * cosh(k * z) / sinh(k * d) * cos(k * x + w * t)
-        vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x + w * t)
+        vel[:, 0] = w * H / 2 * cosh(k * z) / sinh(k * d) * cos(k * x - w * t)
+        vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x - w * t)
         zmax = self.surface_elevation(x, t)
         vel[z > zmax] = 0
         
@@ -57,7 +58,7 @@ class AiryWave:
         Return C++ code for evaluating the elevation of this specific wave.
         The positive traveling direction is x[0]
         """
-        return '%r + %r / 2.0 * cos(%r * (x[0] + %r * t))' % \
+        return '%r + %r / 2.0 * cos(%r * (x[0] - %r * t))' % \
             (self.depth, self.height, self.k, self.c)
     
     def velocity_cpp(self):
@@ -72,9 +73,9 @@ class AiryWave:
         d = self.depth
         w = self.omega
         
-        cpp_x = '%r * cosh(%r * x[2]) * cos(%r * x[0] + %r * t)' %\
+        cpp_x = '%r * cosh(%r * x[2]) * cos(%r * x[0] - %r * t)' %\
                 (w * H / (2 * sinh(k * d)), k, k, w)
-        cpp_z = '%r * sinh(%r * x[2]) * sin(%r * x[0] + %r * t)' %\
+        cpp_z = '%r * sinh(%r * x[2]) * sin(%r * x[0] - %r * t)' %\
                 (w * H / (2 * sinh(k * d)), k, k, w)
         e_cpp = self.elevation_cpp()
         

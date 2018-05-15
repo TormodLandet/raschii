@@ -1,4 +1,6 @@
+import math
 from math import pi, tanh
+import numpy
 
 
 class RasciiError(Exception):
@@ -29,3 +31,41 @@ def check_breaking_criteria(height, depth, length):
             warn += '%s is close to exceeded, %.2f = %.2f * %.3f\n' % \
                 (name, height, hmax, height / hmax)
     return err, warn
+
+
+def sinh_by_cosh(a, b):
+    """
+    A version of sinh(a)/cosh(b) where "b = a * f" and f is close
+    to 1. This can then be written exp(a * (1 - f)) for large a
+    """
+    ans = numpy.zeros(a.size, float)
+    for i, (ai, bi) in enumerate(zip(a, b)):
+        if ai == 0:
+            continue
+        f = bi / ai
+        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+            ans[i] = math.exp(ai * (1 - f))
+        else:
+            sa = math.sinh(ai)
+            cb = math.cosh(bi)
+            ans[i] = sa / cb
+    return ans
+
+
+def cosh_by_cosh(a, b):
+    """
+    A version of cosh(a)/cosh(b) where "b = a * f" and f is close
+    to 1. This can then be written exp(a * (1 - f)) for large a
+    """
+    ans = numpy.ones(a.size, float)
+    for i, (ai, bi) in enumerate(zip(a, b)):
+        if ai == 0:
+            continue
+        f = bi / ai
+        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+            ans[i] = math.exp(ai * (1 - f))
+        else:
+            ca = math.cosh(ai)
+            cb = math.cosh(bi)
+            ans[i] = ca / cb
+    return ans
