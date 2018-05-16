@@ -48,6 +48,28 @@ class StreamFunctionAirPhase:
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth_air)).dot(J)
         return vel
+    
+    def velocity_cpp(self):
+        """
+        Return C++ code for evaluating the particle velocities of this specific
+        wave. Returns the x and z components only with z positive upwards. The
+        positive traveling direction is x[0] and the vertical coordinate is x[2]
+        which is zero at the bottom and equal to +depth at the mean water level.
+        """
+        N = len(self.eta) - 1
+        J = arange(1, N + 1)
+        k = self.k
+        c = self.c
+        
+        Jk = J * k
+        facs = J * self.B * k / cosh(Jk * self.depth_air)
+        
+        x2 = '(%r - x[2])' % (self.depth_water + self.depth_air)
+        cpp_x = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * cosh(%r * %s)' %
+                           (facs[i], Jk[i], c, Jk[i], x2) for i in range(N))
+        cpp_z = ' + '.join('%r * sin(%f * (x[0] - %r * t)) * sinh(%r * %s)' %
+                           (facs[i], Jk[i], c, Jk[i], x2) for i in range(N))
+        return (cpp_x, cpp_z)
 
 
 def air_velocity_coefficients(x, eta, c, k, depth_water, depth_air):

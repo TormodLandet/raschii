@@ -164,7 +164,7 @@ def makeXY(x, ymin, ymax, Ny):
     return X, Y
 
 
-if __name__ == '__main__':
+def main():
     # Get command line arguments
     import argparse
     parser = argparse.ArgumentParser(prog='raschii_plot_wave',
@@ -202,3 +202,6 @@ if __name__ == '__main__':
               depth_air=args.depth_air,
               t=args.time,
               plot_quiver=args.velocities)
+
+if __name__ == '__main__':
+    main()

@@ -7,6 +7,8 @@ syntax: glob
 *.png
 *.js
 *.map
+*.xdmf
+*.h5
 build/
 dist/
 *egg-info*

@@ -51,7 +51,7 @@ def jit_compile(cpp_code, cache_dir, verbose=True):
         raise ValueError('Could not compile module in %s' % dirname)
     
     # Import the compiled module
-    mod = import_mod(dirname, modname)
+    mod = import_mod(dirname, modname, verbose)
     
     if mod is None:
         raise ValueError('Could not import the compiled module in %s' % dirname)
@@ -59,11 +59,13 @@ def jit_compile(cpp_code, cache_dir, verbose=True):
         return mod
 
 
-def import_mod(dirname, modname):
+def import_mod(dirname, modname, verbose=False):
     try:
         sys.path.insert(0, dirname)
         return importlib.import_module(modname)
-    except ImportError:
+    except ImportError as err:
+        if verbose:
+            print(err)
         return None
     finally:
         del sys.path[0]

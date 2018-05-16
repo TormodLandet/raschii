@@ -126,7 +126,6 @@ class FentonWave:
         positive traveling direction is x[0] and the vertical coordinate is x[2]
         which is zero at the bottom and equal to +depth at the mean water level.
         """
-        
         N = len(self.eta) - 1
         J = arange(1, N + 1)
         B = self.data['B']
@@ -142,8 +141,14 @@ class FentonWave:
                            (facs[i], Jk[i], c, Jk[i]) for i in range(N))
         e_cpp = self.elevation_cpp()
         
-        return ('x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_x),
-                'x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_z))
+        if self.include_air_phase:
+            cpp_ax, cpp_az = self.air.velocity_cpp()
+        else:
+            cpp_ax = cpp_az = '0.0'
+        
+        eps = self.eta_eps
+        return ('x[2] < (%s) + %r ? (%s) : (%s)' % (e_cpp, eps, cpp_x, cpp_ax),
+                'x[2] < (%s) + %r ? (%s) : (%s)' % (e_cpp, eps, cpp_z, cpp_az))
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
