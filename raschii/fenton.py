@@ -8,10 +8,10 @@ from .air_phase import StreamFunctionAirPhase
 
 class FentonWave:
     required_input = {'height', 'depth', 'length', 'N'}
-    optional_input = {'relax': 0.5, 'g': 9.81, 'depth_air': None}
+    optional_input = {'relax': 0.5, 'g': 9.81, 'depth_air': 0}
     
     def __init__(self, height, depth, length, N, g=9.81, relax=0.5,
-                 depth_air=None):
+                 depth_air=0):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
@@ -28,7 +28,7 @@ class FentonWave:
         self.g = g
         self.relax = relax
         self.depth_air = depth_air
-        self.include_air_phase = (depth_air is not None)
+        self.include_air_phase = (depth_air > 0)
         
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
@@ -38,6 +38,9 @@ class FentonWave:
         if self.include_air_phase:
             self.air = StreamFunctionAirPhase(self.x, self.eta, self.c, self.k,
                                               depth, depth_air)
+        
+        # For evaluating velocities close to the free surface
+        self.eta_eps = self.height / 1e5
     
     def set_data(self, data):
         self.data = data
@@ -85,16 +88,15 @@ class FentonWave:
         J = arange(1, N + 1)
         
         vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (B[1:] * cos(J * k * x[:, newaxis] - c * t) *
+        vel[:, 0] = k * (B[1:] * cos(J * k * (x[:, newaxis] - c * t)) *
                          cosh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
-        vel[:, 1] = k * (B[1:] * sin(J * k * x[:, newaxis] - c * t) *
+        vel[:, 1] = k * (B[1:] * sin(J * k * (x[:, newaxis] - c * t)) *
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
         zmax = self.surface_elevation(x, t)
         
-        eps = self.height / 1000
-        above = z > zmax + eps
+        above = z > zmax + self.eta_eps
         if self.include_air_phase:
             vel_air = self.air.velocity(x[above], z[above], t)
             vel[above] = vel_air
@@ -129,19 +131,19 @@ class FentonWave:
         J = arange(1, N + 1)
         B = self.data['B']
         k = self.k
-        w = self.c * k
+        c = self.c
         
         Jk = J * k
         facs = J * B[1:] * k / cosh(Jk * self.depth)
         
-        cpp_x = ' + '.join('%r * cos(%f * x[0] - %r * t) * cosh(%r * x[2])' %
-                           (facs[i], Jk[i], w, Jk[i]) for i in range(N))
-        cpp_z = ' + '.join('%r * sin(%f * x[0] - %r * t) * sinh(%r * x[2])' %
-                           (facs[i], Jk[i], w, Jk[i]) for i in range(N))
+        cpp_x = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])' %
+                           (facs[i], Jk[i], c, Jk[i]) for i in range(N))
+        cpp_z = ' + '.join('%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])' %
+                           (facs[i], Jk[i], c, Jk[i]) for i in range(N))
         e_cpp = self.elevation_cpp()
         
-        return ('x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_x),
-                'x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_z))
+        return ('x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_x),
+                'x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_z))
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,

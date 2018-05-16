@@ -4,9 +4,9 @@ from .air_phase import StreamFunctionAirPhase
 
 class AiryWave:
     required_input = ('height', 'depth', 'length')
-    optional_input = {'g': 9.81, 'depth_air': None}
+    optional_input = {'g': 9.81, 'depth_air': 0}
     
-    def __init__(self, height, depth, length, g=9.81, depth_air=None):
+    def __init__(self, height, depth, length, g=9.81, depth_air=0):
         """
         Linear Airy waves
         
@@ -19,7 +19,7 @@ class AiryWave:
         self.length = length
         self.g = g
         self.depth_air = depth_air
-        self.include_air_phase = (depth_air is not None)
+        self.include_air_phase = (depth_air > 0)
         
         self.k = 2 * pi / length
         self.omega = (self.k * g * tanh(self.k * depth))**0.5
@@ -31,6 +31,9 @@ class AiryWave:
             eta = array([depth + height / 2, depth - height / 2], float)
             self.air = StreamFunctionAirPhase(x, eta, self.c, self.k,
                                               depth, depth_air)
+        
+        # For evaluating velocities close to the free surface
+        self.eta_eps = self.height / 1e5
     
     def surface_elevation(self, x, t=0):
         """
@@ -61,8 +64,7 @@ class AiryWave:
         vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x - w * t)
         zmax = self.surface_elevation(x, t)
         
-        eps = self.height / 1000
-        above = z > zmax + eps
+        above = z > zmax + self.eta_eps
         if self.include_air_phase:
             vel_air = self.air.velocity(x[above], z[above], t)
             vel[above] = vel_air
@@ -97,5 +99,5 @@ class AiryWave:
                 (w * H / (2 * sinh(k * d)), k, k, w)
         e_cpp = self.elevation_cpp()
         
-        return ('x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_x),
-                'x[2] <= (%s) ? (%s) : 0.0' % (e_cpp, cpp_z))
+        return ('x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_x),
+                'x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_z))
