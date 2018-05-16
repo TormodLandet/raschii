@@ -82,19 +82,19 @@ class FentonWave:
         B = self.data['B']
         k = self.k
         c = self.c
-        x = x - c * t
         J = arange(1, N + 1)
         
         vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (B[1:] * cos(J * k * x[:, newaxis]) *
+        vel[:, 0] = k * (B[1:] * cos(J * k * x[:, newaxis] - c * t) *
                          cosh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
-        vel[:, 1] = k * (B[1:] * sin(J * k * x[:, newaxis]) *
+        vel[:, 1] = k * (B[1:] * sin(J * k * x[:, newaxis] - c * t) *
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
         zmax = self.surface_elevation(x, t)
         
-        above = z > zmax
+        eps = self.height / 1000
+        above = z > zmax + eps
         if self.include_air_phase:
             vel_air = self.air.velocity(x[above], z[above], t)
             vel[above] = vel_air

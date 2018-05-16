@@ -1,6 +1,6 @@
 from numpy import pi, zeros, asarray, arange, sin, cos, sinh, cosh, newaxis
 from numpy.linalg import solve
-from .fenton import sinh_by_cosh
+from .common import sinh_by_cosh
 
 
 class StreamFunctionAirPhase:
@@ -37,15 +37,14 @@ class StreamFunctionAirPhase:
         k = self.k
         c = self.c
         top = self.depth_water + self.depth_air
-        x = x - c * t
         z = top - z
         J = arange(1, N + 1)
         
         vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (B * cos(J * k * x[:, newaxis]) *
+        vel[:, 0] = k * (B * cos(J * k * x[:, newaxis] - c * t) *
                          cosh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth_air)).dot(J)
-        vel[:, 1] = k * (B * sin(J * k * x[:, newaxis]) *
+        vel[:, 1] = k * (B * sin(J * k * x[:, newaxis] - c * t) *
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth_air)).dot(J)
         return vel
