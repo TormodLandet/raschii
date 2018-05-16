@@ -124,9 +124,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
     # Show a legend if there are more than one wave model being plotted
     if len(model_names) > 1:    
         ax1.legend(loc='lower right')
-        ax1.set_title('Wave models %s' % ' and '.join(model_names))
-    else:
-        ax1.set_title('Wave model %s' % model_name)
+    ax1.set_title('%s waves' % ' and '.join(model_names))
     
     fig2.suptitle('Horisontal (upper) and vertical (lower) velocities')
     ax2s[0].set_title('x = 0 L')
