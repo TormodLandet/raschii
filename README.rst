@@ -8,7 +8,8 @@ named after `Thysanoessa raschii
 Supported wave models are currently:
 
 - Stream function waves (M. M. Rienecker and J. D. Fenton, 1981)
-- Airy waves, standard linar waves for completeness 
+- Stokes second through fifth order waves (based on J. D. Fenton, 1985) 
+- Airy waves, standard linar waves cosine waves
 
 Raschii includes a command line program to plot regular waves from the suported
 wave models and C++ code generation for using the results in other programs, 
@@ -65,6 +66,7 @@ Version 1.0.0 - May XX. 2018
 The initial release of Raschii
 
 - Support for Fenton stream functions (Rienecker and Fenton, 1981)
+- Support for Stokes 1st - 5th order waves (Fenton, 1985)
 - Support for Airy waves
 - Support for C++ code generation (for FEniCS expressions etc)
 - Command line program for plotting waves

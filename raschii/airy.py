@@ -28,10 +28,7 @@ class AiryWave:
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
-            x = array([0, self.length / 2], float)
-            eta = array([depth + height / 2, depth - height / 2], float)
-            self.air = StreamFunctionAirPhase(x, eta, self.c, self.k,
-                                              depth, depth_air)
+            self.air = StreamFunctionAirPhase(self, 1, length, depth, depth_air)
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5

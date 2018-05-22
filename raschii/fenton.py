@@ -37,8 +37,7 @@ class FentonWave:
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
-            self.air = StreamFunctionAirPhase(self.x, self.eta, self.c, self.k,
-                                              depth, depth_air)
+            self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5

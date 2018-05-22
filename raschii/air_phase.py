@@ -4,19 +4,20 @@ from .common import sinh_by_cosh
 
 
 class StreamFunctionAirPhase:
-    def __init__(self, x, eta, c, k, depth_water, depth_air):
+    def __init__(self, wave, N, length, depth_water, depth_air):
         """
         Given a set of colocation points with precomputed surface elevations
         obtained from a wave model in the water phase, produce a stream function
         approximation of the velocities in the air phase.
         """
-        self.x = x
-        self.eta = eta
-        self.c = c
-        self.k = k
+        self.x = arange(N + 1) * length / (2 * N)
+        self.eta = wave.surface_elevation(self.x)
+        self.c = wave.c
+        self.k = wave.k
         self.depth_water = depth_water
         self.depth_air = depth_air
-        B, Q = air_velocity_coefficients(x, eta, c, k, depth_water, depth_air)
+        B, Q = air_velocity_coefficients(self.x, self.eta, self.c, self.k,
+                                         depth_water, depth_air)
         self.B = B
         self.Q = Q
     
@@ -83,6 +84,7 @@ def air_velocity_coefficients(x, eta, c, k, depth_water, depth_air):
     D = depth_air
     
     eta = depth_water + depth_air - eta
+    eta += (eta.max() - eta.min()) / 10
     
     lhs = zeros((N + 1, N + 1), float)
     rhs = zeros(N + 1, float)

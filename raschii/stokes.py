@@ -30,20 +30,19 @@ class StokesWave:
         
         if N < 1:
             self.warnings = 'Stokes order must be at least 1, using order 1'
-            self.order = 1
+            self.N = 1
         elif N > 5:
             self.warnings = 'Stokes order is maximum 5, using order 5'
-            self.order = 5
+            self.N = 5
         
         # Find the coeffients through optimization
         self.k = 2 * pi / length  # The wave number
-        data = stokes_coefficients(self.k * depth, N)
+        data = stokes_coefficients(self.k * depth, self.N)
         self.set_data(data)
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
-            self.air = StreamFunctionAirPhase(self.x, self.eta, self.c, self.k,
-                                              depth, depth_air)
+            self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
@@ -123,6 +122,15 @@ class StokesWave:
             my_sinh_sin(3, 3) + my_sinh_sin(4, 2) + my_sinh_sin(4, 4) +\
             my_sinh_sin(5, 1) + my_sinh_sin(5, 3) + my_sinh_sin(5, 5)
         vel *= self.data['C0'] * sqrt(self.g / self.k**3)
+        
+        zmax = self.surface_elevation(x, t)
+        above = z > zmax + self.eta_eps
+        if self.include_air_phase:
+            vel_air = self.air.velocity(x[above], z[above], t)
+            vel[above] = vel_air
+        else:
+            vel[above] = 0
+        
         return vel
     
     def elevation_cpp(self):
