@@ -20,6 +20,7 @@ class AiryWave:
         self.g = g
         self.depth_air = depth_air
         self.include_air_phase = (depth_air > 0)
+        self.warnings = ''
         
         self.k = 2 * pi / length
         self.omega = (self.k * g * tanh(self.k * depth))**0.5

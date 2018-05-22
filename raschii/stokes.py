@@ -26,6 +26,14 @@ class StokesWave:
         self.relax = relax
         self.depth_air = depth_air
         self.include_air_phase = (depth_air > 0)
+        self.warnings = ''
+        
+        if N < 1:
+            self.warnings = 'Stokes order must be at least 1, using order 1'
+            self.order = 1
+        elif N > 5:
+            self.warnings = 'Stokes order is maximum 5, using order 5'
+            self.order = 5
         
         # Find the coeffients through optimization
         self.k = 2 * pi / length  # The wave number
@@ -90,17 +98,31 @@ class StokesWave:
         x = numpy.asarray(x, dtype=float)
         z = numpy.asarray(z, dtype=float)
         
-        vel = numpy.zeros((x.size, 2), float) + 1
-        raise NotImplementedError()
-        zmax = self.surface_elevation(x, t)
+        def my_cosh_cos(i, j):
+            n = 'A%d%d' % (i, j)
+            if self.data[n] == 0.0:
+                return 0.0
+            else:
+                return pow(eps, i) * self.data[n] * j * self.k * numpy.cosh(
+                    j * self.k * z) * numpy.cos(j * self.k * x)
+
+        def my_sinh_sin(i, j):
+            n = 'A%d%d' % (i, j)
+            if self.data[n] == 0.0:
+                return 0.0
+            else:
+                return pow(eps, i) * self.data[n] * j * self.k * numpy.sinh(
+                    j * self.k * z) * numpy.sin(j * self.k * x)
         
-        above = z > zmax + self.eta_eps
-        if self.include_air_phase:
-            vel_air = self.air.velocity(x[above], z[above], t)
-            vel[above] = vel_air
-        else:
-            vel[above] = 0
-        
+        eps = self.k * self.height / 2
+        vel = numpy.zeros((x.size, 2), float)
+        vel[:, 0] = my_cosh_cos(1, 1) + my_cosh_cos(2, 2) + my_cosh_cos(3, 1) +\
+            my_cosh_cos(3, 3) + my_cosh_cos(4, 2) + my_cosh_cos(4, 4) +\
+            my_cosh_cos(5, 1) + my_cosh_cos(5, 3) + my_cosh_cos(5, 5)
+        vel[:, 1] = my_sinh_sin(1, 1) + my_sinh_sin(2, 2) + my_sinh_sin(3, 1) +\
+            my_sinh_sin(3, 3) + my_sinh_sin(4, 2) + my_sinh_sin(4, 4) +\
+            my_sinh_sin(5, 1) + my_sinh_sin(5, 3) + my_sinh_sin(5, 5)
+        vel *= self.data['C0'] * sqrt(self.g / self.k**3)
         return vel
     
     def elevation_cpp(self):

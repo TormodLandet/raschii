@@ -11,12 +11,14 @@ from .common import check_breaking_criteria, RasciiError, NonConvergenceError
 from .air_phase import StreamFunctionAirPhase
 from .airy import AiryWave
 from .fenton import FentonWave
+from .stokes import StokesWave
 
 
 # The available wave models
 WAVE_MODELS = {
     'Airy': AiryWave,
-    'Fenton': FentonWave
+    'Fenton': FentonWave,
+    'Stokes': StokesWave
 }
 
 

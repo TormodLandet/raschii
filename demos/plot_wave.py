@@ -36,6 +36,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
         ymax = min(depth + height * 10, ymax)
     
     # Plot each of the specified wave model
+    warnings = ''
     for model_name in model_names:
         WaveClass = get_wave_model(model_name)
         args = dict(height=height, depth=depth, length=length)
@@ -47,6 +48,8 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
         plot_air = (hasattr(wave, 'air') and
                     wave.air is not None and 
                     depth_air > 0)
+        if wave.warnings:
+            warnings += 'WARNINGS for %s:\n%s' % (model_name, wave.warnings)
         
         # Get elevation
         assert length > 0
@@ -120,6 +123,8 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
     
     # Print the velocity scale
     print(head_format % ('scale', '', '', '', '', '%10.3e' % Uscale))
+    if warnings:
+        print(warnings)
     
     # Show a legend if there are more than one wave model being plotted
     if len(model_names) > 1:    

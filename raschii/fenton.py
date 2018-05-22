@@ -29,6 +29,7 @@ class FentonWave:
         self.relax = relax
         self.depth_air = depth_air
         self.include_air_phase = (depth_air > 0)
+        self.warnings = ''
         
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
@@ -59,7 +60,7 @@ class FentonWave:
     
     def surface_elevation(self, x, t=0):
         """
-        Compute the surface elavation at time t for position(s) x
+        Compute the surface elevation at time t for position(s) x
         """
         if isinstance(x, (float, int)):
             x = array([x, 0], float)
