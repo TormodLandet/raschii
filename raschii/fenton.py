@@ -19,7 +19,7 @@ class FentonWave:
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
         * length: the periodic length of the wave (distance between peaks)
-        * order: the number of coefficients in the truncated Fourier series
+        * N: the number of coefficients in the truncated Fourier series
         """
         self.height = height
         self.depth = depth
