@@ -142,9 +142,9 @@ def stokes_coefficients(kd, N):
     
     The code uses pow instead of ** to be compatible with Dart
     """
-    # Limit depth to avoid overflow
-    if kd > 300:
-        kd = 300.0
+    # Limit depth to 25 wave lengths to avoid overflow
+    if kd > 50 * pi:
+        kd = 50 * pi
     
     S = sech(2 * kd)
     Sh = sinh(kd)
