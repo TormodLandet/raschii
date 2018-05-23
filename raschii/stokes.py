@@ -40,12 +40,12 @@ class StokesWave:
         data = stokes_coefficients(self.k * depth, self.N)
         self.set_data(data)
         
+        # For evaluating velocities close to the free surface
+        self.eta_eps = self.height / 1e5
+        
         # Provide velocities also in the air phase
         if self.include_air_phase:
             self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
-        
-        # For evaluating velocities close to the free surface
-        self.eta_eps = self.height / 1e5
     
     def set_data(self, data):
         self.data = data
@@ -125,7 +125,7 @@ class StokesWave:
         
         zmax = self.surface_elevation(x, t)
         above = z > zmax + self.eta_eps
-        if self.include_air_phase:
+        if self.include_air_phase and above.any():
             vel_air = self.air.velocity(x[above], z[above], t)
             vel[above] = vel_air
         else:

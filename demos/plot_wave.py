@@ -145,6 +145,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
             ax.set_xlim(-vx_max, vx_max)
         else:
             ax.set_xlim(-vz_max, vz_max)
+        ax.set_xlim(-Uscale * 1.3, Uscale * 1.3)
         if i not in (0, 5):
             ax.set_xticks([])
             ax.set_yticks([])

@@ -26,12 +26,12 @@ class AiryWave:
         self.omega = (self.k * g * tanh(self.k * depth))**0.5
         self.c = self.omega / self.k
         
+        # For evaluating velocities close to the free surface
+        self.eta_eps = self.height / 1e5
+        
         # Provide velocities also in the air phase
         if self.include_air_phase:
             self.air = StreamFunctionAirPhase(self, 1, length, depth, depth_air)
-        
-        # For evaluating velocities close to the free surface
-        self.eta_eps = self.height / 1e5
     
     def surface_elevation(self, x, t=0):
         """
@@ -62,8 +62,8 @@ class AiryWave:
         vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x - w * t)
         zmax = self.surface_elevation(x, t)
         
-        above = z > zmax + self.eta_eps
-        if self.include_air_phase:
+        above = z > (zmax + self.eta_eps)
+        if self.include_air_phase and above.any():
             vel_air = self.air.velocity(x[above], z[above], t)
             vel[above] = vel_air
         else:
