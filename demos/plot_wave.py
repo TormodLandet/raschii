@@ -88,7 +88,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
             # Plot the velocities in the air
             if plot_air:
                 X2, Y2 = makeXY(xvec, evec + height / 8, xvec * 0 + ymax, Ny)
-                vel = wave.air.velocity(X2.ravel(), Y2.ravel(), t)
+                vel = wave.velocity(X2.ravel(), Y2.ravel(), t)
                 U2 = vel[:,0].reshape(X.shape)
                 V2 = vel[:,1].reshape(X.shape)
                 ax1.quiver(X2, Y2, U2, V2, scale_units='height', scale=scale,
@@ -109,7 +109,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
             
             if plot_air:
                 y = numpy.linspace(e, ymax, 1000)
-                v = wave.air.velocity(y * 0 + xi, y, t)
+                v = wave.velocity(y * 0 + xi, y, t)
                 if i < 5:
                     ax.plot(v[:,0], y, ':', c=eta_color)
                     vx_max = max(abs(v[:,0]).max(), vx_max)

@@ -1,5 +1,5 @@
 from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
-from .air_phase import StreamFunctionAirPhase
+from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
 
 
 class AiryWave:
@@ -28,6 +28,7 @@ class AiryWave:
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
+        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
@@ -42,7 +43,7 @@ class AiryWave:
         x = asarray(x)
         return self.depth + self.height / 2 * cos(self.k * x - self.omega * t)
     
-    def velocity(self, x, z, t=0):
+    def velocity(self, x, z, t=0, all_points_wet=False):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
@@ -60,14 +61,11 @@ class AiryWave:
         vel = zeros((x.size, 2), float) + 1
         vel[:, 0] = w * H / 2 * cosh(k * z) / sinh(k * d) * cos(k * x - w * t)
         vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x - w * t)
-        zmax = self.surface_elevation(x, t)
         
-        above = z > (zmax + self.eta_eps)
-        if self.include_air_phase and above.any():
-            vel_air = self.air.velocity(x[above], z[above], t)
-            vel[above] = vel_air
-        else:
-            vel[above] = 0
+        if not all_points_wet:
+            blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
+                                          self.eta_eps, self.air_blend_distance,
+                                          self.include_air_phase)
         
         return vel
     

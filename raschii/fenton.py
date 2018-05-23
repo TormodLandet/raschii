@@ -3,7 +3,7 @@ from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
                    asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
 from .common import NonConvergenceError, sinh_by_cosh, cosh_by_cosh
-from .air_phase import StreamFunctionAirPhase
+from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
 
 
 class FentonWave:
@@ -37,6 +37,7 @@ class FentonWave:
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
+        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
@@ -71,7 +72,7 @@ class FentonWave:
         k, c = self.k, self.c
         return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
     
-    def velocity(self, x, z, t=0):
+    def velocity(self, x, z, t=0, all_points_wet=False):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
@@ -94,14 +95,11 @@ class FentonWave:
         vel[:, 1] = k * (B[1:] * sin(J * k * (x[:, newaxis] - c * t)) *
                          sinh(J * k * z[:, newaxis]) /
                          cosh(J * k * self.depth)).dot(J)
-        zmax = self.surface_elevation(x, t)
         
-        above = z > (zmax + self.eta_eps)
-        if self.include_air_phase and above.any():
-            vel_air = self.air.velocity(x[above], z[above], t)
-            vel[above] = vel_air
-        else:
-            vel[above] = 0
+        if not all_points_wet:
+            blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
+                                          self.eta_eps, self.air_blend_distance,
+                                          self.include_air_phase)
         
         return vel
     

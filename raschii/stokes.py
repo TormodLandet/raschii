@@ -1,6 +1,6 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy
-from .air_phase import StreamFunctionAirPhase
+from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
 
 
 class StokesWave:
@@ -42,6 +42,7 @@ class StokesWave:
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
+        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
         if self.include_air_phase:
@@ -87,7 +88,7 @@ class StokesWave:
                          D['B55'] * cos(5 * k * x))) / k
         return eta
     
-    def velocity(self, x, z, t=0):
+    def velocity(self, x, z, t=0, all_points_wet=False):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
@@ -96,6 +97,7 @@ class StokesWave:
             x, z = [x], [z]
         x = numpy.asarray(x, dtype=float)
         z = numpy.asarray(z, dtype=float)
+        x2 = x - self.c * t
         
         def my_cosh_cos(i, j):
             n = 'A%d%d' % (i, j)
@@ -103,7 +105,7 @@ class StokesWave:
                 return 0.0
             else:
                 return pow(eps, i) * self.data[n] * j * self.k * numpy.cosh(
-                    j * self.k * z) * numpy.cos(j * self.k * x)
+                    j * self.k * z) * numpy.cos(j * self.k * x2)
 
         def my_sinh_sin(i, j):
             n = 'A%d%d' % (i, j)
@@ -111,7 +113,7 @@ class StokesWave:
                 return 0.0
             else:
                 return pow(eps, i) * self.data[n] * j * self.k * numpy.sinh(
-                    j * self.k * z) * numpy.sin(j * self.k * x)
+                    j * self.k * z) * numpy.sin(j * self.k * x2)
         
         eps = self.k * self.height / 2
         vel = numpy.zeros((x.size, 2), float)
@@ -123,13 +125,10 @@ class StokesWave:
             my_sinh_sin(5, 1) + my_sinh_sin(5, 3) + my_sinh_sin(5, 5)
         vel *= self.data['C0'] * sqrt(self.g / self.k**3)
         
-        zmax = self.surface_elevation(x, t)
-        above = z > zmax + self.eta_eps
-        if self.include_air_phase and above.any():
-            vel_air = self.air.velocity(x[above], z[above], t)
-            vel[above] = vel_air
-        else:
-            vel[above] = 0
+        if not all_points_wet:
+            blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
+                                          self.eta_eps, self.air_blend_distance,
+                                          self.include_air_phase)
         
         return vel
     
