@@ -1,0 +1,11 @@
+build:
+  image: latest
+
+python:
+  version: 3.6
+
+# Don't build any extra formats, just html
+formats: []
+
+conda:
+  file: documentation/conda_environment.yml

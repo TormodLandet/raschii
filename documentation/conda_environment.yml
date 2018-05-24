@@ -1,0 +1,7 @@
+name: raschiienv
+channels:
+  - trlandet
+  - defaults
+dependencies:
+  - numpy
+  - dartlang

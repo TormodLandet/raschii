@@ -17,6 +17,34 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 
+# -- Build RaschiDart online calculator javascript code  ---------------------
+#
+import subprocess, json 
+
+
+def build_raschii_dart():
+    repo = 'https://bitbucket.org/trlandet/raschiidart.git'
+    dirname = 'raschii_dart.git'
+    cmds = [(['git', 'clone', repo, dirname], '.'),
+            (['dart2js', 'raschii_web.dart', '-m', '-o', 'raschii.js'], dirname),
+            (['mv', 'raschii.js', '../_static/'], dirname),
+            (['rm', '-rf', dirname], '.')]
+    for cmd, workdir in cmds:
+        print('RUNNING:', ' '.join(cmd))
+        subprocess.check_call(cmd, cwd=workdir)
+
+
+try:
+    build_raschii_dart()
+except Exception as e:
+    error = str(e)
+    
+    print(error)
+    with open('_static/raschii.js', 'at') as f:
+        f.write('element.innerHTML += "<br><b>Got error:</b><br>" +')
+        f.write('"<pre>" + %s + "</pre>";\n' % json.dumps(error))
+
+
 # -- Project information -----------------------------------------------------
 
 project = 'raschii'

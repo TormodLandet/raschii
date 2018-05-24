@@ -1,6 +1,7 @@
 syntax: glob
 .*
 !/.gitignore
+!/.readthedocs.yml
 !/.flake8
 !/.circleci
 *.pyc
