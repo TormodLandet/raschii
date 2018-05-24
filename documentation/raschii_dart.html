@@ -1,0 +1,104 @@
+<script defer src="_static/raschii.js"></script>
+<style>
+#raschii {
+    margin: 1em auto;
+    max-width: 40em;
+    display: grid;
+    grid-template-columns: 1fr 22em 1.44fr;
+}
+#raschii .informer, #raschii #plot, #raschii output {
+    grid-column: 1/-1;
+    margin: 2px;
+    margin-bottom: 1em;
+}
+#raschii .informer {
+    margin: 2px 1em 1em 1em;
+}
+#raschii .informer:empty {
+    display: none;
+}
+#raschii .error {
+    color: red;
+}
+#raschii .warning {
+    color: orange;
+}
+#raschii .info {
+    color: navy;
+}
+#raschii #plot {
+    border: 1px solid black;
+    height: 15em;
+    background-color: lightgray;
+}
+#raschii #plot svg {
+    width: 100%;
+    height: 100%;
+    max-width: 40em;
+    background-color: white;
+}
+#raschii form {
+    display: grid;
+    grid-column: 2/3;
+    grid-template-columns: 8em 1em 11em 2em;
+}
+#raschii label {
+    grid-column: 1/2;
+    display: flex;
+    align-items: center;
+    justify-content: right;
+}
+#raschii input, #raschii button, #raschii select {
+    grid-column: 3/4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#raschii .unit {
+    grid-column: 4/5;
+    display: flex;
+    align-items: center;
+    justify-content: right;
+}
+#raschii output {
+    background-color: #eee;
+    margin: 1em;
+    padding: 1em;
+    font-family: monospace;
+    white-space: pre;
+}
+</style>
+<div id="raschii">
+    <div id="plot"></div>
+    <p class='info informer'></p>
+    <p class='error informer'>
+            Javascript (dart2js) code is not loaded! This calculator will not work!
+    </p>
+    <p class='warning informer'>
+            Javascript (dart2js) code is not loaded! This calculator will not work!
+    </p>
+
+    <form>
+        <label for="waveModel">Wave model</label>
+        <select name="waveModel"></select>
+
+        <label for="height">Wave height</label>
+        <input name="height" type="number" value="12.0" step="any" min="0">
+        <span class='unit'>[m]</span>
+
+        <label for="length">Wave length</label>
+        <input name="length" type="number" value="100.0" step="any" min="0">
+        <span class='unit'>[m]</span>
+
+        <label for="depth">Water depth</label>
+        <input name="depth" type="number" value="3000.0" step="any" min="0">
+        <span class='unit'>[m]</span>
+
+        <label for="order">Model order</label>
+        <input name="order" type="number" value="5" min="1">
+
+        <button name="generate" type="button">Generate wave</button>
+    </form>
+
+    <output name="out">Calculation results: NO RESULTS YET</output>
+</div>

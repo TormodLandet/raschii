@@ -12,3 +12,4 @@ syntax: glob
 build/
 dist/
 *egg-info*
+documentation/_build
