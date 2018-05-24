@@ -13,8 +13,8 @@ Supported wave models are currently:
 
 Raschii includes a command line program to plot regular waves from the suported
 wave models and C++ code generation for using the results in other programs, 
-such as in `FEniCS <https://www.fenicsproject.org/>` expressions for initial and
-boundary conditions in a FEM solver. There is also a limited `Dart port
+such as in `FEniCS <https://www.fenicsproject.org/>`_ expressions for initial
+and boundary conditions in a FEM solver. There is also a limited `Dart port
 <https://bitbucket.org/trlandet/raschiidart>`_ which is used in the `online demo
 <https://raschii.readthedocs.io/en/latest/raschii_dart.html>`_.
 
