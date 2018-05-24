@@ -6,7 +6,7 @@ syntax: glob
 !/.circleci
 *.pyc
 *.png
-!documentation/figures/*.png
+!documentation/*/*.png
 *.xdmf
 *.h5
 build/

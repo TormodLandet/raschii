@@ -13,12 +13,17 @@ Supported wave models are currently:
 
 Raschii includes a command line program to plot regular waves from the suported
 wave models and C++ code generation for using the results in other programs, 
-such as in FEniCS_ expressions for initial and boundary conditions in a FEM 
-solver. There is also a limited `Dart port
+such as in `FEniCS <https://www.fenicsproject.org/>` expressions for initial and
+boundary conditions in a FEM solver. There is also a limited `Dart port
 <https://bitbucket.org/trlandet/raschiidart>`_ which is used in the `online demo
 <https://raschii.readthedocs.io/en/latest/raschii_dart.html>`_.
 
-.. _FEniCS: https://www.fenicsproject.org/
+.. figure:: http://raschii.readthedocs.io/en/latest/_static/fenton_stokes.png
+   :alt: A comparison of Stokes and Fenton waves of fifth order
+
+   A comparison of surface elevation and fluid velocities for fifth order Stokes
+   and Fenton stream function waves. Deep water, wave heigh 12 m, wave length
+   100 m.
 
 
 Installation and running
@@ -41,7 +46,9 @@ An example of using Raschii from Python::
 
 This will output::
 
-    FIXME
+    [0.67352456]
+    [0.67352456 0.61795882 0.57230232 0.53352878]
+    [[0.27263788 0.        ]]
 
 
 Documentation
@@ -53,7 +60,6 @@ The documentation can be found on `Raschii's Read-the-Docs pages
 <https://raschii.readthedocs.io/en/latest/index.html#documentation>`_.
 
 .. TOC_ENDS_HERE
-
 
 
 Development

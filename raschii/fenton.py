@@ -65,7 +65,7 @@ class FentonWave:
         Compute the surface elevation at time t for position(s) x
         """
         if isinstance(x, (float, int)):
-            x = array([x, 0], float)
+            x = array([x], float)
         x = asarray(x)
         
         # Cosine transformation of the elevation
