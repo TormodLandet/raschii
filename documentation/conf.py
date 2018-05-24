@@ -17,33 +17,34 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 
-# -- Build RaschiDart online calculator javascript code  ---------------------
+# -- Build the RaschiiDart online calculator javascript code  -----------------
 #
-import subprocess, json 
+import os, subprocess, json 
 
-
-def build_raschii_dart():
-    repo = 'https://bitbucket.org/trlandet/raschiidart.git'
-    dirname = 'raschii_dart.git'
-    cmds = [(['git', 'clone', repo, dirname], '.'),
-            (['dart2js', 'raschii_web.dart', '-m', '-o', 'raschii.js'], dirname),
-            (['mv', 'raschii.js', '../_static/'], dirname),
-            (['rm', '-rf', dirname], '.')]
-    for cmd, workdir in cmds:
-        print('RUNNING:', ' '.join(cmd))
-        subprocess.check_call(cmd, cwd=workdir)
-
-
-try:
-    build_raschii_dart()
-except Exception as e:
-    error = str(e)
+if not 'NO_GEN_JS' in os.environ:
+    # Generate the JS code with dart2js after checking it out from git
     
-    print(error)
-    with open('_static/raschii.js', 'at') as f:
-        f.write('element.innerHTML += "<br><b>Got error:</b><br>" +')
-        f.write('"<pre>" + %s + "</pre>";\n' % json.dumps(error))
-
+    def build_raschii_dart():
+        repo_url = 'https://bitbucket.org/trlandet/raschiidart.git'
+        repo_name = 'raschii_dart.git'
+        cmds = [(['git', 'clone', repo_url, repo_name], '.'),
+                (['dart2js', 'raschii_web.dart', '-m', '-o', 'raschii.js'],
+                 repo_name),
+                (['mv', 'raschii.js', '../_static/'], repo_name),
+                (['rm', '-rf', repo_name], '.')]
+        for cmd, workdir in cmds:
+            print('RUNNING:', ' '.join(cmd))
+            subprocess.check_call(cmd, cwd=workdir)
+    
+    try:
+        build_raschii_dart()
+    except Exception as e:
+        error = str(e)
+        
+        print(error)
+        with open('_static/raschii.js', 'at') as f:
+            f.write('element.innerHTML += "<br><b>Got error:</b><br>" +')
+            f.write('"<pre>" + %s + "</pre>";\n' % json.dumps(error))
 
 # -- Project information -----------------------------------------------------
 
