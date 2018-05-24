@@ -82,7 +82,7 @@ def air_velocity_coefficients(x, eta, c, k, depth_water, depth_air):
     Nm = len(eta)
     Nj = Nm - 1
     Neq = Nm
-    Nuk = Nj + 1 
+    Nuk = Nj + 1
     J = arange(1, Nj + 1)
     D = depth_air
     z = depth_water + depth_air - eta
@@ -97,7 +97,6 @@ def air_velocity_coefficients(x, eta, c, k, depth_water, depth_air):
         lhs[m, :Nj] = S1 * C2
         lhs[m, -1] = 1
         rhs[m] = - c * z[m]
-        
     
     BQ = solve(lhs, rhs)
     B = BQ[:-1]
@@ -110,8 +109,14 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps,
                                   air_blend_distance, include_air_phase):
     """
     Compute velocities in the air phase and blend the water and air velocities
-    in a divergence free manner from the free surface and a distance 
-    ``air_blend_distance`` up. 
+    in a divergence free manner from the free surface and a distance
+    ``air_blend_distance`` up.
+    
+    The blending is done as follows. Introduce a new coordinate Z which is zero
+    on the free surface and 1 at air_blend_distance above the free surface. Then
+    the blending function is ``f = 3Z² - 2Z³`` which is used on the stream
+    functions in the water and in the air. After taking the derivatives of this
+    blended stream function the velocities are as can be seen in the code below.
     """
     zmax = wave.surface_elevation(x, t)
     above = z > zmax + eta_eps
@@ -122,15 +127,15 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps,
         vel_air = air.velocity(xa, za, t)
         
         blend = za < ea + air_blend_distance
-        if air_blend_distance > 0 and blend.any(): 
+        if air_blend_distance > 0 and blend.any():
             zb = za[blend]
             eb = ea[blend]
             Z = (zb - eb) / air_blend_distance
             fw = 2 * Z**3 - 3 * Z**2 + 1
-            fa = - Z**2 * (2 * Z - 3) 
+            fa = - Z**2 * (2 * Z - 3)
             vel_water = vel[above]
-            vel_air[blend,0] = fw * vel_water[blend,0] + fa * vel_air[blend,0]
-            vel_air[blend,1] = fw * vel_water[blend,1] + fa * vel_air[blend,1]
+            vel_air[blend, 0] = fw * vel_water[blend, 0] + fa * vel_air[blend, 0]
+            vel_air[blend, 1] = fw * vel_water[blend, 1] + fa * vel_air[blend, 1]
         vel[above] = vel_air
     else:
         vel[above] = 0

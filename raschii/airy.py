@@ -33,6 +33,8 @@ class AiryWave:
         # Provide velocities also in the air phase
         if self.include_air_phase:
             self.air = StreamFunctionAirPhase(self, 1, length, depth, depth_air)
+        else:
+            self.air = None
     
     def surface_elevation(self, x, t=0):
         """

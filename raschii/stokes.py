@@ -47,6 +47,8 @@ class StokesWave:
         # Provide velocities also in the air phase
         if self.include_air_phase:
             self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
+        else:
+            self.air = None
     
     def set_data(self, data):
         self.data = data
