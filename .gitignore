@@ -5,8 +5,6 @@ syntax: glob
 !/.circleci
 *.pyc
 *.png
-*.js
-*.map
 *.xdmf
 *.h5
 build/
