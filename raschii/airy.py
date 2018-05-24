@@ -1,5 +1,6 @@
 from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
-from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
+from .air_phase import (StreamFunctionAirPhase, blend_air_and_wave_velocities,
+                        blend_air_and_wave_velocity_cpp)
 
 
 class AiryWave:
@@ -79,7 +80,7 @@ class AiryWave:
         return '%r + %r / 2.0 * cos(%r * (x[0] - %r * t))' % \
             (self.depth, self.height, self.k, self.c)
     
-    def velocity_cpp(self):
+    def velocity_cpp(self, all_points_wet=False):
         """
         Return C++ code for evaluating the particle velocities of this specific
         wave. Returns the x and z components only with z positive upwards. The
@@ -95,7 +96,20 @@ class AiryWave:
                 (w * H / (2 * sinh(k * d)), k, k, w)
         cpp_z = '%r * sinh(%r * x[2]) * sin(%r * x[0] - %r * t)' %\
                 (w * H / (2 * sinh(k * d)), k, k, w)
-        e_cpp = self.elevation_cpp()
         
-        return ('x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_x),
-                'x[2] < (%s) + %r ? (%s) : 0.0' % (e_cpp, self.eta_eps, cpp_z))
+        if all_points_wet:
+            return cpp_x, cpp_z
+        
+        # Handle velocities above the free surface
+        e_cpp = self.elevation_cpp()
+        cpp_ax = cpp_az = None
+        if self.include_air_phase:
+            cpp_ax, cpp_az = self.air.velocity_cpp()
+        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, self.eta_eps,
+                                                self.air_blend_distance,
+                                                self.include_air_phase)
+        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, self.eta_eps,
+                                                self.air_blend_distance,
+                                                self.include_air_phase)
+        
+        return cpp_x, cpp_z

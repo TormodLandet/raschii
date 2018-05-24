@@ -3,7 +3,8 @@ from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
                    asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
 from .common import NonConvergenceError, sinh_by_cosh, cosh_by_cosh
-from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
+from .air_phase import (StreamFunctionAirPhase, blend_air_and_wave_velocities,
+                        blend_air_and_wave_velocity_cpp)
 
 
 class FentonWave:
@@ -119,7 +120,7 @@ class FentonWave:
                           for j in range(0, N + 1))
         return code
     
-    def velocity_cpp(self):
+    def velocity_cpp(self, all_points_wet=False):
         """
         Return C++ code for evaluating the particle velocities of this specific
         wave. Returns the x and z components only with z positive upwards. The
@@ -139,16 +140,23 @@ class FentonWave:
                            (facs[i], Jk[i], c, Jk[i]) for i in range(N))
         cpp_z = ' + '.join('%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])' %
                            (facs[i], Jk[i], c, Jk[i]) for i in range(N))
-        e_cpp = self.elevation_cpp()
         
+        if all_points_wet:
+            return cpp_x, cpp_z
+        
+        # Handle velocities above the free surface
+        e_cpp = self.elevation_cpp()
+        cpp_ax = cpp_az = None
         if self.include_air_phase:
             cpp_ax, cpp_az = self.air.velocity_cpp()
-        else:
-            cpp_ax = cpp_az = '0.0'
+        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, self.eta_eps,
+                                                self.air_blend_distance,
+                                                self.include_air_phase)
+        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, self.eta_eps,
+                                                self.air_blend_distance,
+                                                self.include_air_phase)
         
-        eps = self.eta_eps
-        return ('x[2] < (%s) + %r ? (%s) : (%s)' % (e_cpp, eps, cpp_x, cpp_ax),
-                'x[2] < (%s) + %r ? (%s) : (%s)' % (e_cpp, eps, cpp_z, cpp_az))
+        return cpp_x, cpp_z
 
 
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,

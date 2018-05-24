@@ -139,3 +139,38 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps,
         vel[above] = vel_air
     else:
         vel[above] = 0
+
+
+def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, eta_eps,
+                                    air_blend_distance, include_air_phase):
+    """
+    Return C++ code which blends the velocities in the water into the velocities
+    in the air in such a way that the C++ code replicates the Python results
+    from the blend_air_and_wave_velocities() function
+    """
+    if not include_air_phase:
+        return 'x[2] < (%s) + %r ? (%s) : (%s)' % (elevation_cpp, eta_eps,
+                                                   wave_cpp, '0.0')
+    
+    return """[&]() {
+        const double elev = (%s);
+        
+        const double val_water = (%s);
+        if (x[2] < elev + %r) {
+            // The point is below the free surface
+            return val_water;
+        }
+        
+        const double dist_blend = %r;
+        const double val_air = (%s);
+        if (x[2] < elev + dist_blend) {
+            // The point is in the blending zone
+            const double Z = (x[2] - elev) / dist_blend;
+            const double fw = 2*Z*Z*Z  - 3*Z*Z + 1;
+            const double fa = - Z*Z * (2*Z - 3);
+            return fw * val_water + fa * val_air;
+        }
+        
+        // The point is above the blending zone
+        return val_air;
+    }()""" % (elevation_cpp, wave_cpp, eta_eps, air_blend_distance, air_cpp)

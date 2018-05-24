@@ -1,7 +1,7 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy
-from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
-
+from .air_phase import (StreamFunctionAirPhase, blend_air_and_wave_velocities,
+                        blend_air_and_wave_velocity_cpp)
 
 class StokesWave:
     required_input = {'height', 'depth', 'length', 'N'}
