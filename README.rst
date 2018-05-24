@@ -16,7 +16,7 @@ wave models and C++ code generation for using the results in other programs,
 such as in FEniCS_ expressions for initial and boundary conditions in a FEM 
 solver. There is also a limited `Dart port
 <https://bitbucket.org/trlandet/raschiidart>`_ which is used in the `online demo
-<https://raschii.readthedocs.io/raschii_dart.html>`_.
+<https://raschii.readthedocs.io/en/latest/raschii_dart.html>`_.
 
 .. _FEniCS: https://www.fenicsproject.org/
 
@@ -49,7 +49,8 @@ Documentation
 
 .. TOC_STARTS_HERE  - in the Sphinx documentation a table of contents will be inserted here 
 
-The documentation can be found on `ReadTheDocs <https://raschii.readthedocs.io/index.html#documentation>`_.
+The documentation can be found on `Raschii's Read-the-Docs pages
+<https://raschii.readthedocs.io/en/latest/index.html#documentation>`_.
 
 .. TOC_ENDS_HERE
 
