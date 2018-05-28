@@ -1,13 +1,13 @@
 from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
-from .air_phase import (StreamFunctionAirPhase, blend_air_and_wave_velocities,
-                        blend_air_and_wave_velocity_cpp)
+from .common import (blend_air_and_wave_velocities,
+                     blend_air_and_wave_velocity_cpp)
 
 
 class AiryWave:
     required_input = ('height', 'depth', 'length')
-    optional_input = {'g': 9.81, 'depth_air': 0}
+    optional_input = {'air': None, 'g': 9.81}
     
-    def __init__(self, height, depth, length, g=9.81, depth_air=0):
+    def __init__(self, height, depth, length, air=None, g=9.81):
         """
         Linear Airy waves
         
@@ -18,9 +18,9 @@ class AiryWave:
         self.height = height
         self.depth = depth
         self.length = length
+        self.air = air
         self.g = g
-        self.depth_air = depth_air
-        self.include_air_phase = (depth_air > 0)
+        self.order = 1
         self.warnings = ''
         
         self.k = 2 * pi / length
@@ -29,13 +29,10 @@ class AiryWave:
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
-        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
-        if self.include_air_phase:
-            self.air = StreamFunctionAirPhase(self, 1, length, depth, depth_air)
-        else:
-            self.air = None
+        if self.air is not None:
+            self.air.set_wave(self)
     
     def surface_elevation(self, x, t=0):
         """
@@ -67,8 +64,7 @@ class AiryWave:
         
         if not all_points_wet:
             blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
-                                          self.eta_eps, self.air_blend_distance,
-                                          self.include_air_phase)
+                                          self.eta_eps)
         
         return vel
     
@@ -103,13 +99,18 @@ class AiryWave:
         # Handle velocities above the free surface
         e_cpp = self.elevation_cpp()
         cpp_ax = cpp_az = None
-        if self.include_air_phase:
+        cpp_psiw = cpp_psia = cpp_slope = None
+        if self.air is not None:
             cpp_ax, cpp_az = self.air.velocity_cpp()
-        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, self.eta_eps,
-                                                self.air_blend_distance,
-                                                self.include_air_phase)
-        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, self.eta_eps,
-                                                self.air_blend_distance,
-                                                self.include_air_phase)
+            cpp_psiw = self.stream_function_cpp(frame='c')
+            cpp_psia = self.air.stream_function_cpp(frame='c')
+            cpp_slope = self.slope_cpp()
+            
+        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, 'x',
+                                                self.eta_eps, self.air,
+                                                cpp_psiw, cpp_psia, cpp_slope)
+        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, 'z',
+                                                self.eta_eps, self.air,
+                                                cpp_psiw, cpp_psia, cpp_slope)
         
         return cpp_x, cpp_z

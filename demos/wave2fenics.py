@@ -2,7 +2,7 @@ import dolfin
 from raschii import get_wave_model, check_breaking_criteria
 
 
-def wave2fenics(wave, width, height, Nx=100, Ny=21):
+def wave2fenics(wave, width, height, Nx=201, Ny=201):
     """
     Show how to construct a FEniCS velocity field based on the wave velocity
     field. Tested with FEniCS 2018.1 (pre-release dev version)
@@ -113,16 +113,18 @@ def main():
         exit(1)
     
     print('\nGenerating wave, may take some time ...')
-    WaveClass = get_wave_model(args.wave_type)
+    WaveClass, AirClass = get_wave_model(args.wave_type)
     wave_args = dict(height=args.wave_height,
                      depth=args.water_depth,
                      length=args.wave_length)
     if 'N' in WaveClass.required_input:
         wave_args['N'] = args.N
-    if 'depth_air' in WaveClass.optional_input and args.depth_air > 0:
-        wave_args['depth_air'] = args.depth_air
+    if 'air' in WaveClass.optional_input and AirClass is not None:
+        wave_args['air'] = AirClass(args.depth_air)
+    
     for a in sorted(wave_args):
         print('%13s: %5r' % (a, wave_args[a]))
+    
     wave = WaveClass(**wave_args)
     
     print('\nConverting to FEniCS and writing XDMF ...')
@@ -133,7 +135,5 @@ def main():
 
 if __name__ == '__main__':
     print('RUNNING wave2fenics:')
-    import raschii
-    print(raschii)
     main()
     print('\nDONE')

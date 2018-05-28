@@ -194,9 +194,38 @@ def test_compare_fenton_m_01():
     assert not has_err
 
 
-if __name__ == '__main__':
-    # For testing the tests
-    numpy.set_printoptions(linewidth=200, precision=3, suppress=True)
-    test_fenton_jacobian()
-    test_compare_fenton_m_01()
-
+def test_fenton_stream_function_and_slope():
+    from raschii import FentonWave
+    height = 10.0
+    depth = 200.0
+    length = 100.0
+    N = 5
+    fwave = FentonWave(height, depth, length, N)
+    
+    # Compare velocities with numerical differentiation of the stream function
+    eps = 1e-7
+    for x in numpy.linspace(0, length, 21):
+        z = depth + height / 2
+        vel = fwave.velocity(x, z, all_points_wet=True)
+        sf0 = fwave.stream_function(x, z, frame='c')
+        sfX = fwave.stream_function(x + eps, z, frame='c')
+        sfZ = fwave.stream_function(x, z + eps, frame='c')
+        assert vel.shape == (1, 2) and sf0.shape == (1,) and sfX.shape == (1,)
+        sfvel_x = (sfZ[0] - sf0) / eps
+        sfvel_z = -(sfX[0] - sf0) / eps
+        print('x: %r, z: %r, vel: %r, vel_num: %r' %
+              (x, z, vel, (sfvel_x, sfvel_z)))
+        assert abs(vel[0, 0] - sfvel_x) < 1e-5
+        assert abs(vel[0, 1] - sfvel_z) < 1e-5
+    
+    # Compare slope with numerical differentiation of the elevation
+    for x in numpy.linspace(0, length, 21):
+        e0 = fwave.surface_elevation(x)
+        slope = fwave.surface_slope(x)
+        assert e0.shape == (1, ) and slope.shape == (1, )
+        
+        e1 = fwave.surface_elevation(x + eps)
+        slope_num = (e1 - e0) / eps
+        print('x: %r, eta: %r, slope: %r, slope_num: %r' %
+              (x, e0, slope, slope_num))
+        assert abs(slope[0] - slope_num) < 1e-5

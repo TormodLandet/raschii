@@ -8,10 +8,11 @@ SPDX-License-Identifier: Apache-2.0
 """
 __version__ = '1.0.0.dev0'
 from .common import check_breaking_criteria, RasciiError, NonConvergenceError
-from .air_phase import StreamFunctionAirPhase
 from .airy import AiryWave
 from .fenton import FentonWave
 from .stokes import StokesWave
+from .air_phase_fenton import FentonAirPhase
+from .air_phase_constant import ConstantAirPhase
 
 
 # The available wave models
@@ -21,14 +22,31 @@ WAVE_MODELS = {
     'Stokes': StokesWave
 }
 
+# Air phase models
+AIR_MODELS = {'FentonAir': FentonAirPhase,
+              'ConstantAir': ConstantAirPhase}
 
-def get_wave_model(model_name):
+
+def get_wave_model(model_name, air_model_name=None):
     """
     Get a Raschii wave model by name
     """
-    if model_name in WAVE_MODELS:
-        return WAVE_MODELS[model_name]
-    else:
+    if '+' in model_name:
+        model_name, air_model_name = model_name.split('+')
+    
+    if model_name not in WAVE_MODELS:
         raise RasciiError('Wave model %r is not supported, supported wave '
                           'models are %s' % (model_name,
                                              ', '.join(WAVE_MODELS.keys())))
+    wave = WAVE_MODELS[model_name]
+    
+    if air_model_name is None:
+        return wave, None
+    
+    if air_model_name not in AIR_MODELS:
+        raise RasciiError('Air model %r is not supported, supported air phase '
+                          'models are %s' % (air_model_name,
+                                             ', '.join(AIR_MODELS.keys())))
+    air = AIR_MODELS[air_model_name]
+    
+    return wave, air

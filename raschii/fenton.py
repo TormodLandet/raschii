@@ -2,17 +2,16 @@ import math
 from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
                    asarray, linspace, cosh, sinh)
 from numpy.linalg import solve
-from .common import NonConvergenceError, sinh_by_cosh, cosh_by_cosh
-from .air_phase import (StreamFunctionAirPhase, blend_air_and_wave_velocities,
-                        blend_air_and_wave_velocity_cpp)
+from .common import (NonConvergenceError, sinh_by_cosh, cosh_by_cosh,
+                     blend_air_and_wave_velocities,
+                     blend_air_and_wave_velocity_cpp)
 
 
 class FentonWave:
     required_input = {'height', 'depth', 'length', 'N'}
-    optional_input = {'relax': 0.5, 'g': 9.81, 'depth_air': 0}
+    optional_input = {'air': None, 'g': 9.81, 'relax': 0.5}
     
-    def __init__(self, height, depth, length, N, g=9.81, relax=0.5,
-                 depth_air=0):
+    def __init__(self, height, depth, length, N, air=None, g=9.81, relax=0.5):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
@@ -25,11 +24,10 @@ class FentonWave:
         self.height = height
         self.depth = depth
         self.length = length
-        self.N = N
+        self.order = N
+        self.air = air
         self.g = g
         self.relax = relax
-        self.depth_air = depth_air
-        self.include_air_phase = (depth_air > 0)
         self.warnings = ''
         
         # Find the coeffients through optimization
@@ -38,13 +36,10 @@ class FentonWave:
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
-        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
-        if self.include_air_phase:
-            self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
-        else:
-            self.air = None
+        if self.air is not None:
+            self.air.set_wave(self)
     
     def set_data(self, data):
         self.data = data
@@ -61,6 +56,29 @@ class FentonWave:
         J = arange(0, N + 1)
         self.E = trapz(self.eta * cos(J * J[:, newaxis] * pi / N))
     
+    def stream_function(self, x, z, t=0, frame='b'):
+        """
+        Compute the stream function at time t for position(s) x
+        """
+        if isinstance(x, (float, int)):
+            x, z = [x], [z]
+        x2 = asarray(x, dtype=float) - self.c * t
+        z2 = asarray(z, dtype=float)
+        x2, z2 = x2[:, newaxis], z2[:, newaxis]
+        
+        N = len(self.eta) - 1
+        B = self.data['B']
+        k = self.k
+        J = arange(1, N + 1)
+        
+        psi = (sinh(J * k * z2) / cosh(J * k * self.depth) *
+               cos(J * k * x2)).dot(B[1:])
+        
+        if frame == 'b':
+            return B[0] * z + psi
+        elif frame == 'c':
+            return psi
+    
     def surface_elevation(self, x, t=0):
         """
         Compute the surface elevation at time t for position(s) x
@@ -74,6 +92,21 @@ class FentonWave:
         J = arange(0, N + 1)
         k, c = self.k, self.c
         return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+    
+    def surface_slope(self, x, t=0):
+        """
+        Compute the x derivative of the surface elevation at time t
+        """
+        if isinstance(x, (float, int)):
+            x = array([x], float)
+        x = asarray(x)
+        
+        # Cosine transformation of the elevation
+        N = len(self.eta) - 1
+        J = arange(0, N + 1)
+        k, c = self.k, self.c
+        return - 2 * trapz(self.E * J * k *
+                           sin(J * k * (x[:, newaxis] - c * t))) / N
     
     def velocity(self, x, z, t=0, all_points_wet=False):
         """
@@ -101,10 +134,33 @@ class FentonWave:
         
         if not all_points_wet:
             blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
-                                          self.eta_eps, self.air_blend_distance,
-                                          self.include_air_phase)
+                                          self.eta_eps)
         
         return vel
+
+    def stream_function_cpp(self, frame='b'):
+        """
+        Return C++ code for evaluating the stream function of this specific
+        wave. The positive traveling direction is x[0] and the vertical
+        coordinate is x[2] which is zero at the bottom and equal to +depth at
+        the mean water level.
+        """
+        N = len(self.eta) - 1
+        J = arange(1, N + 1)
+        B = self.data['B']
+        k = self.k
+        c = self.c
+        
+        Jk = J * k
+        facs = B[1:] / cosh(Jk * self.depth)
+        
+        cpp = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])' %
+                         (facs[i], Jk[i], c, Jk[i]) for i in range(N))
+        
+        if frame == 'b':
+            return '%r * x[2] + %s' % (B[0], cpp)
+        elif frame == 'c':
+            return cpp
     
     def elevation_cpp(self):
         """
@@ -117,6 +173,20 @@ class FentonWave:
         facs[-1] *= 0.5
         code = ' + '.join('%r * cos(%d * %r * (x[0] - %r * t))' %
                           (facs[j], j, self.k, self.c)
+                          for j in range(0, N + 1))
+        return code
+    
+    def slope_cpp(self):
+        """
+        Return C++ code for evaluating the surface slope of this specific wave.
+        The positive traveling direction is x[0]
+        """
+        N = self.E.size - 1
+        facs = self.E * 2 / N * self.k * -1.0
+        facs[0] *= 0.5
+        facs[-1] *= 0.5
+        code = ' + '.join('%r * %d * sin(%d * %r * (x[0] - %r * t))' %
+                          (facs[j], j, j, self.k, self.c)
                           for j in range(0, N + 1))
         return code
     
@@ -147,14 +217,19 @@ class FentonWave:
         # Handle velocities above the free surface
         e_cpp = self.elevation_cpp()
         cpp_ax = cpp_az = None
-        if self.include_air_phase:
+        cpp_psiw = cpp_psia = cpp_slope = None
+        if self.air is not None:
             cpp_ax, cpp_az = self.air.velocity_cpp()
-        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, self.eta_eps,
-                                                self.air_blend_distance,
-                                                self.include_air_phase)
-        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, self.eta_eps,
-                                                self.air_blend_distance,
-                                                self.include_air_phase)
+            cpp_psiw = self.stream_function_cpp(frame='c')
+            cpp_psia = self.air.stream_function_cpp(frame='c')
+            cpp_slope = self.slope_cpp()
+            
+        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, 'x',
+                                                self.eta_eps, self.air,
+                                                cpp_psiw, cpp_psia, cpp_slope)
+        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, 'z',
+                                                self.eta_eps, self.air,
+                                                cpp_psiw, cpp_psia, cpp_slope)
         
         return cpp_x, cpp_z
 

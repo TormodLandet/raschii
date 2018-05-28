@@ -1,14 +1,13 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy
-from .air_phase import StreamFunctionAirPhase, blend_air_and_wave_velocities
+from .common import blend_air_and_wave_velocities
 
 
 class StokesWave:
     required_input = {'height', 'depth', 'length', 'N'}
-    optional_input = {'g': 9.81, 'depth_air': 0}
+    optional_input = {'air': None, 'g': 9.81}
     
-    def __init__(self, height, depth, length, N, g=9.81, relax=0.5,
-                 depth_air=0):
+    def __init__(self, height, depth, length, N, air=None, g=9.81):
         """
         Implement Stokes waves based on the paper by J. D. Fenton (1985),
         "A Fifth‐Order Stokes Theory for Steady Waves".
@@ -21,34 +20,29 @@ class StokesWave:
         self.height = height
         self.depth = depth
         self.length = length
-        self.N = N
+        self.order = N
+        self.air = air
         self.g = g
-        self.relax = relax
-        self.depth_air = depth_air
-        self.include_air_phase = (depth_air > 0)
         self.warnings = ''
         
         if N < 1:
             self.warnings = 'Stokes order must be at least 1, using order 1'
-            self.N = 1
+            self.order = 1
         elif N > 5:
             self.warnings = 'Stokes order is maximum 5, using order 5'
-            self.N = 5
+            self.order = 4
         
         # Find the coeffients through optimization
         self.k = 2 * pi / length  # The wave number
-        data = stokes_coefficients(self.k * depth, self.N)
+        data = stokes_coefficients(self.k * depth, self.order)
         self.set_data(data)
         
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
-        self.air_blend_distance = self.height
         
         # Provide velocities also in the air phase
-        if self.include_air_phase:
-            self.air = StreamFunctionAirPhase(self, N, length, depth, depth_air)
-        else:
-            self.air = None
+        if self.air is not None:
+            self.air.set_wave(self)
     
     def set_data(self, data):
         self.data = data
@@ -129,8 +123,7 @@ class StokesWave:
         
         if not all_points_wet:
             blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
-                                          self.eta_eps, self.air_blend_distance,
-                                          self.include_air_phase)
+                                          self.eta_eps)
         
         return vel
     

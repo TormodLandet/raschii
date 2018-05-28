@@ -69,3 +69,107 @@ def cosh_by_cosh(a, b):
             cb = math.cosh(bi)
             ans[i] = ca / cb
     return ans
+
+
+def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
+    """
+    Compute velocities in the air phase and blend the water and air velocities
+    in a divergence free manner from the free surface and a distance
+    ``air.blending_height`` up. If this is ``None`` then blend all the way up to
+    ``air.height``.
+    
+    The blending is done as follows. Introduce a new coordinate Z which is zero
+    on the free surface and 1 at air_blend_distance above the free surface. Then
+    the blending function is ``f = 3Z² - 2Z³`` which is used on the stream
+    functions in the water and in the air. After taking the derivatives of this
+    blended stream function the velocities are as can be seen in the code below.
+    """
+    eta = wave.surface_elevation(x, t)
+    above = z > eta + eta_eps
+    if air is not None and above.any():
+        xa = x[above]
+        za = z[above]
+        ea = eta[above]
+        vel_air = air.velocity(xa, za, t)
+        
+        blend = za < ea + air.blending_height
+        if air.blending_height > 0 and blend.any():
+            xb = xa[blend]
+            zb = za[blend]
+            eb = ea[blend]
+            Z = (zb - eb) / air.blending_height
+            vel_water = vel[above]
+            psi_wave = wave.stream_function(xb, zb, t, frame='c')
+            psi_air = air.stream_function(xb, zb, t, frame='c')
+            detadx = wave.surface_slope(xb, t)
+            
+            f = Z * Z * (3 - 2 * Z)
+            dfdZ = 6 * Z - 6 * Z * Z
+            dZdx = -1 / air.blending_height * detadx
+            dZdz = 1 / air.blending_height
+            dfdx = dfdZ * dZdx
+            dfdz = dfdZ * dZdz
+            
+            vel_air[blend, 0] = (1 - f) * vel_water[blend, 0] + f * vel_air[blend, 0]
+            vel_air[blend, 1] = (1 - f) * vel_water[blend, 1] + f * vel_air[blend, 1]
+            vel_air[blend, 0] += - dfdz * psi_wave + dfdz * psi_air
+            vel_air[blend, 1] += - dfdx * psi_wave + dfdx * psi_air
+        vel[above] = vel_air
+    else:
+        vel[above] = 0
+
+
+def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
+                                    eta_eps, air=None, psi_wave_cpp=None,
+                                    psi_air_cpp=None, slope_cpp=None):
+    """
+    Return C++ code which blends the velocities in the water into the velocities
+    in the air in such a way that the C++ code replicates the Python results
+    from the blend_air_and_wave_velocities() function
+    """
+    if air is None:
+        return 'x[2] < (%s) + %r ? (%s) : (%s)' % (elevation_cpp, eta_eps,
+                                                   wave_cpp, '0.0')
+    
+    cpp = """[&]() {{
+        const double elev = ({ecpp});
+        
+        const double val_water = ({uw_cpp});
+        if (x[2] < elev + {eps!r}) {{
+            // The point is below the free surface
+            return val_water;
+        }}
+        
+        const double dist_blend = {dist_blend!r};
+        const double val_air = ({ua_cpp});
+        if (x[2] < elev + dist_blend) {{
+            // The point is in the blending zone
+            const double Z = (x[2] - elev) / dist_blend;
+            
+            // Cubic smoothstep
+            //const double f = Z * Z * (3 - 2 * Z);
+            //const double dfdZ = Z * (6 - 6 * Z);
+            
+            // Fift order smootherstep
+            const double f = Z * Z * Z * (Z * (Z * 6 - 15) + 10);
+            const double dfdZ = Z * Z * (30 + Z * (30 * Z - 60));
+            
+            // Derivatives needed in the product rules
+            const double dZdx = - 1.0 / dist_blend * ({slope_cpp});
+            const double dZdz = 1.0 / dist_blend;
+            const double dfdx = dfdZ * dZdx;
+            const double dfdz = dfdZ * dZdz;
+            
+            return (1 - f) * val_water + f * val_air + (%s);
+        }}
+        
+        // The point is above the blending zone
+        return val_air;
+    }}()""".format(ecpp=elevation_cpp, uw_cpp=wave_cpp, ua_cpp=air_cpp,
+                   eps=eta_eps, dist_blend=air.blending_height,
+                   slope_cpp=slope_cpp)
+    
+    if direction == 'x':
+        return cpp % '-dfdz * (%s) + dfdz * (%s)' % (psi_wave_cpp, psi_air_cpp)
+    elif direction == 'z':
+        return cpp % '-dfdx * (%s) + dfdx * (%s)' % (psi_wave_cpp, psi_air_cpp)

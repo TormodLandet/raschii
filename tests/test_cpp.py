@@ -1,3 +1,4 @@
+import numpy
 from raschii import get_wave_model
 from jit_helper import jit_compile
 
@@ -46,8 +47,8 @@ def test_cpp_vs_py_elevation(tmpdir):
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
     # Create wave models
-    airy = get_wave_model('Airy')(height=1, depth=10, length=20)
-    fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
+    airy = get_wave_model('Airy')[0](height=1, depth=10, length=20)
+    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
     
     # Check that each model produces the same results in C++ and Python
     for model in [airy, fenton]:
@@ -92,8 +93,8 @@ def test_cpp_vs_py_velocity(tmpdir):
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
     # Create wave models
-    airy = get_wave_model('Airy')(height=1, depth=10, length=20)
-    fenton = get_wave_model('Fenton')(height=1, depth=10, length=20, N=5)
+    airy = get_wave_model('Airy')[0](height=1, depth=10, length=20)
+    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
     
     # Check that each model produces the same results in C++ and Python
     for model in [airy, fenton]:
@@ -114,3 +115,91 @@ def test_cpp_vs_py_velocity(tmpdir):
             print(model.__class__.__name__, pos, (vx_cpp, vz_cpp),
                   (vx_py, vz_py), rerr)
             assert rerr < 1e-2
+
+
+def test_cpp_vs_py_stream_function(tmpdir):
+    cpp_wrapper = """
+    #define _USE_MATH_DEFINES
+    #include <vector>
+    #include <cmath>
+    #include <pybind11/pybind11.h>
+    #include <pybind11/stl.h>
+    
+    using namespace std;
+    const double pi = M_PI;
+    
+    double stream_function(vector<double> x, double t=0.0) {
+        double value = CODE_GOES_HERE;
+        return value;
+    }
+    
+    namespace py = pybind11;
+    PYBIND11_MODULE(MODNAME, m) {
+        m.def("sfunc", &stream_function, py::arg("x"), py::arg("t")=0.0);
+    }
+    """
+    cache_dir = tmpdir.ensure('jit_cache', dir=True)
+    
+    # Create wave models
+    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    
+    # Check that each model produces the same results in C++ and Python
+    for model in [fenton]:
+        cpp = model.stream_function_cpp(frame='c')
+        cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
+                         .replace('x[2]', 'x[1]')
+        mod = jit_compile(cpp, cache_dir)
+        
+        t = -23.9
+        for pos in ([-10.0, 5.0], [5.0, 6.0]):
+            sf_cpp = mod.sfunc(pos, t)
+            sf_py = model.stream_function(pos[0], pos[1], t, frame='c')[0]
+            
+            # Compute the relative error
+            rerr = abs((sf_cpp - sf_py) / sf_py)
+            print(model.__class__.__name__, pos, sf_cpp, sf_py, rerr)
+            assert rerr < 1e-2
+
+
+def test_cpp_vs_py_slope(tmpdir):
+    cpp_wrapper = """
+    #define _USE_MATH_DEFINES
+    #include <vector>
+    #include <cmath>
+    #include <pybind11/pybind11.h>
+    #include <pybind11/stl.h>
+    
+    using namespace std;
+    const double pi = M_PI;
+    
+    double slope(vector<double> x, double t=0.0) {
+        double value = CODE_GOES_HERE;
+        return value;
+    }
+    
+    namespace py = pybind11;
+    PYBIND11_MODULE(MODNAME, m) {
+        m.def("slope", &slope, py::arg("x"), py::arg("t")=0.0);
+    }
+    """
+    cache_dir = tmpdir.ensure('jit_cache', dir=True)
+    
+    # Create wave models
+    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    
+    # Check that each model produces the same results in C++ and Python
+    for model in [fenton]:
+        cpp = model.slope_cpp()
+        cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
+                         .replace('x[2]', 'x[1]')
+        mod = jit_compile(cpp, cache_dir)
+        
+        t = 100.0
+        for x in numpy.linspace(0, 20, 201):
+            slope_cpp = mod.slope([x, 0], t)
+            slope_py = model.surface_slope(x, t)[0]
+            
+            # Compute the relative error
+            rerr = abs((slope_cpp - slope_py) / slope_py)
+            print(model.__class__.__name__, x, slope_cpp, slope_py, rerr)
+            assert rerr < 1e-14

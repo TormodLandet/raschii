@@ -38,16 +38,16 @@ def plot_wave(model_names, height, depth, length, N, depth_air, t, Nx=21, Ny=21,
     # Plot each of the specified wave model
     warnings = ''
     for model_name in model_names:
-        WaveClass = get_wave_model(model_name)
+        WaveClass, AirClass = get_wave_model(model_name)
         args = dict(height=height, depth=depth, length=length)
         if 'N' in WaveClass.required_input:
             args['N'] = N
-        if 'depth_air' in WaveClass.optional_input and depth_air > 0:
-            args['depth_air'] = depth_air
+        
+        if AirClass is not None and 'air' in WaveClass.optional_input:
+            args['air'] = AirClass(depth_air)
+        
         wave = WaveClass(**args)
-        plot_air = (hasattr(wave, 'air') and
-                    wave.air is not None and 
-                    depth_air > 0)
+        plot_air = wave.air is not None
         if wave.warnings:
             warnings += 'WARNINGS for %s:\n%s' % (model_name, wave.warnings)
         
