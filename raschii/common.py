@@ -103,8 +103,15 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
             psi_air = air.stream_function(xb, zb, t, frame='c')
             detadx = wave.surface_slope(xb, t)
             
-            f = Z * Z * (3 - 2 * Z)
-            dfdZ = 6 * Z - 6 * Z * Z
+            if False:
+                # Cubic smoothstep
+                f = Z * Z * (3 - 2 * Z)
+                dfdZ = 6 * Z - 6 * Z * Z
+            else:
+                # Fift order smootherstep
+                f = Z * Z * Z * (Z * (Z * 6 - 15) + 10)
+                dfdZ = Z * Z * (30 + Z * (30 * Z - 60))
+            
             dZdx = -1 / air.blending_height * detadx
             dZdz = 1 / air.blending_height
             dfdx = dfdZ * dZdx
@@ -113,7 +120,7 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
             vel_air[blend, 0] = (1 - f) * vel_water[blend, 0] + f * vel_air[blend, 0]
             vel_air[blend, 1] = (1 - f) * vel_water[blend, 1] + f * vel_air[blend, 1]
             vel_air[blend, 0] += - dfdz * psi_wave + dfdz * psi_air
-            vel_air[blend, 1] += - dfdx * psi_wave + dfdx * psi_air
+            vel_air[blend, 1] -= - dfdx * psi_wave + dfdx * psi_air
         vel[above] = vel_air
     else:
         vel[above] = 0
@@ -160,7 +167,7 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
             const double dfdx = dfdZ * dZdx;
             const double dfdz = dfdZ * dZdz;
             
-            return (1 - f) * val_water + f * val_air + (%s);
+            return (1 - f) * val_water + f * val_air + %r * (%s);
         }}
         
         // The point is above the blending zone
@@ -169,7 +176,12 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
                    eps=eta_eps, dist_blend=air.blending_height,
                    slope_cpp=slope_cpp)
     
+    # Compute the product rule code
     if direction == 'x':
-        return cpp % '-dfdz * (%s) + dfdz * (%s)' % (psi_wave_cpp, psi_air_cpp)
+        sign = -1
+        prcode = 'dfdz * (%s) - dfdz * (%s)' % (psi_wave_cpp, psi_air_cpp)
     elif direction == 'z':
-        return cpp % '-dfdx * (%s) + dfdx * (%s)' % (psi_wave_cpp, psi_air_cpp)
+        sign = +1
+        prcode = 'dfdx * (%s) - dfdx * (%s)' % (psi_wave_cpp, psi_air_cpp)
+    
+    return cpp % (sign, prcode)
