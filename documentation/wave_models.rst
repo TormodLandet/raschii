@@ -57,6 +57,8 @@ wave elevation :math:`\eta(x_m)`, the stream functions value at the free surface
 The stream function a-priori satisfies the bottom boundary condition at z=0 and
 also the Laplace equation :math:`\nabla^2\Psi=0`. It is defined as
 
+.. _eq_fenton_sf:
+
 .. math::
 
     \Psi(x, z) = B_0 z + \sum_{j=1}^{N}B_j\frac{\sinh jkz}{\cosh jkD}\cos jkx,
@@ -87,7 +89,7 @@ Air phase models
 ================
 
 Raschii was origially written to provide good initial conditions for an exactly
-divergence free two-phase Navier-Stokes solver based on DG-FEM, Ocellaris_. In
+divergence free two-phase Navier-Stokes solver based on DG FEM, Ocellaris_. In
 order to initialise the domain with a divergence free velocity field it is
 important to also compute the velocities in the air phase in a consistent 
 manner.
@@ -99,7 +101,7 @@ ConstantAir
 ===========
 
 The velocity in the air phase is horizontal with speed equal to the wave phase
-speed. This is mostly usefull when using a blended total field, see
+speed. This is mostly useful when using a blended total field, see
 :ref:`sec_blending`.
 
 
@@ -110,13 +112,18 @@ The Fourier series stream function from Rienecker and Fenton (1981) is used also
 for the air phase. Using a stream function ensures an exactly divergence free
 velocity field.
 
-The "Fenton" stream function is linear in the unknown parameters when the wave
-elevation is known. The air-phase velocities are computed after the water wave
-has been established, so this means that the expansion coefficients
-:math:`B_{1..N}` can be found by a simple linear solve to satisfy that the free
-surface is a stream function also in the air phase. In order to use the "Fenton"
-stream function the z-coordinate is flipped such that the velocity is purely
-horizontal a distance ``depth_air`` above the free surface.
+The :ref:`Fenton stream function <eq_fenton_sf>` is linear in the unknown
+parameters on the free surface when the wave elevation :math:`\eta` is known.
+The air-phase velocities are computed after the water wave has been established,
+so this means that the expansion coefficients :math:`B_{1..N}` can be found by a
+simple linear solve to satisfy that the free surface is a stream function also
+in the air phase. 
+
+The same collocation method as in the *Fenton* wave model is used to construct
+the equation system for the unknown coefficients and the same equi-distant
+collocation points are used. In order to use the Fenton stream function the
+z-coordinate is flipped such that the air velocities are purely horizontal a
+specified "depth" above the free surface.
 
 
 .. #############################################################################
@@ -128,28 +135,35 @@ horizontal a distance ``depth_air`` above the free surface.
 Combining the air and wave velocities
 =====================================
 
+The combined velocity field in the water and air domains can be obtained by 
+simply changing the stream function at the free surface. The result obtained by
+using Fenton stream functions in the water and air phases can be seen on the
+left in the below figure. The velocities normal to the surface are continuous,
+while the velocities parallel to the surface are discontinuous with magnitues of
+approximately the same size, but different directions. This is similar to what
+can be found in many textbooks for potential flow linear waves on the interface
+between two fluids. Full continuity cannot be enforced without any viscosity.
+The divergence of the velocity in the resulting field is naturally quite high at
+the discontinuity when the combined water and air velocity field is projected
+into a finite element space.
+
 .. figure:: figures/air_vel_compare.png
    :alt: comparison of blended and unblended stream function velocities near the
          free surface
 
-   Comparison of blended and unblended stream function velocities near the free
-   surface. Fenton wave and FentonAir solution for wave heigh 12m, depth 200 m
-   and wave length 100 m with an fifth order approximation and 100 m air layer.
-
-The resulting velocity field can be seen on the left in the above figure. As can
-be seen the velocities in the water and air phases are reasonably continuous,
-but some discrepancies are highlighted. The divergence in the field is quite
-high at the discontinuity when the combined water and air velocity field is
-projected into a finite element space.
+   Comparison of unblended and blended stream function velocities near the free
+   surface. Fenton wave and FentonAir solution for wave height 12m, depth 200 m
+   and wave length 100 m with an fifth order stream function and a 100 m air
+   layer thickness above the still water height.
 
 To combat these problems the two stream functions are blended together. The
 stream function in the water domain is left entirely undisturbed, but from the
 free surface and a distance :math:`\tau` up into the air—by default the same as
 twice the wave height—the stream function in the water is smoothly transitioned
 into the the stream function in the air. The results can be seen in the right
-image. Since the blending is done to create a new stream function the resulting
-velocity field is exactly divergence free. The resulting total stream function
-and velocity components are
+image. Since the blending is done to create a new stream function, the resulting
+velocity field is exactly divergence free. The resulting blended stream function
+and its velocity components are
 
 .. math::
 
@@ -163,12 +177,14 @@ and velocity components are
                     \frac{d f}{d z}\Psi_{a}(x,z),
 
     \mathbf{u}_z &= -(1 - f) \frac{\partial\Psi_{w}}{\partial x} -
-                    f \frac{\partial\Psi_{a}}{\partial x} -
-                    \frac{d f}{d x}\Psi_{w}(x,z) +
+                    f \frac{\partial\Psi_{a}}{\partial x} +
+                    \frac{d f}{d x}\Psi_{w}(x,z) -
                     \frac{d f}{d x}\Psi_{a}(x,z),
 
 where the blending function :math:`f(Z)` is a constant equal to 0.0 in the water
-and 1.0 above the air blending zone. Raschii uses a cubic Smoothstep_ function
-in the blending zone. This function has zero first derivative at each end.
+(:math:`\Psi=\Psi_w`) and 1.0 above the air blending zone (:math:`\Psi=\Psi_a`).
+Raschii uses a fifth order `smooth step function`_ for :math:`f(Z)` in the
+blending zone. This function has zero first and second derivatives at the top
+and bottom of the blending zone.
 
-.. _Smoothstep: https://en.wikipedia.org/wiki/Smoothstep
+.. _smooth step function: https://en.wikipedia.org/wiki/Smoothstep
