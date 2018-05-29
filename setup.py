@@ -70,7 +70,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
@@ -86,7 +86,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='ocean waves stream function fenton',
+    keywords='ocean waves stream function Fenton Stokes Airy',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().

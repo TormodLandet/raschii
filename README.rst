@@ -80,7 +80,7 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
-Version 1.0.0 - May XX. 2018
+Version 1.0.0 - May 29. 2018
 ............................
 
 The initial release of Raschii
@@ -90,6 +90,12 @@ The initial release of Raschii
 - Support for Airy waves
 - Support for C++ code generation (for FEniCS expressions etc)
 - Command line program for plotting waves
+- Command line demo for converting fields to FEniCS
+- Unit tests for most things
+- Documentation and (currently non-complete online demo)
+- Support for computing a combined wave and air velocity field which is
+  continuous across the free surface and divergence free (currently only works
+  with the Fenton stream function wave model).
 
 
 Copyright and license
