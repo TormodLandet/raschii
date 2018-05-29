@@ -5,7 +5,7 @@ from raschii import get_wave_model, check_breaking_criteria
 
 
 def plot_wave(model_names, height, depth, length, N, depth_air, blend_distance,
-              t, Nx=21, Ny=21, plot_quiver=False):
+              t, Nx=21, Ny=21, plot_quiver=False, ymin=None, ymax=None):
     """
     Plot waves with the given parameters
     """
@@ -22,6 +22,7 @@ def plot_wave(model_names, height, depth, length, N, depth_air, blend_distance,
     print(head_format % ('', 'c', 'T', 'eta_max', 'eta_min', 'vel_max'))
     
     # Vertical axis limits
+    ymin_user, ymax_user = ymin, ymax
     ymax = depth + height * 1.5
     ymin = max(depth - length * 2, 0)    # Include only 2 wave lengths dept,
     ymin = max(depth - height * 10, ymin) # but no more than 10 wave heights
@@ -34,6 +35,10 @@ def plot_wave(model_names, height, depth, length, N, depth_air, blend_distance,
     if depth_air > 0:
         ymax = min(depth + length * 2, depth + depth_air)
         ymax = min(depth + height * 10, ymax)
+    
+    # Let the user override the axis limits
+    ymin = ymin_user if ymin_user is not None else ymin
+    ymax = ymax_user if ymax_user is not None else ymax
     
     # Plot each of the specified wave model
     warnings = ''
@@ -194,6 +199,10 @@ def main():
                              'distance up to improve continuity of velocities')
     parser.add_argument('-t', '--time', default=0.0, type=float,
                         help='The time instance to plot')
+    parser.add_argument('--ymin', default=None, type=float,
+                        help='Lower vertical axis limit')
+    parser.add_argument('--ymax', default=None, type=float,
+                        help='Upper vertical axis limit')
     args = parser.parse_args()
     
     err, warn = check_breaking_criteria(args.wave_height, args.water_depth,
@@ -212,7 +221,9 @@ def main():
               depth_air=args.depth_air,
               blend_distance=args.blend_distance,
               t=args.time,
-              plot_quiver=args.velocities)
+              plot_quiver=args.velocities,
+              ymin=args.ymin,
+              ymax=args.ymax)
 
 if __name__ == '__main__':
     main()
