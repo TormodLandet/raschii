@@ -2,100 +2,17 @@
     <script defer src="_static/raschii.js"></script>
     <style>
     #raschii {
-        margin: 1em auto;
-        max-width: 40em;
-        display: grid;
-        grid-template-columns: 1fr max-content 1.44fr;
-
-        /* Reset inherited css inside the div */
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 100%;
-        line-height: 1;
-    }
-    #raschii .informer, #raschii #plot, #raschii output {
-        grid-column: 1/-1;
-        margin: 2px;
-        margin-bottom: 1em;
-    }
-    #raschii .informer {
-        margin: 2px 1em 1em 1em;
-    }
-    #raschii .informer:empty {
-        display: none;
+        margin: 1em 1em;
+        padding: 0.5em;
+        border: 2px solid SlateGray;
     }
     #raschii .error {
+        padding: 3px 1em;
         color: red;
     }
-    #raschii .warning {
-        color: orange;
-    }
-    #raschii .info {
-        color: navy;
-    }
-    #raschii #plot {
-        border: 1px solid black;
-        height: 15em;
-        background-color: lightgray;
-    }
-    #raschii #plot svg {
-        width: 100%;
-        height: 100%;
-        max-width: 40em;
-        background-color: white;
-    }
-    #raschii form {
-        display: grid;
-        grid-column: 2/3;
-        grid-template-columns: max-content max-content;
-    }
-    #raschii label {
-        grid-column: 1/2;
-        display: flex;
-        align-items: center;
-        justify-content: right;
-    }
-    #raschii input, #raschii button, #raschii select {
-        grid-column: 2/3;
-        margin: 0.1em 1em 0.1em 1em;
-        width: 15em;
-        box-sizing: border-box;
-        height: 2em;
-    }
-    #raschii output {
-        background-color: #eee;
-        margin: 1em;
-        padding: 1em;
-        font-family: monospace;
-        white-space: pre;
-    }
     </style>
-    <div id="plot"></div>
-    <p class='info informer'></p>
-    <p class='error informer'>
+    <em>Raschii calculator:</em>
+    <p class='error'>
             Javascript (dart2js) code is not loaded! This calculator will not work!
     </p>
-    <p class='warning informer'>
-            Javascript (dart2js) code is not loaded! This calculator will not work!
-    </p>
-
-    <form>
-        <label for="waveModel">Wave model</label>
-        <select name="waveModel"></select>
-
-        <label for="height">Wave height [m]</label>
-        <input name="height" type="number" value="12.0" step="any" min="0">
-
-        <label for="length">Wave length [m]</label>
-        <input name="length" type="number" value="100.0" step="any" min="0">
-
-        <label for="depth">Water depth [m]</label>
-        <input name="depth" type="number" value="3000.0" step="any" min="0">
-
-        <label for="order">Model order</label>
-        <input name="order" type="number" value="5" min="1">
-
-        <button name="generate" type="button">Generate wave</button>
-    </form>
-
-    <output name="out">Calculation results: NO RESULTS YET</output>
 </div>

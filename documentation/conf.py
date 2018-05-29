@@ -28,16 +28,29 @@ if not 'NO_GEN_JS' in os.environ:
         repo_url = 'https://bitbucket.org/trlandet/raschiidart.git'
         repo_name = 'raschii_dart.git'
         cmds = [(['git', 'clone', repo_url, repo_name], '.'),
-                (['dart2js', 'raschii_web.dart', '-m', '-o', 'raschii.js'],
-                 repo_name),
+                (['cp', 'raschii_web.html', '../raschii_dart.html.in'], repo_name),
+                (['dart2js', 'raschii_web.dart', '-m', '-o', 'raschii.js'], repo_name),
                 (['mv', 'raschii.js', '../_static/'], repo_name),
                 (['rm', '-rf', repo_name], '.')]
         for cmd, workdir in cmds:
             print('RUNNING:', ' '.join(cmd))
             subprocess.check_call(cmd, cwd=workdir)
     
+    def copy_raschii_dart_html():
+        with open('raschii_dart.html', 'wt') as out, \
+             open('raschii_dart.html.in', 'rt') as inp:
+            transfer = False
+            for line in inp:
+                if '</body>' in line:
+                    transfer = False
+                if transfer:
+                    out.write(line.replace('raschii.js', '_static/raschii.js'))
+                if '<body>' in line:
+                    transfer = True
+    
     try:
         build_raschii_dart()
+        copy_raschii_dart_html()
     except Exception as e:
         error = str(e)
         
