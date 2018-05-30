@@ -3,6 +3,11 @@ from math import pi, tanh
 import numpy
 
 
+# If the air phase blending_height is None then the wave height times this
+# default factor will be used
+AIR_BLENDING_HEIGHT_FACTOR = 2
+
+
 class RasciiError(Exception):
     pass
 

@@ -1,20 +1,43 @@
 import numpy
+import pytest
 
 
-def test_fenton_air_with_fenton(plot=False):
-    from raschii import FentonAirPhase, FentonWave
-    height = 10.0
-    depth = 200.0
-    length = 100.0
-    height_air = 100.0
+@pytest.fixture(params=['deep1', 'shallow1'])
+def wave_with_air_model(request):
     N = 5
     time = 0.0
-    air = FentonAirPhase(height_air)
+    blending_height = None
+    plot = False  # for debugging only
+    
+    if request.param == 'deep1':
+        height = 10.0
+        depth = 200.0
+        length = 100.0
+        height_air = 100.0
+    elif request.param == 'shallow1':
+        height = 0.5
+        depth = 7.0
+        length = 20
+        height_air = 3.0
+        blending_height = 2
+    
+    from raschii import FentonAirPhase, FentonWave
+    air = FentonAirPhase(height_air, blending_height)
     fwave = FentonWave(height, depth, length, N, air=air)
+    return fwave, air, time, plot
+
+
+def test_fenton_air_with_fenton(wave_with_air_model):
+    # Get the wave from the fixture
+    fwave, air, time, plot = wave_with_air_model
+    length, depth, height = fwave.length, fwave.depth, fwave.height
     
     # Locations to check
+    top = depth + 2.75 * height
+    if air.blending_height < 5 * height:
+        top = max(depth + air.blending_height * 1.2, top)
     xpos = numpy.linspace(-length / 2, length / 2, 101)
-    zpos = numpy.linspace(depth - height / 2, depth + 2.75 * height, 101)
+    zpos = numpy.linspace(depth - height / 2, top, 101)
     X, Z = numpy.meshgrid(xpos, zpos)
     xr = X.ravel()
     zr = Z.ravel()

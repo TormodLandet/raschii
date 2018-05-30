@@ -2,13 +2,13 @@ import dolfin
 from raschii import get_wave_model, check_breaking_criteria
 
 
-def wave2fenics(wave, width, height, Nx=201, Ny=201):
+def wave2fenics(wave, rangex, rangey, Nx=101, Ny=51):
     """
     Show how to construct a FEniCS velocity field based on the wave velocity
     field. Tested with FEniCS 2018.1 (pre-release dev version)
     """
-    start = dolfin.Point(0, 0)
-    end = dolfin.Point(width, height)
+    start = dolfin.Point(rangex[0], rangey[0])
+    end = dolfin.Point(rangex[1], rangey[1])
     mesh = dolfin.RectangleMesh(dolfin.MPI.comm_world, start, end, Nx, Ny)
     
     # Velocity and divergence
@@ -101,8 +101,15 @@ def main():
     parser.add_argument('-a', '--depth_air', default=0.0, type=float,
                         help='Include velocities in the air phase if this is '
                              'greater than 0 (distance to "lid" above the air).')
+    parser.add_argument('-b', '--blend_distance', default=-1, type=float,
+                        help='Blend the water and air stream functions a '
+                             'distance up to improve continuity of velocities')
     parser.add_argument('-t', '--time', default=0.0, type=float,
                         help='The time instance to plot')
+    parser.add_argument('--ymin', default=None, type=float,
+                        help='Lower vertical axis limit')
+    parser.add_argument('--ymax', default=None, type=float,
+                        help='Upper vertical axis limit')
     args = parser.parse_args()
     
     err, warn = check_breaking_criteria(args.wave_height, args.water_depth,
@@ -120,7 +127,8 @@ def main():
     if 'N' in WaveClass.required_input:
         wave_args['N'] = args.N
     if 'air' in WaveClass.optional_input and AirClass is not None:
-        wave_args['air'] = AirClass(args.depth_air)
+        blend_distance = None if args.blend_distance < 0 else args.blend_distance
+        wave_args['air'] = AirClass(args.depth_air, blend_distance)
     
     for a in sorted(wave_args):
         print('%13s: %5r' % (a, wave_args[a]))
@@ -128,9 +136,15 @@ def main():
     wave = WaveClass(**wave_args)
     
     print('\nConverting to FEniCS and writing XDMF ...')
-    width = args.wave_length * 2
     height = args.water_depth + max(args.depth_air, args.wave_height * 2)
-    wave2fenics(wave, width, height)
+    length = args.wave_length * 2 
+    xmin = 0
+    xmax = length
+    ymin = 0 if args.ymin is None else args.ymin
+    ymax = height if args.ymax is None else args.ymax    
+    if args.ymax is None:
+        ymax = args.water_depth + max(args.depth_air, args.wave_height * 2)
+    wave2fenics(wave, (xmin, xmax), (ymin, ymax))
     
 
 if __name__ == '__main__':

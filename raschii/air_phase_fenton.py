@@ -1,6 +1,6 @@
 from numpy import zeros, asarray, arange, sin, cos, sinh, cosh, newaxis
 from numpy.linalg import solve
-from .common import sinh_by_cosh
+from .common import sinh_by_cosh, AIR_BLENDING_HEIGHT_FACTOR
 
 
 class FentonAirPhase:
@@ -29,7 +29,7 @@ class FentonAirPhase:
         self.depth_water = wave.depth
         
         if self.blending_height is None:
-            self.blending_height = 2 * wave.height
+            self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
     
     def stream_function(self, x, z, t=0, frame='b'):
         """

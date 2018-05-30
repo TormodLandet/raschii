@@ -1,4 +1,5 @@
 from numpy import asarray, zeros
+from .common import AIR_BLENDING_HEIGHT_FACTOR
 
 
 class ConstantAirPhase:
@@ -16,7 +17,7 @@ class ConstantAirPhase:
         self.c = wave.c
         
         if self.blending_height is None:
-            self.blending_height = 2 * wave.height
+            self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
     
     def stream_function(self, x, z, t=0, frame='b'):
         """
