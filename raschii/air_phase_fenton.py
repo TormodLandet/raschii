@@ -126,7 +126,7 @@ class FentonAirPhase:
         
         z2 = '(%r - x[2])' % (self.depth_water + self.height, )
         cpp_x = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * cosh(%r * %s)' %
-                           (facs[i], Jk[i], c, Jk[i], z2) for i in range(N))
+                           (-facs[i], Jk[i], c, Jk[i], z2) for i in range(N))
         cpp_z = ' + '.join('%r * sin(%f * (x[0] - %r * t)) * sinh(%r * %s)' %
                            (facs[i], Jk[i], c, Jk[i], z2) for i in range(N))
         return (cpp_x, cpp_z)
