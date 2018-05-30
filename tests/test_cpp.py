@@ -1,6 +1,25 @@
 import numpy
+import pytest
 from raschii import get_wave_model
 from jit_helper import jit_compile
+
+
+@pytest.fixture(params=['Airy', 'Fenton'])
+def wave_model(request):
+    if request.param == 'Airy':
+        model = get_wave_model('Airy')[0](height=1, depth=10, length=20)
+    elif request.param == 'Fenton':
+        model = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+        
+    if ('stream_function' in request.node.name and
+            not hasattr(model, 'stream_function_cpp')):
+        raise pytest.skip('Stream function C++ missing from %s' % request.param)
+    
+    if ('slope' in request.node.name and
+            not hasattr(model, 'slope_cpp')):
+        raise pytest.skip('Surface slope C++ missing from %s' % request.param)
+    
+    return model
 
 
 def test_cpp_jit(tmpdir):
@@ -23,7 +42,7 @@ def test_cpp_jit(tmpdir):
     assert mod.add(5, 37) == 42
 
 
-def test_cpp_vs_py_elevation(tmpdir):
+def test_cpp_vs_py_elevation(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
     #include <vector>
@@ -46,24 +65,19 @@ def test_cpp_vs_py_elevation(tmpdir):
     """
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
-    # Create wave models
-    airy = get_wave_model('Airy')[0](height=1, depth=10, length=20)
-    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    # Check that the wave model produces the same results in C++ and Python
+    cpp = wave_model.elevation_cpp()
+    mod = jit_compile(cpp_wrapper.replace('CODE_GOES_HERE', cpp), cache_dir)
     
-    # Check that each model produces the same results in C++ and Python
-    for model in [airy, fenton]:
-        cpp = model.elevation_cpp()
-        mod = jit_compile(cpp_wrapper.replace('CODE_GOES_HERE', cpp), cache_dir)
-        
-        for pos in ([0.0, 0.0], [4.0, 7.0]):
-            e_cpp = mod.elevation(pos, t=1.3)
-            e_py = model.surface_elevation(pos[0], t=1.3)[0]
-            err = abs(e_cpp - e_py)
-            print(model.__class__.__name__, pos, e_cpp, e_py, err)
-            assert err < 1e-14
+    for pos in ([0.0, 0.0], [4.0, 7.0]):
+        e_cpp = mod.elevation(pos, t=1.3)
+        e_py = wave_model.surface_elevation(pos[0], t=1.3)[0]
+        err = abs(e_cpp - e_py)
+        print(wave_model.__class__.__name__, pos, e_cpp, e_py, err)
+        assert err < 1e-14
 
 
-def test_cpp_vs_py_velocity(tmpdir):
+def test_cpp_vs_py_velocity(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
     #include <vector>
@@ -92,32 +106,27 @@ def test_cpp_vs_py_velocity(tmpdir):
     """
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
-    # Create wave models
-    airy = get_wave_model('Airy')[0](height=1, depth=10, length=20)
-    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    # Check that the wave model produces the same results in C++ and Python
+    cppx, cppz = wave_model.velocity_cpp()
+    cpp = cpp_wrapper.replace('CODE_X_GOES_HERE', cppx)\
+                     .replace('CODE_Z_GOES_HERE', cppz)\
+                     .replace('x[2]', 'x[1]')
+    mod = jit_compile(cpp, cache_dir)
     
-    # Check that each model produces the same results in C++ and Python
-    for model in [airy, fenton]:
-        cppx, cppz = model.velocity_cpp()
-        cpp = cpp_wrapper.replace('CODE_X_GOES_HERE', cppx)\
-                         .replace('CODE_Z_GOES_HERE', cppz)\
-                         .replace('x[2]', 'x[1]')
-        mod = jit_compile(cpp, cache_dir)
+    t = 4.2
+    for pos in ([-10.0, 5.0], [5.0, 6.0]):
+        vx_cpp = mod.vel_x(pos, t)
+        vz_cpp = mod.vel_z(pos, t)
+        vx_py, vz_py = wave_model.velocity(pos[0], pos[1], t)[0]
         
-        t = 4.2
-        for pos in ([-10.0, 5.0], [5.0, 6.0]):
-            vx_cpp = mod.vel_x(pos, t)
-            vz_cpp = mod.vel_z(pos, t)
-            vx_py, vz_py = model.velocity(pos[0], pos[1], t)[0]
-            
-            # Compute the relative error
-            rerr = abs((vx_cpp - vx_py) / vx_py) + abs((vz_cpp - vz_py) / vz_py)
-            print(model.__class__.__name__, pos, (vx_cpp, vz_cpp),
-                  (vx_py, vz_py), rerr)
-            assert rerr < 1e-2
+        # Compute the relative error
+        rerr = abs((vx_cpp - vx_py) / vx_py) + abs((vz_cpp - vz_py) / vz_py)
+        print(wave_model.__class__.__name__, pos, (vx_cpp, vz_cpp),
+              (vx_py, vz_py), rerr)
+        assert rerr < 1e-2
 
 
-def test_cpp_vs_py_stream_function(tmpdir):
+def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
     #include <vector>
@@ -140,28 +149,24 @@ def test_cpp_vs_py_stream_function(tmpdir):
     """
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
-    # Create wave models
-    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    # Check that the wave model produces the same results in C++ and Python
+    cpp = wave_model.stream_function_cpp(frame='c')
+    cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
+                     .replace('x[2]', 'x[1]')
+    mod = jit_compile(cpp, cache_dir)
     
-    # Check that each model produces the same results in C++ and Python
-    for model in [fenton]:
-        cpp = model.stream_function_cpp(frame='c')
-        cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
-                         .replace('x[2]', 'x[1]')
-        mod = jit_compile(cpp, cache_dir)
+    t = -23.9
+    for pos in ([-10.0, 5.0], [5.0, 6.0]):
+        sf_cpp = mod.sfunc(pos, t)
+        sf_py = wave_model.stream_function(pos[0], pos[1], t, frame='c')[0]
         
-        t = -23.9
-        for pos in ([-10.0, 5.0], [5.0, 6.0]):
-            sf_cpp = mod.sfunc(pos, t)
-            sf_py = model.stream_function(pos[0], pos[1], t, frame='c')[0]
-            
-            # Compute the relative error
-            rerr = abs((sf_cpp - sf_py) / sf_py)
-            print(model.__class__.__name__, pos, sf_cpp, sf_py, rerr)
-            assert rerr < 1e-2
+        # Compute the relative error
+        rerr = abs((sf_cpp - sf_py) / sf_py)
+        print(wave_model.__class__.__name__, pos, sf_cpp, sf_py, rerr)
+        assert rerr < 1e-2
 
 
-def test_cpp_vs_py_slope(tmpdir):
+def test_cpp_vs_py_slope(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
     #include <vector>
@@ -184,22 +189,18 @@ def test_cpp_vs_py_slope(tmpdir):
     """
     cache_dir = tmpdir.ensure('jit_cache', dir=True)
     
-    # Create wave models
-    fenton = get_wave_model('Fenton')[0](height=1, depth=10, length=20, N=5)
+    # Check that the wave model produces the same results in C++ and Python
+    cpp = wave_model.slope_cpp()
+    cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
+                     .replace('x[2]', 'x[1]')
+    mod = jit_compile(cpp, cache_dir)
     
-    # Check that each model produces the same results in C++ and Python
-    for model in [fenton]:
-        cpp = model.slope_cpp()
-        cpp = cpp_wrapper.replace('CODE_GOES_HERE', cpp)\
-                         .replace('x[2]', 'x[1]')
-        mod = jit_compile(cpp, cache_dir)
+    t = 100.0
+    for x in numpy.linspace(0, 20, 201):
+        slope_cpp = mod.slope([x, 0], t)
+        slope_py = wave_model.surface_slope(x, t)[0]
         
-        t = 100.0
-        for x in numpy.linspace(0, 20, 201):
-            slope_cpp = mod.slope([x, 0], t)
-            slope_py = model.surface_slope(x, t)[0]
-            
-            # Compute the relative error
-            rerr = abs((slope_cpp - slope_py) / slope_py)
-            print(model.__class__.__name__, x, slope_cpp, slope_py, rerr)
-            assert rerr < 1e-14
+        # Compute the relative error
+        rerr = abs((slope_cpp - slope_py) / slope_py)
+        print(wave_model.__class__.__name__, x, slope_cpp, slope_py, rerr)
+        assert rerr < 1e-14
