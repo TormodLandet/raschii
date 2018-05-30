@@ -2,7 +2,7 @@ import dolfin
 from raschii import get_wave_model, check_breaking_criteria
 
 
-def wave2fenics(wave, rangex, rangey, Nx=101, Ny=51):
+def wave2fenics(wave, rangex, rangey, Nx, Ny):
     """
     Show how to construct a FEniCS velocity field based on the wave velocity
     field. Tested with FEniCS 2018.1 (pre-release dev version)
@@ -96,6 +96,8 @@ def main():
     parser.add_argument('water_depth', help='The still water depth', type=float)
     parser.add_argument('wave_length', help='Distance between peaks', type=float)
     parser.add_argument('-N', type=int, default=10, help='Approximation order')
+    parser.add_argument('--Nx', type=int, default=101, help='#cells in x-direction')
+    parser.add_argument('--Ny', type=int, default=101, help='#cells in y-direction')
     parser.add_argument('-f', '--force', default=False, action='store_true',
                         help='Allow exceeding breaking criteria')
     parser.add_argument('-a', '--depth_air', default=0.0, type=float,
@@ -144,8 +146,8 @@ def main():
     ymax = height if args.ymax is None else args.ymax    
     if args.ymax is None:
         ymax = args.water_depth + max(args.depth_air, args.wave_height * 2)
-    wave2fenics(wave, (xmin, xmax), (ymin, ymax))
-    
+    wave2fenics(wave, (xmin, xmax), (ymin, ymax), Nx=args.Nx, Ny=args.Ny)
+
 
 if __name__ == '__main__':
     print('RUNNING wave2fenics:')

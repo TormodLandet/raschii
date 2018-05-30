@@ -1,5 +1,6 @@
 import numpy
 import pytest
+from jit_helper import jit_compile
 
 
 @pytest.fixture(params=['deep1', 'shallow1'])
@@ -87,3 +88,81 @@ def test_fenton_air_with_fenton(wave_with_air_model):
           (xmax / length, (zmax - depth) / height))
     print('The velocity at the location is %r' % (tuple(totvel[maxi]), ))
     assert max_abs_div < 1e-5
+
+
+def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
+    # Get the wave from the fixture
+    fwave, air, time, plot = wave_with_air_model
+    length, depth, height = fwave.length, fwave.depth, fwave.height
+    
+    cpp_wrapper = """
+    #define _USE_MATH_DEFINES
+    #include <vector>
+    #include <cmath>
+    #include <pybind11/pybind11.h>
+    #include <pybind11/stl.h>
+    
+    using namespace std;
+    const double pi = M_PI;
+    
+    vector<double> vel(const vector<double> x, const vector<double> z,
+                       const double t=0.0) {
+        vector<double> velocity(x.size() * 2);
+        for (int i = 0; i < x.size(); i++) {
+            double xpos = x[i];
+            double zpos = z[i];
+            velocity[i * 2 + 0] = CODE_X_GOES_HERE;
+            velocity[i * 2 + 1] = CODE_Z_GOES_HERE;
+        }
+        return velocity;
+    }
+    namespace py = pybind11;
+    PYBIND11_MODULE(MODNAME, m) {
+        m.def("vel", &vel, py::arg("xr"), py::arg("zr"), py::arg("t")=0.0);
+    }
+    """
+    cache_dir = tmpdir.ensure('jit_cache', dir=True)
+    
+    # Check that the wave model produces the same results in C++ and Python
+    cppx, cppz = fwave.velocity_cpp()
+    
+    cpp = cpp_wrapper.replace('CODE_X_GOES_HERE', cppx)\
+                     .replace('CODE_Z_GOES_HERE', cppz)\
+                     .replace('x[0]', 'xpos')\
+                     .replace('x[2]', 'zpos')
+    mod = jit_compile(cpp, cache_dir)
+    
+    # Locations to check
+    top = depth + 2.75 * height
+    if air.blending_height < 5 * height:
+        top = max(depth + air.blending_height * 1.2, top)
+    xpos = numpy.linspace(-length / 2, length / 2, 101)
+    zpos = numpy.linspace(depth - height / 2, top, 101)
+    X, Z = numpy.meshgrid(xpos, zpos)
+    xr = X.ravel()
+    zr = Z.ravel()
+    eps = 1e-7
+    
+    # Check that the blended velocity field is divergence free
+    totvel = numpy.asarray(mod.vel(xr, zr, time)).reshape((xr.size, 2))
+    velsdx = numpy.asarray(mod.vel(xr + eps, zr, time)).reshape((xr.size, 2))
+    velsdz = numpy.asarray(mod.vel(xr, zr + eps, time)).reshape((xr.size, 2))
+    div = (velsdx[:, 0] - totvel[:, 0] + velsdz[:, 1] - totvel[:, 1]) / eps
+    adiv = abs(div)
+    
+    if plot:
+        from matplotlib import pyplot
+        c = pyplot.contourf(X, Z, adiv.reshape(X.shape))
+        pyplot.colorbar(c)
+        pyplot.plot(xpos, fwave.surface_elevation(xpos, time))
+        pyplot.show()
+    
+    maxi = adiv.argmax()
+    xmax = xr[maxi]
+    zmax = zr[maxi]
+    max_abs_div = adiv[maxi]
+    print('\nThe maximum absolute divergence is', max_abs_div)
+    print('The location is x/lambda = %.5f and (z - D)/H = %.5f' %
+          (xmax / length, (zmax - depth) / height))
+    print('The velocity at the location is %r' % (tuple(totvel[maxi]), ))
+    assert max_abs_div < 1e-4
