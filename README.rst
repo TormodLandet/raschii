@@ -21,9 +21,8 @@ and boundary conditions in a FEM solver. There is also a limited `Dart port
 .. figure:: http://raschii.readthedocs.io/en/latest/_static/fenton_stokes.png
    :alt: A comparison of Stokes and Fenton waves of fifth order
 
-   A comparison of surface elevation and fluid velocities for fifth order Stokes
-   and Fenton stream function waves. Deep water, wave heigh 12 m, wave length
-   100 m.
+   A comparison of fifth order Stokes waves and fifth order Fenton stream
+   function waves. Deep water, wave heigh 12 m, wave length 100 m.
 
 
 Installation and running
