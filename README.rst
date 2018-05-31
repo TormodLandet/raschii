@@ -79,12 +79,14 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
-Version 1.0.1 - XYZ XX. YYYY
+Version 1.0.1 - May 31. 2018
 ............................
 
-In development. Current changes:
+Small bugfix release
 
-- No changes yet
+- Fix bug related to sign of x component of FentonAir C++ velocity
+- Improve unit testing suite
+- Improve FEM interpolation demo
 
 Version 1.0.0 - May 29. 2018
 ............................

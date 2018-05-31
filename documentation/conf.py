@@ -17,9 +17,21 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 
+# -- Get the current version of Raschii ---------------------------------------
+
+import os
+
+def get_raschii_version():
+    here = os.path.abspath(os.path.dirname(__file__))
+    init_py = os.path.join(here, '..', 'raschii', '__init__.py')
+    for line in open(init_py, encoding='utf-8'):
+        if line.startswith('__version__'):
+            return line.split('=')[1].strip()[1:-1]
+
+
 # -- Build the RaschiiDart online calculator javascript code  -----------------
 #
-import os, subprocess, json 
+import subprocess, json
 
 if not 'NO_GEN_JS' in os.environ:
     # Generate the JS code with dart2js after checking it out from git
@@ -59,16 +71,18 @@ if not 'NO_GEN_JS' in os.environ:
             f.write('element.innerHTML += "<br><b>Got error:</b><br>" +')
             f.write('"<pre>" + %s + "</pre>";\n' % json.dumps(error))
 
+
 # -- Project information -----------------------------------------------------
 
 project = 'raschii'
 copyright = '2018, Tormod Landet'
 author = 'Tormod Landet'
 
-# The short X.Y version
-version = '1.0'
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = get_raschii_version()
+
+# The short X.Y version
+version = '.'.join(release.split('.')[:2])
 
 
 # -- General configuration ---------------------------------------------------

@@ -51,7 +51,8 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version=version,
 
-    description='Nonlinear regular wave theories (Stokes, Fenton stream func.)',
+    description=('A Python implementation of nonlinear regular wave theories '
+                 '(Stokes 2nd to 5th order and Fenton stream function waves).'),
     long_description=long_description,
 
     # The project's main homepage.
