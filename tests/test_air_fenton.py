@@ -143,11 +143,12 @@ def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
     zr = Z.ravel()
     eps = 1e-7
     
+    ############################################################################
     # Check that the blended velocity field is divergence free
-    totvel = numpy.asarray(mod.vel(xr, zr, time)).reshape((xr.size, 2))
-    velsdx = numpy.asarray(mod.vel(xr + eps, zr, time)).reshape((xr.size, 2))
-    velsdz = numpy.asarray(mod.vel(xr, zr + eps, time)).reshape((xr.size, 2))
-    div = (velsdx[:, 0] - totvel[:, 0] + velsdz[:, 1] - totvel[:, 1]) / eps
+    vel_pos = numpy.asarray(mod.vel(xr, zr, time)).reshape((xr.size, 2))
+    vel_pdx = numpy.asarray(mod.vel(xr + eps, zr, time)).reshape((xr.size, 2))
+    vel_pdz = numpy.asarray(mod.vel(xr, zr + eps, time)).reshape((xr.size, 2))
+    div = (vel_pdx[:, 0] - vel_pos[:, 0] + vel_pdz[:, 1] - vel_pos[:, 1]) / eps
     adiv = abs(div)
     
     if plot:
@@ -164,5 +165,22 @@ def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
     print('\nThe maximum absolute divergence is', max_abs_div)
     print('The location is x/lambda = %.5f and (z - D)/H = %.5f' %
           (xmax / length, (zmax - depth) / height))
-    print('The velocity at the location is %r' % (tuple(totvel[maxi]), ))
+    print('The velocity at the location is %r' % (tuple(vel_pos[maxi]), ))
     assert max_abs_div < 1e-4
+    
+    ############################################################################
+    # Check that the C++ blended velocity matches the Python blended velocity
+    py_vel = fwave.velocity(xr, zr, time)
+    
+    for i in range(2):
+        aerr = abs(vel_pos[:, i] - py_vel[:, i])
+        maxi = aerr.argmax()
+        xmax = xr[maxi]
+        zmax = zr[maxi]
+        max_abs_err = aerr[maxi]
+        print('\nThe maximum absolute u%d difference is %r' % (i, max_abs_err))
+        print('The location is x/lambda = %.5f and (z - D)/H = %.5f' %
+              (xmax / length, (zmax - depth) / height))
+        print('The C++ value is    %r' % vel_pos[maxi, i])
+        print('The Python value is %r' % py_vel[maxi, i])
+        assert max_abs_err < 1e-4
