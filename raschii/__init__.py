@@ -32,6 +32,7 @@ def get_wave_model(model_name, air_model_name=None):
     Get a Raschii wave model by name
     """
     if '+' in model_name:
+        assert air_model_name is None
         model_name, air_model_name = model_name.split('+')
     
     if model_name not in WAVE_MODELS:
