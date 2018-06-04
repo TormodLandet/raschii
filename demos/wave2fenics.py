@@ -172,6 +172,8 @@ def main():
                         help='Upper vertical axis limit')
     parser.add_argument('--plot', default=False, action='store_true',
                         help='Show matplotlib plot of eval-ed dolfin.Functions')
+    parser.add_argument('--xdmf', default=False, action='store_true',
+                        help='Produce xdmf file')
     args = parser.parse_args()
     
     err, warn = check_breaking_criteria(args.wave_height, args.water_depth,
@@ -212,7 +214,7 @@ def main():
     
     print('\nConverting to FEniCS C++ expressions and interpolating to FEM ...')
     wave2fenics(wave, args.time, (xmin, xmax), (ymin, ymax),
-                args.Nx, args.Ny, plot=args.plot)
+                args.Nx, args.Ny, plot=args.plot, xdmf=args.xdmf)
 
 
 if __name__ == '__main__':

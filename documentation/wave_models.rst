@@ -137,9 +137,10 @@ Combining the air and wave velocities
 
 The combined velocity field in the water and air domains can be obtained by 
 simply changing the stream function at the free surface. The result obtained by
-using Fenton stream functions in the water and air phases can be seen on the
-left in the below figure. The velocities normal to the surface are continuous,
-while the velocities parallel to the surface are discontinuous with magnitues of
+using Fenton stream functions in both the water and air phases can be seen in 
+the below figure. The velocities normal to the surface are continuous as one 
+would expect since the free surface is a stream line in both domains. The
+velocities parallel to the surface are discontinuous with magnitues of
 approximately the same size, but different directions. This is similar to what
 can be found in many textbooks for potential flow linear waves on the interface
 between two fluids. Full continuity cannot be enforced without any viscosity.
@@ -147,29 +148,30 @@ The divergence of the velocity in the resulting field is naturally quite high at
 the discontinuity when the combined water and air velocity field is projected
 into a finite element space.
 
-.. figure:: figures/air_vel_compare.png
-   :alt: comparison of blended and unblended stream function velocities near the
-         free surface
+.. figure:: figures/air_vel_unblended.png
+   :alt: Unblended stream function velocities near the free surface
 
-   Comparison of unblended and blended stream function velocities near the free
-   surface. Fenton wave and FentonAir solution for wave height 12m, depth 200 m
-   and wave length 100 m with an fifth order stream function and a 100 m air
-   layer thickness above the still water height.
+   Unblended stream function velocities near the free surface. Fenton wave and
+   FentonAir solution for wave height 12m, depth 200 m and wave length 100 m
+   with an fifth order stream function and a 100 m air layer thickness above the
+   still water height. Produced by ``python3 demos/plot_wave.py Fenton+FentonAir
+   12 200 100 -N 5 -a 100 -b 0 -v --ymin 150 --ymax 250``.
 
 To combat these problems the two stream functions are blended together. The
 stream function in the water domain is left entirely undisturbed, but from the
-free surface and a distance :math:`\tau` up into the air—by default the same as
-twice the wave height—the stream function in the water is smoothly transitioned
-into the the stream function in the air. The results can be seen in the right
-image. Since the blending is done to create a new stream function, the resulting
-velocity field is exactly divergence free. The resulting blended stream function
-and its velocity components are
+free surface up to ``z = d = air.blending_height + wave.depth`` the stream
+function in the water is smoothly transitioned into the the stream function in
+the air. The blending height can be set to a different value than the height of
+the air layer—by default it is the same as twice the wave height. The results
+can be seen in the figure below. The resulting velocity field is exactly
+divergence free since the blending is done to create a new stream function from
+which the velocities are calculated.
 
 .. math::
 
     \Psi &= [1 - f(Z)] \Psi_{w}(x,z) + f(Z) \Psi_{a}(x,z),
     
-    Z &= \frac{z - \eta(x)}{\tau},
+    Z &= \frac{z - \eta(x)}{d - \eta(x)}\,,
 
     \mathbf{u}_x &= (1 - f) \frac{\partial\Psi_{w}}{\partial z} +
                     f \frac{\partial\Psi_{a}}{\partial z} -
@@ -182,9 +184,19 @@ and its velocity components are
                     \frac{d f}{d x}\Psi_{a}(x,z),
 
 where the blending function :math:`f(Z)` is a constant equal to 0.0 in the water
-(:math:`\Psi=\Psi_w`) and 1.0 above the air blending zone (:math:`\Psi=\Psi_a`).
+(:math:`\Psi=\Psi_w` for :math:`z <\eta(x)`) and 1.0 above the air blending zone
+(:math:`\Psi=\Psi_a` for :math:`z > d`).
 Raschii uses a fifth order `smooth step function`_ for :math:`f(Z)` in the
 blending zone. This function has zero first and second derivatives at the top
 and bottom of the blending zone.
 
 .. _smooth step function: https://en.wikipedia.org/wiki/Smoothstep
+
+.. figure:: figures/air_vel_blended.png
+   :alt: Blended stream function velocities near the free surface
+
+   Blended stream function velocities near the free surface. Fenton wave and
+   FentonAir solution for wave height 12m, depth 200 m and wave length 100 m
+   with an fifth order stream function and a 100 m air layer thickness above the
+   still water height. Produced by ``python3 demos/plot_wave.py Fenton+FentonAir
+   12 200 100 -N 5 -a 100 -b 30 -v --ymin 150 --ymax 250``.

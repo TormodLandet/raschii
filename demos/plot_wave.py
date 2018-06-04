@@ -4,7 +4,7 @@ from matplotlib import pyplot
 from raschii import get_wave_model, check_breaking_criteria
 
 
-def plot_wave(model_names, height, depth, length, N, depth_air, blend_distance,
+def plot_wave(model_names, height, depth, length, N, depth_air, blend_height,
               t, Nx=21, Ny=21, plot_quiver=False, ymin=None, ymax=None):
     """
     Plot waves with the given parameters
@@ -49,8 +49,8 @@ def plot_wave(model_names, height, depth, length, N, depth_air, blend_distance,
             args['N'] = N
         
         if AirClass is not None and 'air' in WaveClass.optional_input:
-            blend_distance = None if blend_distance < 0 else blend_distance
-            args['air'] = AirClass(depth_air, blend_distance)
+            blend_height = None if blend_height < 0 else blend_height
+            args['air'] = AirClass(depth_air, blend_height)
         
         wave = WaveClass(**args)
         plot_air = wave.air is not None
@@ -194,7 +194,7 @@ def main():
     parser.add_argument('-a', '--depth_air', default=0.0, type=float,
                         help='Include velocities in the air phase if this is '
                              'greater than 0 (distance to "lid" above the air).')
-    parser.add_argument('-b', '--blend_distance', default=-1, type=float,
+    parser.add_argument('-b', '--blend_height', default=-1, type=float,
                         help='Blend the water and air stream functions a '
                              'distance up to improve continuity of velocities')
     parser.add_argument('-t', '--time', default=0.0, type=float,
@@ -219,7 +219,7 @@ def main():
               length=args.wave_length,
               N=args.N,
               depth_air=args.depth_air,
-              blend_distance=args.blend_distance,
+              blend_height=args.blend_height,
               t=args.time,
               plot_quiver=args.velocities,
               ymin=args.ymin,

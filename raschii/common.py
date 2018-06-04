@@ -80,30 +80,31 @@ def cosh_by_cosh(a, b):
 def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
     """
     Compute velocities in the air phase and blend the water and air velocities
-    in a divergence free manner from the free surface and a distance
-    ``air.blending_height`` up. If this is ``None`` then blend all the way up to
+    in a divergence free manner up a distance ``air.blending_height - eta(x)``.
+    If this is ``air.blending_height `` is ``None`` then blend all the way up to
     ``air.height``.
     
     The blending is done as follows. Introduce a new coordinate Z which is zero
-    on the free surface and 1 at air_blend_distance above the free surface. Then
-    the blending function is ``f = 3Z² - 2Z³`` which is used on the stream
-    functions in the water and in the air. After taking the derivatives of this
-    blended stream function the velocities are as can be seen in the code below.
+    on the free surface and 1 at air_blend_distance. Then the blending function
+    a smooth step function of a coordinate Z which is zero at the free surface
+    and 1 at the blending heigh. After taking the derivatives of this blended
+    stream function the velocities are as can be seen in the code below.
     """
     eta = wave.surface_elevation(x, t)
     above = z > eta + eta_eps
     if air is not None and above.any():
+        d = air.blending_height + wave.depth
         xa = x[above]
         za = z[above]
         ea = eta[above]
         vel_air = air.velocity(xa, za, t)
         
-        blend = za < ea + air.blending_height
-        if air.blending_height > 0 and blend.any():
+        blend = za < d
+        if d > 0 and blend.any():
             xb = xa[blend]
             zb = za[blend]
             eb = ea[blend]
-            Z = (zb - eb) / air.blending_height
+            Z = (zb - eb) / (d - eb)
             vel_water = vel[above]
             psi_wave = wave.stream_function(xb, zb, t, frame='c')
             psi_air = air.stream_function(xb, zb, t, frame='c')
@@ -118,8 +119,8 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
                 f = Z * Z * Z * (Z * (Z * 6 - 15) + 10)
                 dfdZ = Z * Z * (30 + Z * (30 * Z - 60))
             
-            dZdx = -1 / air.blending_height * detadx
-            dZdz = 1 / air.blending_height
+            dZdx = (zb - d) / (d - eb)**2 * detadx
+            dZdz = 1 / (d - eb)
             dfdx = dfdZ * dZdx
             dfdz = dfdZ * dZdz
             
@@ -153,11 +154,11 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
             return val_water;
         }}
         
-        const double dist_blend = {dist_blend!r};
+        const double d = {d!r};
         const double val_air = ({ua_cpp});
-        if (x[2] < elev + dist_blend) {{
+        if (x[2] < d) {{
             // The point is in the blending zone
-            const double Z = (x[2] - elev) / dist_blend;
+            const double Z = (x[2] - elev) / (d - elev);
             
             // Cubic smoothstep
             //const double f = Z * Z * (3 - 2 * Z);
@@ -168,8 +169,8 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
             const double dfdZ = Z * Z * (30 + Z * (30 * Z - 60));
             
             // Derivatives needed in the product rules
-            const double dZdx = - 1.0 / dist_blend * ({slope_cpp});
-            const double dZdz = 1.0 / dist_blend;
+            const double dZdx = (x[2] - d) / pow(d - elev, 2) * ({slope_cpp});
+            const double dZdz = 1.0 / (d - elev);
             const double dfdx = dfdZ * dZdx;
             const double dfdz = dfdZ * dZdz;
             
@@ -179,7 +180,7 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
         // The point is above the blending zone
         return val_air;
     }}()""".format(ecpp=elevation_cpp, uw_cpp=wave_cpp, ua_cpp=air_cpp,
-                   eps=eta_eps, dist_blend=air.blending_height,
+                   eps=eta_eps, d=air.blending_height + air.depth_water,
                    slope_cpp=slope_cpp)
     
     # Compute the product rule code

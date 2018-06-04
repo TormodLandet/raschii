@@ -15,6 +15,7 @@ class ConstantAirPhase:
         Connect this air phase with the wave in the water phase
         """
         self.c = wave.c
+        self.depth_water = wave.depth
         
         if self.blending_height is None:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
