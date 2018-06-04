@@ -79,6 +79,12 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
+Version 1.0.3 - Xyz XX. YYYY
+............................
+
+Unreleased development version
+
+- No changes yet
 
 Version 1.0.2 - Jun 4. 2018
 ............................
