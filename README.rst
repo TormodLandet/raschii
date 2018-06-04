@@ -80,12 +80,17 @@ Releases
 --------
 
 
-Version 1.0.2 - Xyz XX. YYYY
+Version 1.0.2 - Jun 4. 2018
 ............................
 
-Unreleased development version
+Some more work on air-phase / water phase velocity blending 
 
-- No changes yet
+- Change the air blending zone to be horizontal at the top (still follows the
+  wave profile at the bottom). The air phase blanding still has no influenece on
+  the wave profile or water-phase velocities, but the transition from blended to
+  pure air-phase velocities is now a bit smoother for steep waves and the 
+  divergence of the resulting field is lower when projected into a FEM function
+  space (analytically the divergence is always zero).  
 
 Version 1.0.1 - May 31. 2018
 ............................
