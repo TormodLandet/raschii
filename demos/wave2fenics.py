@@ -40,7 +40,7 @@ def wave2fenics(wave, t, rangex, rangey, Nx, Ny, xdmf=False, plot=False):
             xdmf.write(c, 0.0)
     
     print('\nStatistics of the results:')
-    print('    Total flux across the domain boundaries in FEM is    %.4e' %
+    print('    Total flux across the domain boundaries in FEM is    % .4e' %
           tot_flux)
     print('    Maximum absolute divergence of the velocity in FEM is %.4e' %
           abs(div.vector().get_local()).max())

@@ -17,9 +17,10 @@ def plot_wave(model_names, height, depth, length, N, depth_air, blend_height,
     ax2s = list(ax2s.ravel())
     
     # Print some summary info about the waves
-    head_format = '%15s  %10s %10s %10s %10s %10s'
-    info_format = '%15s  %10.3e %10.3e %10.3e %10.3e %10.3e'
-    print(head_format % ('', 'c', 'T', 'eta_max', 'eta_min', 'vel_max'))
+    head_format = '%20s  %10s %10s %10s %10s %10s %10s %10s'
+    info_format = '%20s  %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e'
+    print(head_format % ('', 'c', 'T', 'eta_max', 'eta_min', 'vel_crest',
+                         'vel_trough', 'vel_max'))
     
     # Vertical axis limits
     ymin_user, ymax_user = ymin, ymax
@@ -122,13 +123,18 @@ def plot_wave(model_names, height, depth, length, N, depth_air, blend_height,
                 else:
                     ax.plot(v[:,1], y, ':', c=eta_color)
                     vz_max = max(abs(v[:,1]).max(), vz_max)
+                    
+        # Crest and trough velocities
+        eta0 = wave.surface_elevation([0.0, length / 2], t=0)
+        u_crest = wave.velocity(0.0, eta0[0], t=0)[0,0]
+        u_trough = wave.velocity(length / 2, eta0[1], t=0)[0,0]
         
         # Print some info
         print(info_format % (model_name, wave.c, 2 * pi / (wave.k * wave.c),
-                             eta.max(), eta.min(), vx_max))
+                             eta.max(), eta.min(), u_crest, u_trough, vx_max))
     
     # Print the velocity scale
-    print(head_format % ('scale', '', '', '', '', '%10.3e' % Uscale))
+    print(head_format % ('scale', '', '', '', '', '', '', '%10.3e' % Uscale))
     if warnings:
         print(warnings)
     
