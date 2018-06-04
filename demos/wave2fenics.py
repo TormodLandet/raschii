@@ -15,7 +15,7 @@ def wave2fenics(wave, t, rangex, rangey, Nx, Ny, xdmf=False, plot=False):
     mesh = dolfin.RectangleMesh(dolfin.MPI.comm_world, start, end, Nx, Ny)
     
     # Velocity and divergence
-    u0, u1, div = make_vel_div(wave, mesh, t)
+    u0, u1, div, tot_flux = make_vel_div(wave, mesh, t)
     
     print('DONE in %.2f seconds' % (time.time() - t1))
     
@@ -40,6 +40,8 @@ def wave2fenics(wave, t, rangex, rangey, Nx, Ny, xdmf=False, plot=False):
             xdmf.write(c, 0.0)
     
     print('\nStatistics of the results:')
+    print('    Total flux across the domain boundaries in FEM is    %.4e' %
+          tot_flux)
     print('    Maximum absolute divergence of the velocity in FEM is %.4e' %
           abs(div.vector().get_local()).max())
     
@@ -119,7 +121,11 @@ def make_vel_div(wave, mesh, t):
     b = dolfin.assemble(dolfin.div(vel) * v * dolfin.dx)
     dolfin.solve(A, div.vector(), b)
     
-    return u0, u1, div
+    # Total flux across the boundaries
+    n = dolfin.FacetNormal(mesh)
+    tot_flux = dolfin.assemble(dolfin.dot(vel, n) * dolfin.ds) 
+    
+    return u0, u1, div, tot_flux
 
 
 def make_colour_function(wave, mesh, t):
