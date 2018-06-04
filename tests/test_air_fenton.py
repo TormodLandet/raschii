@@ -6,7 +6,7 @@ from jit_helper import jit_compile
 @pytest.fixture(params=['deep1', 'shallow1'])
 def wave_with_air_model(request):
     N = 5
-    time = 0.0
+    time = 1.0
     blending_height = None
     plot = False  # for debugging only
     

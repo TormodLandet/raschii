@@ -6,56 +6,59 @@ def test_sinh_by_cosh():
     from raschii.fenton import sinh_by_cosh
     
     end = 45
-    worst_err1 = worst_err2 = 0
     for f in numpy.linspace(0.001, 2, 100):
         # Compute the two approximations
         a = numpy.linspace(0, end, 1001)
         b = numpy.linspace(0, end, 1001) * f
         f1 = numpy.sinh(a) / numpy.cosh(b)
         f2 = sinh_by_cosh(a, b)
-        
-        # Compute the absolute and the relative error
-        err = abs(f1 - f2)
-        imax = numpy.argmax(err)
-        if err.max() == 0:
-            e1 = e2 = 0
-        else:
-            e1 = err.max()
-            e2 = err[imax] / f1[imax]
-        
-        worst_err1 = max(worst_err1, e1)
-        worst_err2 = max(worst_err2, e2)
-    print('Worst error is', worst_err1, worst_err2)
-    assert worst_err1 < 1e-6
-    assert worst_err2 < 1e-12
+        check_arrays(f1, f2, 1e-6, 1e-12)
+    
+    # Some handpicked tests
+    a = numpy.array([0.0, 0.0, 1.0, 1.0, 199.0], float)
+    b = numpy.array([0.0, 1.0, 0.0, 1.0, 199.0], float)
+    f1 = numpy.sinh(a) / numpy.cosh(b)
+    f2 = sinh_by_cosh(a, b)
+    check_arrays(f1, f2, 1e-6, 1e-12)
 
 
 def test_cosh_by_cosh():
     from raschii.fenton import cosh_by_cosh
     
     end = 45
-    worst_err1 = worst_err2 = 0
     for f in numpy.linspace(0.001, 2, 100):
         # Compute the two approximations
         a = numpy.linspace(0, end, 1001)
         b = numpy.linspace(0, end, 1001) * f
         f1 = numpy.cosh(a) / numpy.cosh(b)
         f2 = cosh_by_cosh(a, b)
-        
-        # Compute the absolute and the relative error
-        err = abs(f1 - f2)
-        imax = numpy.argmax(err)
-        if err.max() == 0:
-            e1 = e2 = 0
-        else:
-            e1 = err.max()
-            e2 = err[imax] / f1[imax]
-        
-        worst_err1 = max(worst_err1, e1)
-        worst_err2 = max(worst_err2, e2)
-    print('Worst error is', worst_err1, worst_err2)
-    assert worst_err1 < 1e-6
-    assert worst_err2 < 1e-12
+        check_arrays(f1, f2, 1e-6, 1e-12)
+    
+    # Some handpicked tests
+    a = numpy.array([0.0, 0.0, 1.0, 1.0, 199.0], float)
+    b = numpy.array([0.0, 1.0, 0.0, 1.0, 199.0], float)
+    f1 = numpy.cosh(a) / numpy.cosh(b)
+    f2 = cosh_by_cosh(a, b)
+    check_arrays(f1, f2, 1e-6, 1e-12)
+
+
+def check_arrays(f1, f2, atol, rtol):
+    # Compute the absolute and the relative error
+    err = abs(f1 - f2)
+    imax = numpy.argmax(err)
+    if err.max() == 0:
+        e1 = e2 = 0
+    else:
+        e1 = err.max()
+        e2 = err[imax] / f1[imax]
+    
+    if e1 > atol or e2 > rtol:
+        print('Found abserr %r (tol: %r) and relerr %r (tol: %r)'
+              % (e1, atol, e2, rtol))
+        print('imax = %r, f1[imax] = %r, f2[imax] = %r' %
+              (imax, f1[imax], f2[imax]))
+    assert e1 < atol
+    assert e2 < rtol
 
 
 def test_fenton_jacobian():

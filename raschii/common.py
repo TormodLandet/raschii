@@ -62,9 +62,10 @@ def cosh_by_cosh(a, b):
     A version of cosh(a)/cosh(b) where "b = a * f" and f is close
     to 1. This can then be written exp(a * (1 - f)) for large a
     """
-    ans = numpy.ones(a.size, float)
+    ans = numpy.zeros(a.size, float)
     for i, (ai, bi) in enumerate(zip(a, b)):
         if ai == 0:
+            ans[i] = 1.0 / math.cosh(bi)
             continue
         f = bi / ai
         if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
