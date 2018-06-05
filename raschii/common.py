@@ -25,7 +25,7 @@ def check_breaking_criteria(height, depth, length):
     h1 = 0.14 * length
     h2 = 0.78 * depth
     h3 = 0.142 * tanh(2 * pi * depth / length) * length
-    
+
     err = warn = ''
     for name, hmax in (('Length criterion', h1),
                        ('Depth criterion', h2),
@@ -83,7 +83,7 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
     in a divergence free manner up a distance ``air.blending_height - eta(x)``.
     If this is ``air.blending_height `` is ``None`` then blend all the way up to
     ``air.height``.
-    
+
     The blending is done as follows. Introduce a new coordinate Z which is zero
     on the free surface and 1 at air_blend_distance. Then the blending function
     a smooth step function of a coordinate Z which is zero at the free surface
@@ -98,7 +98,7 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
         za = z[above]
         ea = eta[above]
         vel_air = air.velocity(xa, za, t)
-        
+
         blend = za < d
         if d > 0 and blend.any():
             xb = xa[blend]
@@ -109,7 +109,7 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
             psi_wave = wave.stream_function(xb, zb, t, frame='c')
             psi_air = air.stream_function(xb, zb, t, frame='c')
             detadx = wave.surface_slope(xb, t)
-            
+
             if False:
                 # Cubic smoothstep
                 f = Z * Z * (3 - 2 * Z)
@@ -118,12 +118,12 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
                 # Fift order smootherstep
                 f = Z * Z * Z * (Z * (Z * 6 - 15) + 10)
                 dfdZ = Z * Z * (30 + Z * (30 * Z - 60))
-            
+
             dZdx = (zb - d) / (d - eb)**2 * detadx
             dZdz = 1 / (d - eb)
             dfdx = dfdZ * dZdx
             dfdz = dfdZ * dZdz
-            
+
             vel_air[blend, 0] = (1 - f) * vel_water[blend, 0] + f * vel_air[blend, 0]
             vel_air[blend, 1] = (1 - f) * vel_water[blend, 1] + f * vel_air[blend, 1]
             vel_air[blend, 0] += - dfdz * psi_wave + dfdz * psi_air
@@ -144,45 +144,45 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
     if air is None:
         return 'x[2] < (%s) + %r ? (%s) : (%s)' % (elevation_cpp, eta_eps,
                                                    wave_cpp, '0.0')
-    
+
     cpp = """[&]() {{
         const double elev = ({ecpp});
-        
+
         const double val_water = ({uw_cpp});
         if (x[2] < elev + {eps!r}) {{
             // The point is below the free surface
             return val_water;
         }}
-        
+
         const double d = {d!r};
         const double val_air = ({ua_cpp});
         if (x[2] < d) {{
             // The point is in the blending zone
             const double Z = (x[2] - elev) / (d - elev);
-            
+
             // Cubic smoothstep
             //const double f = Z * Z * (3 - 2 * Z);
             //const double dfdZ = Z * (6 - 6 * Z);
-            
+
             // Fift order smootherstep
             const double f = Z * Z * Z * (Z * (Z * 6 - 15) + 10);
             const double dfdZ = Z * Z * (30 + Z * (30 * Z - 60));
-            
+
             // Derivatives needed in the product rules
             const double dZdx = (x[2] - d) / pow(d - elev, 2) * ({slope_cpp});
             const double dZdz = 1.0 / (d - elev);
             const double dfdx = dfdZ * dZdx;
             const double dfdz = dfdZ * dZdz;
-            
+
             return (1 - f) * val_water + f * val_air + %r * (%s);
         }}
-        
+
         // The point is above the blending zone
         return val_air;
     }}()""".format(ecpp=elevation_cpp, uw_cpp=wave_cpp, ua_cpp=air_cpp,
                    eps=eta_eps, d=air.blending_height + air.depth_water,
                    slope_cpp=slope_cpp)
-    
+
     # Compute the product rule code
     if direction == 'x':
         sign = -1
@@ -190,5 +190,5 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
     elif direction == 'z':
         sign = +1
         prcode = 'dfdx * (%s) - dfdx * (%s)' % (psi_wave_cpp, psi_air_cpp)
-    
+
     return cpp % (sign, prcode)

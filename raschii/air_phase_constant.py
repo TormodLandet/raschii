@@ -9,17 +9,17 @@ class ConstantAirPhase:
         """
         self.height = height
         self.blending_height = blending_height
-    
+
     def set_wave(self, wave):
         """
         Connect this air phase with the wave in the water phase
         """
         self.c = wave.c
         self.depth_water = wave.depth
-        
+
         if self.blending_height is None:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
-    
+
     def stream_function(self, x, z, t=0, frame='b'):
         """
         Compute the stream function at time t for position(s) x
@@ -27,12 +27,12 @@ class ConstantAirPhase:
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         z = asarray(z, dtype=float)
-        
+
         if frame == 'e':
             return self.c * z
         elif frame == 'c':
             return 0.0 * z
-    
+
     def velocity(self, x, z, t=0):
         """
         Compute the air phase particle velocity at time t for position(s) (x, z)
@@ -44,9 +44,9 @@ class ConstantAirPhase:
             x, z = [x], [z]
         x = asarray(x, dtype=float)
         z = asarray(z, dtype=float)
-        
+
         return zeros((x.size, 2), float)
-    
+
     def stream_function_cpp(self, frame='b'):
         """
         Return C++ code for evaluating the stream function of this specific
@@ -58,7 +58,7 @@ class ConstantAirPhase:
             return '%r * x[2]' % self.c
         elif frame == 'c':
             return '0.0'
-    
+
     def velocity_cpp(self):
         """
         Return C++ code for evaluating the particle velocities of this specific
@@ -69,7 +69,7 @@ class ConstantAirPhase:
         cpp_x = '0.0'
         cpp_z = '0.0'
         return (cpp_x, cpp_z)
-    
+
     def __repr__(self):
         return ('ConstantAirPhase(height={s.height}, blending_height='
                 '{s.blending_height})').format(s=self)

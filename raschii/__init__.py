@@ -34,20 +34,20 @@ def get_wave_model(model_name, air_model_name=None):
     if '+' in model_name:
         assert air_model_name is None
         model_name, air_model_name = model_name.split('+')
-    
+
     if model_name not in WAVE_MODELS:
         raise RasciiError('Wave model %r is not supported, supported wave '
                           'models are %s' % (model_name,
                                              ', '.join(WAVE_MODELS.keys())))
     wave = WAVE_MODELS[model_name]
-    
+
     if air_model_name is None:
         return wave, None
-    
+
     if air_model_name not in AIR_MODELS:
         raise RasciiError('Air model %r is not supported, supported air phase '
                           'models are %s' % (air_model_name,
                                              ', '.join(AIR_MODELS.keys())))
     air = AIR_MODELS[air_model_name]
-    
+
     return wave, air

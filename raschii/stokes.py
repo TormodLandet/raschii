@@ -6,12 +6,12 @@ from .common import blend_air_and_wave_velocities
 class StokesWave:
     required_input = {'height', 'depth', 'length', 'N'}
     optional_input = {'air': None, 'g': 9.81}
-    
+
     def __init__(self, height, depth, length, N, air=None, g=9.81):
         """
         Implement Stokes waves based on the paper by J. D. Fenton (1985),
         "A Fifth‐Order Stokes Theory for Steady Waves".
-        
+
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
         * length: the periodic length of the wave (distance between peaks)
@@ -24,43 +24,43 @@ class StokesWave:
         self.air = air
         self.g = g
         self.warnings = ''
-        
+
         if N < 1:
             self.warnings = 'Stokes order must be at least 1, using order 1'
             self.order = 1
         elif N > 5:
             self.warnings = 'Stokes order is maximum 5, using order 5'
             self.order = 4
-        
+
         # Find the coeffients through optimization
         self.k = 2 * pi / length  # The wave number
         data = stokes_coefficients(self.k * depth, self.order)
         self.set_data(data)
-        
+
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
-        
+
         # Provide velocities also in the air phase
         if self.air is not None:
             self.air.set_wave(self)
-    
+
     def set_data(self, data):
         self.data = data
         k = 2 * pi / self.length
         eps = k * self.height / 2
         d = self.depth
-        
+
         c = (data['C0'] +
              pow(eps, 2) * data['C2'] +
              pow(eps, 4) * data['C4']) * sqrt(self.g / k)
         Q = (c * d * sqrt(k**3 / self.g) +
              data['D2'] * eps**2 +
              data['D4'] * eps**4) * sqrt(self.g / k**3)
-        
+
         self.c = c        # Phase speed
         self.cs = c - Q   # Mean Stokes drift speed (TODO: verify this!)
         self.T = self.length / self.c  # Wave period
-    
+
     def surface_elevation(self, x, t=0):
         """
         Compute the surface elavation at time t for position(s) x
@@ -68,7 +68,7 @@ class StokesWave:
         if isinstance(x, (float, int)):
             x = numpy.array([x], float)
         x = numpy.asarray(x)
-        
+
         d = self.depth
         k = self.k
         eps = k * self.height / 2
@@ -83,7 +83,7 @@ class StokesWave:
                          D['B53'] * cos(3 * k * x) +
                          D['B55'] * cos(5 * k * x))) / k
         return eta
-    
+
     def velocity(self, x, z, t=0, all_points_wet=False):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
@@ -94,7 +94,7 @@ class StokesWave:
         x = numpy.asarray(x, dtype=float)
         z = numpy.asarray(z, dtype=float)
         x2 = x - self.c * t
-        
+
         def my_cosh_cos(i, j):
             n = 'A%d%d' % (i, j)
             if self.data[n] == 0.0:
@@ -110,7 +110,7 @@ class StokesWave:
             else:
                 return pow(eps, i) * self.data[n] * j * self.k * numpy.sinh(
                     j * self.k * z) * numpy.sin(j * self.k * x2)
-        
+
         eps = self.k * self.height / 2
         vel = numpy.zeros((x.size, 2), float)
         vel[:, 0] = my_cosh_cos(1, 1) + my_cosh_cos(2, 2) + my_cosh_cos(3, 1) +\
@@ -120,11 +120,11 @@ class StokesWave:
             my_sinh_sin(3, 3) + my_sinh_sin(4, 2) + my_sinh_sin(4, 4) +\
             my_sinh_sin(5, 1) + my_sinh_sin(5, 3) + my_sinh_sin(5, 5)
         vel *= self.data['C0'] * sqrt(self.g / self.k**3)
-        
+
         if not all_points_wet:
             blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
                                           self.eta_eps)
-        
+
         return vel
 
 
@@ -147,13 +147,13 @@ def stokes_coefficients(kd, N):
     """
     Define the Stokes expansion coefficients based on "A Fifth‐Order Stokes
     Theory for Steady Waves" (J. D. Fenton, 1985)
-    
+
     The code uses pow instead of ** to be compatible with Dart
     """
     # Limit depth to 25 wave lengths to avoid overflow
     if kd > 50 * pi:
         kd = 50 * pi
-    
+
     S = sech(2 * kd)
     Sh = sinh(kd)
     Th = tanh(kd)
@@ -236,5 +236,5 @@ def stokes_coefficients(kd, N):
     data['B55'] = 5 * (300 + 1579 * S + 3176 * pow(S, 2) + 2949 * pow(S, 3) + 1188 * pow(S, 4) +
                        675 * pow(S, 5) + 1326 * pow(S, 6) + 827 * pow(S, 7) + 130 * pow(S, 8)) /\
                       (384 * (3 + 2 * S) * (4 + S) * pow(1 - S, 6))
-    
+
     return data
