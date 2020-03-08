@@ -60,6 +60,7 @@ class StokesWave:
         self.c = c        # Phase speed
         self.cs = c - Q   # Mean Stokes drift speed (TODO: verify this!)
         self.T = self.length / self.c  # Wave period
+        self.omega = self.c * self.k  # Wave frequency
 
     def surface_elevation(self, x, t=0):
         """

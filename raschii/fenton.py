@@ -49,6 +49,7 @@ class FentonWave:
         self.c = data['c']             # Phase speed
         self.cs = self.c - data['Q']   # Mean Stokes drift speed
         self.T = self.length / self.c  # Wave period
+        self.omega = self.c * self.k  # Wave frequency
 
         # Cosine series coefficients for the elevation
         N = len(self.eta) - 1
