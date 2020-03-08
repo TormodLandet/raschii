@@ -27,10 +27,10 @@ jobs:
               cd ../../.. && rm -rf build_pybind
       - run:
           name: Install Raschii with its dependencies
-          command: sudo pip3 install .     
-      - run:
-          name: Flake8
-          command: python3 -m flake8 raschii
+          command: sudo pip3 install .
+      #- run:
+      #    name: Flake8
+      #    command: python3 -m flake8 raschii
       - run:
           name: Run unit tests
           command: python3 -m pytest -v tests/ --junitxml=~/reports/pytest/py3.xml --durations=10
