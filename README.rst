@@ -84,7 +84,9 @@ Version 1.0.3 - Xyz XX. YYYY
 
 Unreleased development version
 
-- No changes yet
+- Fix missing time dependency in Stokes surface surface elevation
+- Ensure all wave models implement ``T`` and ``omega`` attributes
+- Test that the surface elevation has the correct period for all wave models
 
 Version 1.0.2 - Jun 4. 2018
 ............................
