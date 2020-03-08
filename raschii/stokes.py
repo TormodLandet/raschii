@@ -68,6 +68,7 @@ class StokesWave:
         if isinstance(x, (float, int)):
             x = numpy.array([x], float)
         x = numpy.asarray(x)
+        x2 = x - self.c * t
 
         d = self.depth
         k = self.k
@@ -75,13 +76,19 @@ class StokesWave:
         kd = k * d
         D = self.data
         cos = numpy.cos
-        eta = (kd + eps * cos(k * x) + eps**2 * D['B22'] * cos(2 * k * x) +
-               eps**3 * D['B31'] * (cos(k * x) - cos(3 * k * x)) +
-               eps**4 * (D['B42'] * cos(2 * k * x) +
-                         D['B44'] * cos(4 * k * x)) +
-               eps**5 * (-(D['B53'] + D['B55']) * cos(k * x) +
-                         D['B53'] * cos(3 * k * x) +
-                         D['B55'] * cos(5 * k * x))) / k
+        eta = (
+            kd
+            + eps * cos(k * x2)
+            + eps ** 2 * D["B22"] * cos(2 * k * x2)
+            + eps ** 3 * D["B31"] * (cos(k * x2) - cos(3 * k * x2))
+            + eps ** 4 * (D["B42"] * cos(2 * k * x2) + D["B44"] * cos(4 * k * x2))
+            + eps ** 5
+            * (
+                -(D["B53"] + D["B55"]) * cos(k * x2)
+                + D["B53"] * cos(3 * k * x2)
+                + D["B55"] * cos(5 * k * x2)
+            )
+        ) / k
         return eta
 
     def velocity(self, x, z, t=0, all_points_wet=False):
