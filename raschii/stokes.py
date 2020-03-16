@@ -1,7 +1,8 @@
+import os
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy
 from .common import blend_air_and_wave_velocities
-
+from .swd_tools import SwdShape2
 
 class StokesWave:
     required_input = {'height', 'depth', 'length', 'N'}
@@ -68,6 +69,7 @@ class StokesWave:
         if isinstance(x, (float, int)):
             x = numpy.array([x], float)
         x = numpy.asarray(x)
+        x2 = x - self.c * t
 
         d = self.depth
         k = self.k
@@ -75,13 +77,13 @@ class StokesWave:
         kd = k * d
         D = self.data
         cos = numpy.cos
-        eta = (kd + eps * cos(k * x) + eps**2 * D['B22'] * cos(2 * k * x) +
-               eps**3 * D['B31'] * (cos(k * x) - cos(3 * k * x)) +
-               eps**4 * (D['B42'] * cos(2 * k * x) +
-                         D['B44'] * cos(4 * k * x)) +
-               eps**5 * (-(D['B53'] + D['B55']) * cos(k * x) +
-                         D['B53'] * cos(3 * k * x) +
-                         D['B55'] * cos(5 * k * x))) / k
+        eta = (kd + eps * cos(k * x2) + eps**2 * D['B22'] * cos(2 * k * x2) +
+               eps**3 * D['B31'] * (cos(k * x2) - cos(3 * k * x2)) +
+               eps**4 * (D['B42'] * cos(2 * k * x2) +
+                         D['B44'] * cos(4 * k * x2)) +
+               eps**5 * (-(D['B53'] + D['B55']) * cos(k * x2) +
+                         D['B53'] * cos(3 * k * x2) +
+                         D['B55'] * cos(5 * k * x2))) / k
         return eta
 
     def velocity(self, x, z, t=0, all_points_wet=False):
@@ -126,6 +128,85 @@ class StokesWave:
                                           self.eta_eps)
 
         return vel
+
+    def write_swd(self, path, dt, tmax=None, nperiods=None):
+        """
+        Write a SWD-file of the wave field according to the file
+        specification in the Github repository spectral-wave-data ....
+
+        * path:     Full path of the new SWD file
+        * dt:       The temporal sampling spacing in the SWD file
+        * tmax:     The temporal sampling range in the SWD file is [0, tmax]
+        * nperiods: Alternative specification: tmax = nperiods * wave_period
+        """
+        if tmax is None:
+            assert nperiods is not None
+            tmax = nperiods * self.T
+        assert tmax > dt > 0.0
+
+        # Apply consistent water depth limitation with 'stokes_coefficients': kd <= 50 * pi
+        depth = min(self.depth, 50 * pi / self.k)
+
+        kd = self.k * depth
+        eps = self.k * self.height / 2
+        D = self.data
+
+        # The swd coordinate system is earth fixed with zswd=0 in the calm surface. Hence:
+        # xswd = x + t * self.c    and    zswd = z - depth
+
+        # zeta(x) = sum[ecs[j] * cos(j * self.k * x) for j in range(nc)]
+
+        # Note that ecs[j] * cos(j * self.k * x) == Re{h[j, t] * exp(-I * j * self.k * xswd)}
+        # where h[j, t] = ecs[j] * exp(-I * j * self.k * (-self.c * t)),   j>=0, I=sqrt(-1)
+        # Hence dh[j, t]/dt = I * j * self.k * self.c * h[j, t]
+
+        nc = self.order + 1  # Include Bias term
+        ecs = numpy.empty(nc, numpy.complex_)
+        ecs[0] = 0.0  # zero at calm water line
+        ecs[1] = eps + eps**3 * D['B31'] - eps**5 * (D['B53'] + D['B55'])
+        if self.order > 1:
+            ecs[2] = eps**2 * D['B22'] + eps**4 * D['B42']
+        if self.order > 2:
+            ecs[3] = -eps**3 * D['B31'] + eps ** 5 * D['B53']
+        if self.order > 3:
+            ecs[4] = eps**4 * D['B44']
+        if self.order > 4:
+            ecs[5] = eps**5 * D['B55']
+        ecs /= self.k
+
+        # From particle velocities we construct the SWD velocity potential...
+
+        # Note:  vcs[j] * cos(j * self.k * x) == Im{c[j, t] * exp(-I * j * self.k * xswd)}
+        # where c[j, t] = I * vcs[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
+        # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
+
+        vcs = numpy.empty(nc, numpy.complex_)
+        vcs[0] = 0.0
+        vcs[1] = (eps * D['A11'] + eps**3 * D['A31'] + eps**5 * D['A51']) * numpy.cosh(kd)
+        if self.order > 1:
+            vcs[2] = (eps**2 * D['A22'] + eps**4 * D['A42']) * numpy.cosh(2 * kd)
+        if self.order > 2:
+            vcs[3] = (eps**3 * D['A33'] + eps**5 * D['A53']) * numpy.cosh(3 * kd)
+        if self.order > 3:
+            vcs[4] = eps**4 * D['A44'] * numpy.cosh(4 * kd)
+        if self.order > 4:
+            vcs[5] = eps**5 * D['A55'] * numpy.cosh(5 * kd)
+        vcs *= 1.0j * D['C0'] * sqrt(self.g / self.k**3)
+
+        input_data = {'model' : 'Stokes',
+                      'T' : self.T,
+                      'length': self.length,
+                      'height' : self.height,
+                      'depth' : depth,
+                      'N' : self.order,
+                      'air' : self.air.__class__.__name__,
+                      'g' : self.g,
+                      'c' : self.c
+                       }
+
+        swd = SwdShape2(self.T, self.length, self.depth, vcs, ecs, input_data,
+                        self.g, order_zpos=self.order)
+        swd.write(path, dt, tmax=tmax)
 
 
 def sech(x):
@@ -238,3 +319,5 @@ def stokes_coefficients(kd, N):
                       (384 * (3 + 2 * S) * (4 + S) * pow(1 - S, 6))
 
     return data
+
+

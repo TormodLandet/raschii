@@ -1,10 +1,14 @@
-import math
+import math, os
+from datetime import datetime
+from struct import pack
 from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
-                   asarray, linspace, cosh, sinh)
+                   asarray, linspace, cosh, sinh, exp, array, empty, complex_)
 from numpy.linalg import solve
+from numpy.fft import irfft
 from .common import (NonConvergenceError, sinh_by_cosh, cosh_by_cosh,
                      blend_air_and_wave_velocities,
                      blend_air_and_wave_velocity_cpp)
+from .swd_tools import SwdShape2
 
 
 class FentonWave:
@@ -234,6 +238,76 @@ class FentonWave:
         return cpp_x, cpp_z
 
 
+    def write_swd(self, path, dt, tmax=None, nperiods=None):
+        """
+        Write a SWD-file of the wave field according to the file
+        specification in the Github repository spectral-wave-data ....
+
+        * path:     Full path of the new SWD file
+        * dt:       The temporal sampling spacing in the SWD file
+        * tmax:     The temporal sampling range in the SWD file is [0, tmax]
+        * nperiods: Alternative specification: tmax = nperiods * wave_period
+        """
+
+        if tmax is None:
+            assert nperiods is not None
+            tmax = nperiods * self.T
+        assert tmax > dt > 0.0
+
+        # The swd coordinate system is earth fixed with zswd=0 in the calm surface. Hence:
+        # xswd = x + t * self.c    and    zswd = z - self.depth
+
+        # In SWD we apply summation and not trapezoidal integration of surface Fourier coefficients.
+        # We apply exact Discrete Fourier Transformations assuming constant spaced collocation points...
+        nc = len(self.eta)
+        dx0 = abs(self.x[1] - self.x[0])
+        assert [abs(abs(self.x[i + 2] - self.x[i + 1]) - abs(self.x[i + 1] - self.x[i])) < 1.0e-4 * dx0
+                for i in range(nc - 2)]
+        # elevation on complete wave length...
+        nc2 = 2 * nc - 1
+        etas = array([self.eta[i] if i < nc else self.eta[nc2 - i - 1] for i in range(nc2)])
+        res = irfft(etas)
+        # zeta(x) = sum[ecs[j] * cos(j * self.k * x) for j in range(nc)]
+        # res[:] other than Bias and Nyquist must be doubled. Skip zero sinusoidal coefficients...
+        ecs = empty(nc)
+        ecs[0] = res[0].real - self.depth # Also shift zero to free surface. (Should be very close to zero)
+        for j in range(1, nc - 1):
+            ecs[j] = 2.0 * res[2 * j].real
+        ecs[-1] = res[nc2 - 1].real
+
+        # Note that ecs[j] * cos(j * self.k * x) == Re{h[j, t] * exp(-I * j * self.k * xswd)}
+        # where h[j, t] = ecs[j] * exp(-I * j * self.k * (-self.c * t)),   j>=0, I=sqrt(-1)
+        # Hence dh[j, t]/dt = I * j * self.k * self.c * h[j, t]
+
+        # From particle velocities we construct the SWD velocity potential...
+
+        # Note:  B[j] * cos(j * self.k * x) == Im{c[j, t] * exp(-I * j * self.k * xswd)}
+        # where c[j, t] = I * B[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
+        # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
+
+        B = self.data['B']
+        n_swd = nc - 1
+        vcs = empty(nc, complex_)
+        vcs[0] = 0.0
+        for j in range(1, nc):
+            vcs[j] = 1.0j * B[j]
+
+        input_data = {'model' : 'Fenton',
+                      'T' : self.T,
+                      'height' : self.height,
+                      'depth' : self.depth,
+                      'N' : self.order,
+                      'air' : self.air.__class__.__name__,
+                      'g' : self.g,
+                      'c' : self.c,
+                      'relax' : self.relax
+                      }
+
+        swd = SwdShape2(self.T, self.length, self.depth, vcs, ecs, input_data,
+                        self.g, order_zpos=-1)
+        swd.write(path, dt, tmax=tmax)
+
+
 def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
                         tolerance=1e-8, relax=1.0, num_steps=None):
     """
@@ -459,3 +533,4 @@ def fprime(coeffs, H, k, D, J, M):
     jac[-1, 2 * N + 1] = -1
 
     return jac
+
