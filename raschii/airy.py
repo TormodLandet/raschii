@@ -26,6 +26,7 @@ class AiryWave:
         self.k = 2 * pi / length
         self.omega = (self.k * g * tanh(self.k * depth))**0.5
         self.c = self.omega / self.k
+        self.T = self.length / self.c  # Wave period
 
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5
