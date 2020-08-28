@@ -1,8 +1,6 @@
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
 from codecs import open
-import os, sys
-
+import os
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -10,7 +8,6 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
 with open(os.path.join(here, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
-
 
 # Get the version
 for line in open(os.path.join(here, "raschii", "__init__.py"), encoding="utf-8"):
@@ -20,28 +17,6 @@ for line in open(os.path.join(here, "raschii", "__init__.py"), encoding="utf-8")
 
 # List packages we depend on
 dependencies = ["numpy"]
-
-
-# Make the setup.py test command work
-class PyTest(TestCommand):
-    description = "Run Raschii's tests with pytest"
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-
-    def run_tests(self):
-        import pytest
-
-        args = ["-v", "--durations=10"]
-        if self.verbose:
-            args.append("-s")
-        args.append(os.path.join(here, "tests/"))
-        errno = pytest.main(args)
-        sys.exit(errno)
-
 
 # Give setuptools/pip informattion about the Ocellaris package
 setup(
@@ -94,8 +69,5 @@ setup(
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
-    entry_points={"console_scripts": [],},
-    # Configure the "test" command
-    tests_require=["pytest"],
-    cmdclass={"test": PyTest},
+    entry_points={"console_scripts": []},
 )

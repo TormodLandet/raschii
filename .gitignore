@@ -13,3 +13,4 @@ build/
 dist/
 *egg-info*
 documentation/_build
+*.swd

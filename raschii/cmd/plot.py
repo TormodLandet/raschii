@@ -230,7 +230,7 @@ def main():
     # Get command line arguments
     import argparse
 
-    parser = argparse.ArgumentParser(prog="raschii_plot_wave", description="Plot a wave")
+    parser = argparse.ArgumentParser(prog="raschii.cmd.plot", description="Plot a Raschii wave")
     parser.add_argument(
         "wave_type", help="Name of the wave model. " 'You can specify several, e.g., "Fenton,Airy"'
     )

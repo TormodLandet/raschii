@@ -34,9 +34,13 @@ Installation and running
 
 Raschii can be installed by running::
 
-    python3 -m pip install raschii
-    
-This will also install dependencies like numpy.
+    python -m pip install raschii
+
+Substitute ``python`` with ``python3`` as appropriate to your installation.
+The command will also install any dependencies (numpy).
+
+Using Raschii from Python
+.........................
 
 An example of using Raschii from Python::
 
@@ -53,6 +57,31 @@ This will output::
     [0.67352456 0.61795882 0.57230232 0.53352878]
     [[0.27263788 0.        ]]
 
+Using Raschii from the command line
+...................................
+
+You can also use Raschii from the command line. You can plot the wave
+elevation and particle velocities, and also write swd files. See the 
+help for the command line programs to get detailed usage info::
+
+  python -m raschii.cmd.plot -h
+  python -m raschii.cmd.swd -h
+
+Substitute ``python`` with ``python3`` as appropriate to your installation.
+You must install the ``matplotlib`` Python package to be able to use the
+plot command.
+
+An example of using Rascii from the command line::
+
+  # Plot a 0.2 m high wave that is 2 meters long in 1.5 meters water depth
+  # Some information abot the wave is also shown
+  python -m raschii.cmd.plot -N 5 Fenton 0.2 1.5 2
+
+  # Save the same stream function wave to a SWD file
+  python -m raschii.cmd.swd -N 5 fenton.swd Fenton 0.2 1.5 2  
+
+The plot tool allows comparing multiple waves, the SWD file writer only
+supports a single wave at a time and does currently not support Airy waves.
 
 Documentation
 -------------
@@ -82,6 +111,11 @@ and the current CI build status is |circleci_status|.
 
 Releases
 --------
+
+Version 1.0.4 - Aug 28. 2020
+............................
+
+- Add the ``raschii.cmd.plot`` and ``raschii.cmd.swd`` command line programs
 
 Version 1.0.3 - Aug 28. 2020
 ............................
