@@ -32,10 +32,7 @@ def plot_wave(
     # Print some summary info about the waves
     head_format = "%20s  %10s %10s %10s %10s %10s %10s %10s"
     info_format = "%20s  %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e"
-    print(
-        head_format
-        % ("", "c", "T", "eta_max", "eta_min", "vel_crest", "vel_trough", "vel_max")
-    )
+    print(head_format % ("", "c", "T", "eta_max", "eta_min", "vel_crest", "vel_trough", "vel_max"))
 
     # Vertical axis limits
     ymin_user, ymax_user = ymin, ymax
@@ -91,10 +88,7 @@ def plot_wave(
         g = 9.81
         w_scale = (k_scale * g * tanh(k_scale * depth)) ** 0.5
         Uscale = (
-            w_scale
-            * height
-            / 2
-            * (cosh(k_scale * (depth + height / 2)) / sinh(k_scale * depth))
+            w_scale * height / 2 * (cosh(k_scale * (depth + height / 2)) / sinh(k_scale * depth))
         )
         scale = Uscale * 8
 
@@ -236,12 +230,9 @@ def main():
     # Get command line arguments
     import argparse
 
-    parser = argparse.ArgumentParser(
-        prog="raschii_plot_wave", description="Plot a wave"
-    )
+    parser = argparse.ArgumentParser(prog="raschii_plot_wave", description="Plot a wave")
     parser.add_argument(
-        "wave_type",
-        help="Name of the wave model. " 'You can specify several, e.g., "Fenton,Airy"',
+        "wave_type", help="Name of the wave model. " 'You can specify several, e.g., "Fenton,Airy"',
     )
     parser.add_argument("wave_height", help="Wave height", type=float)
     parser.add_argument("water_depth", help="The still water depth", type=float)
@@ -255,11 +246,7 @@ def main():
         help="Allow exceeding breaking criteria",
     )
     parser.add_argument(
-        "-v",
-        "--velocities",
-        default=False,
-        action="store_true",
-        help="Show velocities as arrows",
+        "-v", "--velocities", default=False, action="store_true", help="Show velocities as arrows",
     )
     parser.add_argument(
         "-a",
@@ -277,20 +264,12 @@ def main():
         help="Blend the water and air stream functions a "
         "distance up to improve continuity of velocities",
     )
-    parser.add_argument(
-        "-t", "--time", default=0.0, type=float, help="The time instance to plot"
-    )
-    parser.add_argument(
-        "--ymin", default=None, type=float, help="Lower vertical axis limit"
-    )
-    parser.add_argument(
-        "--ymax", default=None, type=float, help="Upper vertical axis limit"
-    )
+    parser.add_argument("-t", "--time", default=0.0, type=float, help="The time instance to plot")
+    parser.add_argument("--ymin", default=None, type=float, help="Lower vertical axis limit")
+    parser.add_argument("--ymax", default=None, type=float, help="Upper vertical axis limit")
     args = parser.parse_args()
 
-    err, warn = check_breaking_criteria(
-        args.wave_height, args.water_depth, args.wave_length
-    )
+    err, warn = check_breaking_criteria(args.wave_height, args.water_depth, args.wave_length)
     if err:
         print(err)
     if warn:

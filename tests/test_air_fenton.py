@@ -65,8 +65,7 @@ def test_fenton_air_with_fenton(wave_with_air_model):
         % (xmax / length, (zmax - depth) / height)
     )
     print(
-        "The expected velocity is %r, got %r"
-        % (tuple(avel[maxi]), (sfvel_x[maxi], sfvel_z[maxi]))
+        "The expected velocity is %r, got %r" % (tuple(avel[maxi]), (sfvel_x[maxi], sfvel_z[maxi]))
     )
     assert max_vel_err < 1e-5
 

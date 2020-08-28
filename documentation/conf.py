@@ -52,9 +52,7 @@ if not "NO_GEN_JS" in os.environ:
             subprocess.check_call(cmd, cwd=workdir)
 
     def copy_raschii_dart_html():
-        with open("raschii_dart.html", "wt") as out, open(
-            "raschii_dart.html.in", "rt"
-        ) as inp:
+        with open("raschii_dart.html", "wt") as out, open("raschii_dart.html.in", "rt") as inp:
             transfer = False
             for line in inp:
                 if "</body>" in line:
@@ -159,13 +157,7 @@ html_static_path = ["_static"]
 # 'searchbox.html']``.
 #
 html_sidebars = {
-    "**": [
-        "about.html",
-        "navigation.html",
-        "relations.html",
-        "searchbox.html",
-        "donate.html",
-    ]
+    "**": ["about.html", "navigation.html", "relations.html", "searchbox.html", "donate.html",]
 }
 
 

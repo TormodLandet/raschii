@@ -25,9 +25,7 @@ def jit_compile(cpp_code, cache_dir, verbose=True):
     # Create a unique Python module name
     assert "PYBIND11_MODULE(MODNAME, m)" in cpp_code
     modname = "jitmod_%s" % cpp_hash
-    cpp_code = cpp_code.replace(
-        "PYBIND11_MODULE(MODNAME, m)", "PYBIND11_MODULE(%s, m)" % modname
-    )
+    cpp_code = cpp_code.replace("PYBIND11_MODULE(MODNAME, m)", "PYBIND11_MODULE(%s, m)" % modname)
 
     # Ensure that the JIT directory exists
     dirname = os.path.join(cache_dir, "pybind11_jit_%s" % cpp_hash)
@@ -84,9 +82,7 @@ def compile_mod(dirname, verbose):
         sh.write("make\n")
     with open(stdoutf, "w") as out, open(stderrf, "w") as err:
         try:
-            p = subprocess.Popen(
-                ["sh", shellscript], cwd=dirname, stdout=out, stderr=err
-            )
+            p = subprocess.Popen(["sh", shellscript], cwd=dirname, stdout=out, stderr=err)
             ok = p.wait() == 0
         except Exception as e:
             err.write("\n\nGOT Python EXCEPTION\n%r" % repr(e))

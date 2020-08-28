@@ -118,26 +118,10 @@ class AiryWave:
             cpp_slope = self.slope_cpp()
 
         cpp_x = blend_air_and_wave_velocity_cpp(
-            cpp_x,
-            cpp_ax,
-            e_cpp,
-            "x",
-            self.eta_eps,
-            self.air,
-            cpp_psiw,
-            cpp_psia,
-            cpp_slope,
+            cpp_x, cpp_ax, e_cpp, "x", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope,
         )
         cpp_z = blend_air_and_wave_velocity_cpp(
-            cpp_z,
-            cpp_az,
-            e_cpp,
-            "z",
-            self.eta_eps,
-            self.air,
-            cpp_psiw,
-            cpp_psia,
-            cpp_slope,
+            cpp_z, cpp_az, e_cpp, "z", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope,
         )
 
         return cpp_x, cpp_z

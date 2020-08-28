@@ -53,9 +53,7 @@ def check_arrays(f1, f2, atol, rtol):
         e2 = err[imax] / f1[imax]
 
     if e1 > atol or e2 > rtol:
-        print(
-            "Found abserr %r (tol: %r) and relerr %r (tol: %r)" % (e1, atol, e2, rtol)
-        )
+        print("Found abserr %r (tol: %r) and relerr %r (tol: %r)" % (e1, atol, e2, rtol))
         print("imax = %r, f1[imax] = %r, f2[imax] = %r" % (imax, f1[imax], f2[imax]))
     assert e1 < atol
     assert e2 < rtol
@@ -108,8 +106,7 @@ def test_fenton_jacobian():
             if abs(jacA[i, j] - jacN[i, j]) > 1e-5:
                 print(
                     "Expected equal elements at [%d, %d], found %r and %r "
-                    "with diff %r"
-                    % (i, j, jacA[i, j], jacN[i, j], jacA[i, j] - jacN[i, j])
+                    "with diff %r" % (i, j, jacA[i, j], jacN[i, j], jacA[i, j] - jacN[i, j])
                 )
                 err = True
     assert not err

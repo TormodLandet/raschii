@@ -144,15 +144,11 @@ def make_colour_function(wave, mesh, t):
     element = dolfin.FiniteElement(
         "Quadrature", mesh.ufl_cell(), quad_degree, quad_scheme="default"
     )
-    ec = dolfin.Expression(
-        "x[1] < (%s) ? 1.0 : 0.0" % wave.elevation_cpp(), element=element, t=t
-    )
+    ec = dolfin.Expression("x[1] < (%s) ? 1.0 : 0.0" % wave.elevation_cpp(), element=element, t=t)
     u0, v0 = dolfin.TrialFunction(V0), dolfin.TestFunction(V0)
     c = dolfin.Function(V0)
     A0 = dolfin.assemble(u0 * v0 * dolfin.dx)
-    b0 = dolfin.assemble(
-        ec * v0 * dolfin.dx(metadata={"quadrature_degree": quad_degree})
-    )
+    b0 = dolfin.assemble(ec * v0 * dolfin.dx(metadata={"quadrature_degree": quad_degree}))
     dolfin.solve(A0, c.vector(), b0)
     return c
 
@@ -197,29 +193,19 @@ def main():
         help="Blend the water and air stream functions a "
         "distance up to improve continuity of velocities",
     )
-    parser.add_argument(
-        "-t", "--time", default=0.0, type=float, help="The time instance to plot"
-    )
-    parser.add_argument(
-        "--ymin", default=None, type=float, help="Lower vertical axis limit"
-    )
-    parser.add_argument(
-        "--ymax", default=None, type=float, help="Upper vertical axis limit"
-    )
+    parser.add_argument("-t", "--time", default=0.0, type=float, help="The time instance to plot")
+    parser.add_argument("--ymin", default=None, type=float, help="Lower vertical axis limit")
+    parser.add_argument("--ymax", default=None, type=float, help="Upper vertical axis limit")
     parser.add_argument(
         "--plot",
         default=False,
         action="store_true",
         help="Show matplotlib plot of eval-ed dolfin.Functions",
     )
-    parser.add_argument(
-        "--xdmf", default=False, action="store_true", help="Produce xdmf file"
-    )
+    parser.add_argument("--xdmf", default=False, action="store_true", help="Produce xdmf file")
     args = parser.parse_args()
 
-    err, warn = check_breaking_criteria(
-        args.wave_height, args.water_depth, args.wave_length
-    )
+    err, warn = check_breaking_criteria(args.wave_height, args.water_depth, args.wave_length)
     if err:
         print(err)
     if warn:
@@ -230,9 +216,7 @@ def main():
     t1 = time.time()
     print("\nGenerating wave, may take some time ...")
     WaveClass, AirClass = get_wave_model(args.wave_type)
-    wave_args = dict(
-        height=args.wave_height, depth=args.water_depth, length=args.wave_length
-    )
+    wave_args = dict(height=args.wave_height, depth=args.water_depth, length=args.wave_length)
 
     if "N" in WaveClass.required_input:
         wave_args["N"] = args.N

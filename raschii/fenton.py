@@ -176,8 +176,7 @@ class FentonWave:
         facs = B[1:] / cosh(Jk * self.depth)
 
         cpp = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])"
-            % (facs[i], Jk[i], c, Jk[i])
+            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
             for i in range(N)
         )
 
@@ -233,13 +232,11 @@ class FentonWave:
         facs = J * B[1:] * k / cosh(Jk * self.depth)
 
         cpp_x = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])"
-            % (facs[i], Jk[i], c, Jk[i])
+            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
             for i in range(N)
         )
         cpp_z = " + ".join(
-            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])"
-            % (facs[i], Jk[i], c, Jk[i])
+            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
             for i in range(N)
         )
 
@@ -257,41 +254,17 @@ class FentonWave:
             cpp_slope = self.slope_cpp()
 
         cpp_x = blend_air_and_wave_velocity_cpp(
-            cpp_x,
-            cpp_ax,
-            e_cpp,
-            "x",
-            self.eta_eps,
-            self.air,
-            cpp_psiw,
-            cpp_psia,
-            cpp_slope,
+            cpp_x, cpp_ax, e_cpp, "x", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope,
         )
         cpp_z = blend_air_and_wave_velocity_cpp(
-            cpp_z,
-            cpp_az,
-            e_cpp,
-            "z",
-            self.eta_eps,
-            self.air,
-            cpp_psiw,
-            cpp_psia,
-            cpp_slope,
+            cpp_z, cpp_az, e_cpp, "z", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope,
         )
 
         return cpp_x, cpp_z
 
 
 def fenton_coefficients(
-    height,
-    depth,
-    length,
-    N,
-    g=9.8,
-    maxiter=500,
-    tolerance=1e-8,
-    relax=1.0,
-    num_steps=None,
+    height, depth, length, N, g=9.8, maxiter=500, tolerance=1e-8, relax=1.0, num_steps=None,
 ):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
@@ -362,8 +335,7 @@ def fenton_coefficients(
                 )
             elif not isfinite(error):
                 raise NonConvergenceError(
-                    "Optimization did not converge. Got "
-                    "error %r in iteration %d" % (error, it)
+                    "Optimization did not converge. Got " "error %r in iteration %d" % (error, it)
                 )
             elif error < tolerance:
                 B = coeffs[: N + 1]
@@ -372,8 +344,7 @@ def fenton_coefficients(
                 R = coeffs[2 * N + 3]
                 return B, Q, R, eta, error, it
         raise NonConvergenceError(
-            "Optimization did not converge after %d "
-            "iterations, error = %r" % (it, error)
+            "Optimization did not converge after %d " "iterations, error = %r" % (it, error)
         )
 
     # Perform the optimization, optionally in steps gradually increasing H

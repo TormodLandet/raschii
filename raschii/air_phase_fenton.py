@@ -23,9 +23,7 @@ class FentonAirPhase:
         self.c = wave.c
         self.k = wave.k
         self.g = wave.g
-        BQ = air_velocity_coefficients(
-            self.x, self.eta, self.c, self.k, wave.depth, self.height
-        )
+        BQ = air_velocity_coefficients(self.x, self.eta, self.c, self.k, wave.depth, self.height)
         self.B, self.Q = BQ
         self.depth_water = wave.depth
 
@@ -77,12 +75,8 @@ class FentonAirPhase:
         z2 = top - z[:, newaxis]
 
         vel = zeros((x.size, 2), float)
-        vel[:, 0] = (k * B * cos(J * k * x2) * cosh(J * k * z2) / cosh(J * k * D)).dot(
-            J
-        ) * -1
-        vel[:, 1] = (k * B * sin(J * k * x2) * sinh(J * k * z2) / cosh(J * k * D)).dot(
-            J
-        )
+        vel[:, 0] = (k * B * cos(J * k * x2) * cosh(J * k * z2) / cosh(J * k * D)).dot(J) * -1
+        vel[:, 1] = (k * B * sin(J * k * x2) * sinh(J * k * z2) / cosh(J * k * D)).dot(J)
 
         return vel
 
@@ -103,8 +97,7 @@ class FentonAirPhase:
 
         z2 = "(%r - x[2])" % (self.depth_water + self.height,)
         cpp = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * %s)"
-            % (facs[i], Jk[i], c, Jk[i], z2)
+            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * %s)" % (facs[i], Jk[i], c, Jk[i], z2)
             for i in range(N)
         )
 
@@ -131,21 +124,19 @@ class FentonAirPhase:
 
         z2 = "(%r - x[2])" % (self.depth_water + self.height,)
         cpp_x = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * %s)"
-            % (-facs[i], Jk[i], c, Jk[i], z2)
+            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * %s)" % (-facs[i], Jk[i], c, Jk[i], z2)
             for i in range(N)
         )
         cpp_z = " + ".join(
-            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * %s)"
-            % (facs[i], Jk[i], c, Jk[i], z2)
+            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * %s)" % (facs[i], Jk[i], c, Jk[i], z2)
             for i in range(N)
         )
         return (cpp_x, cpp_z)
 
     def __repr__(self):
-        return (
-            "FentonAirPhase(height={s.height}, blending_height=" "{s.blending_height})"
-        ).format(s=self)
+        return ("FentonAirPhase(height={s.height}, blending_height=" "{s.blending_height})").format(
+            s=self
+        )
 
 
 def air_velocity_coefficients(x, eta, c, k, depth_water, height_air):

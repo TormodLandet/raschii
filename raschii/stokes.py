@@ -50,14 +50,10 @@ class StokesWave:
         eps = k * self.height / 2
         d = self.depth
 
-        c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(
-            self.g / k
+        c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(self.g / k)
+        Q = (c * d * sqrt(k ** 3 / self.g) + data["D2"] * eps ** 2 + data["D4"] * eps ** 4) * sqrt(
+            self.g / k ** 3
         )
-        Q = (
-            c * d * sqrt(k ** 3 / self.g)
-            + data["D2"] * eps ** 2
-            + data["D4"] * eps ** 4
-        ) * sqrt(self.g / k ** 3)
 
         self.c = c  # Phase speed
         self.cs = c - Q  # Mean Stokes drift speed (TODO: verify this!)
@@ -236,9 +232,7 @@ def stokes_coefficients(kd, N):
         return data
 
     # Define additional constants needed for third order Stokes waves
-    data["A31"] = (-4 - 20 * S + 10 * pow(S, 2) - 13 * pow(S, 3)) / (
-        8 * Sh * pow(1 - S, 3)
-    )
+    data["A31"] = (-4 - 20 * S + 10 * pow(S, 2) - 13 * pow(S, 3)) / (8 * Sh * pow(1 - S, 3))
     data["A33"] = (-2 * pow(S, 2) + 11 * pow(S, 3)) / (8 * Sh * pow(1 - S, 3))
     data["B31"] = -3 * (1 + 3 * S + 3 * pow(S, 2) + 2 * pow(S, 3)) / (8 * pow(1 - S, 3))
 
@@ -246,61 +240,31 @@ def stokes_coefficients(kd, N):
         return data
 
     # Define additional constants needed for forth order Stokes waves
-    data["A42"] = (
-        12 * S - 14 * pow(S, 2) - 264 * pow(S, 3) - 45 * pow(S, 4) - 13 * pow(S, 5)
-    ) / (24 * pow(1 - S, 5))
-    data["A44"] = (
-        10 * pow(S, 3) - 174 * pow(S, 4) + 291 * pow(S, 5) + 278 * pow(S, 6)
-    ) / (48 * (3 + 2 * S) * pow(1 - S, 5))
+    data["A42"] = (12 * S - 14 * pow(S, 2) - 264 * pow(S, 3) - 45 * pow(S, 4) - 13 * pow(S, 5)) / (
+        24 * pow(1 - S, 5)
+    )
+    data["A44"] = (10 * pow(S, 3) - 174 * pow(S, 4) + 291 * pow(S, 5) + 278 * pow(S, 6)) / (
+        48 * (3 + 2 * S) * pow(1 - S, 5)
+    )
     data["B42"] = (
         CTh
-        * (
-            6
-            - 26 * S
-            - 182 * pow(S, 2)
-            - 204 * pow(S, 3)
-            - 25 * pow(S, 4)
-            + 26 * pow(S, 5)
-        )
+        * (6 - 26 * S - 182 * pow(S, 2) - 204 * pow(S, 3) - 25 * pow(S, 4) + 26 * pow(S, 5))
         / (6 * (3 + 2 * S) * pow(1 - S, 4))
     )
     data["B44"] = (
         CTh
-        * (
-            24
-            + 92 * S
-            + 122 * pow(S, 2)
-            + 66 * pow(S, 3)
-            + 67 * pow(S, 4)
-            + 34 * pow(S, 5)
-        )
+        * (24 + 92 * S + 122 * pow(S, 2) + 66 * pow(S, 3) + 67 * pow(S, 4) + 34 * pow(S, 5))
         / (24 * (3 + 2 * S) * pow(1 - S, 4))
     )
     data["C4"] = (
         sqrt(Th)
-        * (
-            4
-            + 32 * S
-            - 116 * pow(S, 2)
-            - 400 * pow(S, 3)
-            - 71 * pow(S, 4)
-            + 146 * pow(S, 5)
-        )
+        * (4 + 32 * S - 116 * pow(S, 2) - 400 * pow(S, 3) - 71 * pow(S, 4) + 146 * pow(S, 5))
         / (32 * pow(1 - S, 5))
     )
-    data["D4"] = (
-        sqrt(CTh) * (2 + 4 * S + pow(S, 2) + 2 * pow(S, 3)) / (8 * pow(1 - S, 3))
-    )
+    data["D4"] = sqrt(CTh) * (2 + 4 * S + pow(S, 2) + 2 * pow(S, 3)) / (8 * pow(1 - S, 3))
     data["E4"] = (
         Th
-        * (
-            8
-            + 12 * S
-            - 152 * pow(S, 2)
-            - 308 * pow(S, 3)
-            - 42 * pow(S, 4)
-            + 77 * pow(S, 5)
-        )
+        * (8 + 12 * S - 152 * pow(S, 2) - 308 * pow(S, 3) - 42 * pow(S, 4) + 77 * pow(S, 5))
         / (32 * pow(1 - S, 5))
     )
 

@@ -156,12 +156,7 @@ def blend_air_and_wave_velocity_cpp(
     from the blend_air_and_wave_velocities() function
     """
     if air is None:
-        return "x[2] < (%s) + %r ? (%s) : (%s)" % (
-            elevation_cpp,
-            eta_eps,
-            wave_cpp,
-            "0.0",
-        )
+        return "x[2] < (%s) + %r ? (%s) : (%s)" % (elevation_cpp, eta_eps, wave_cpp, "0.0",)
 
     cpp = """[&]() {{
         const double elev = ({ecpp});

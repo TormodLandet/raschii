@@ -72,6 +72,5 @@ class ConstantAirPhase:
 
     def __repr__(self):
         return (
-            "ConstantAirPhase(height={s.height}, blending_height="
-            "{s.blending_height})"
+            "ConstantAirPhase(height={s.height}, blending_height=" "{s.blending_height})"
         ).format(s=self)
