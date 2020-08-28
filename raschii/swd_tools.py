@@ -4,9 +4,10 @@ from struct import pack
 
 import numpy as np
 
+
 class SwdShape2:
-    required_input = {'t_wave', 'length', 'depth', 'c_cofs', 'h_cofs', 'input_data'}
-    optional_input = {'g': 9.81, 'order_zpos': -1}
+    required_input = {"t_wave", "length", "depth", "c_cofs", "h_cofs", "input_data"}
+    optional_input = {"g": 9.81, "order_zpos": -1}
 
     def __init__(self, t_wave, length, depth, c_cofs, h_cofs, input_data, g=9.81, order_zpos=-1):
         """
@@ -38,8 +39,7 @@ class SwdShape2:
         self.h_cofs = h_cofs
         self.g = g
         self.lscale = 1.0
-        self.input_data = str(input_data).encode('utf-8')
-
+        self.input_data = str(input_data).encode("utf-8")
 
     def write(self, path, dt, tmax=None, nperiods=None):
         """
@@ -56,47 +56,49 @@ class SwdShape2:
         assert tmax > dt > 0.0
 
         # Get the raschii version number
-        version = 'x.y.z'
-        for line in open(os.path.join(os.path.dirname(__file__), '__init__.py'), encoding='utf-8'):
-            if line.startswith('__version__'):
-                version = line.split('=')[1].strip()[1:-1]
-        prog = 'raschii-' + version
+        version = "x.y.z"
+        for line in open(os.path.join(os.path.dirname(__file__), "__init__.py"), encoding="utf-8"):
+            if line.startswith("__version__"):
+                version = line.split("=")[1].strip()[1:-1]
+        prog = "raschii-" + version
 
         h_swd = np.empty(self.n_swd + 1, np.complex_)
         ht_swd = np.empty(self.n_swd + 1, np.complex_)
         c_swd = np.empty(self.n_swd + 1, np.complex_)
         ct_swd = np.empty(self.n_swd + 1, np.complex_)
         dtime = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
-        nsteps = int( (tmax + 0.0001*dt) / dt + 1)
+        nsteps = int((tmax + 0.0001 * dt) / dt + 1)
 
-        out = open(path, 'wb')
-        out.write(pack('<f', 37.0221))  # Magic number
-        out.write(pack('<i', 100))  # fmt
-        out.write(pack('<i', 2))  # shp for long-crested constant finite depth
-        out.write(pack('<i', 1))  # amp (both elevation and field data)
-        out.write(pack('<30s', prog.ljust(30).encode('utf-8')))  # prog name
-        out.write(pack('<20s', dtime.ljust(20).encode('utf-8')))  # date
+        out = open(path, "wb")
+        out.write(pack("<f", 37.0221))  # Magic number
+        out.write(pack("<i", 100))  # fmt
+        out.write(pack("<i", 2))  # shp for long-crested constant finite depth
+        out.write(pack("<i", 1))  # amp (both elevation and field data)
+        out.write(pack("<30s", prog.ljust(30).encode("utf-8")))  # prog name
+        out.write(pack("<20s", dtime.ljust(20).encode("utf-8")))  # date
         nid = len(self.input_data)
-        out.write(pack('<i', nid))  # length of input file
-        out.write(pack('<{0}s'.format(nid), self.input_data))
-        out.write(pack('<f', self.g))  # acc. of gravity
-        out.write(pack('<f', self.lscale))
-        out.write(pack('<i', 0))  # nstrip
-        out.write(pack('<i', nsteps))
-        out.write(pack('<f', dt))
-        out.write(pack('<i', self.order_zpos))
-        out.write(pack('<i', self.n_swd))
-        out.write(pack('<f', self.kwave))  # delta_k in swd
-        out.write(pack('<f', self.depth))
+        out.write(pack("<i", nid))  # length of input file
+        out.write(pack("<{0}s".format(nid), self.input_data))
+        out.write(pack("<f", self.g))  # acc. of gravity
+        out.write(pack("<f", self.lscale))
+        out.write(pack("<i", 0))  # nstrip
+        out.write(pack("<i", nsteps))
+        out.write(pack("<f", dt))
+        out.write(pack("<i", self.order_zpos))
+        out.write(pack("<i", self.n_swd))
+        out.write(pack("<f", self.kwave))  # delta_k in swd
+        out.write(pack("<f", self.depth))
+
         def dump_cofs(vals):
             for j in range(self.n_swd + 1):
                 r = vals[j]
-                out.write(pack('<f', r.real))
-                out.write(pack('<f', r.imag))
+                out.write(pack("<f", r.real))
+                out.write(pack("<f", r.imag))
+
         for istep in range(nsteps):
             t = istep * dt
             for j in range(self.n_swd + 1):
-                fac =  complex(0.0, j * self.omega)
+                fac = complex(0.0, j * self.omega)
                 h_swd[j] = self.h_cofs[j] * np.exp(fac * t)
                 ht_swd[j] = fac * h_swd[j]
                 c_swd[j] = self.c_cofs[j] * np.exp(fac * t)

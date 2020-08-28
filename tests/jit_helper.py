@@ -20,41 +20,40 @@ def jit_compile(cpp_code, cache_dir, verbose=True):
     code from the tests
     """
     # Hash the code object to make module name and check for cached version
-    cpp_hash = hashlib.sha1(cpp_code.encode('utf-8', 'replace')).hexdigest()
-    
+    cpp_hash = hashlib.sha1(cpp_code.encode("utf-8", "replace")).hexdigest()
+
     # Create a unique Python module name
-    assert 'PYBIND11_MODULE(MODNAME, m)' in cpp_code
-    modname = 'jitmod_%s' % cpp_hash
-    cpp_code = cpp_code.replace('PYBIND11_MODULE(MODNAME, m)',
-                                'PYBIND11_MODULE(%s, m)' % modname)
-    
+    assert "PYBIND11_MODULE(MODNAME, m)" in cpp_code
+    modname = "jitmod_%s" % cpp_hash
+    cpp_code = cpp_code.replace("PYBIND11_MODULE(MODNAME, m)", "PYBIND11_MODULE(%s, m)" % modname)
+
     # Ensure that the JIT directory exists
-    dirname = os.path.join(cache_dir, 'pybind11_jit_%s' % cpp_hash)
+    dirname = os.path.join(cache_dir, "pybind11_jit_%s" % cpp_hash)
     if not os.path.isdir(dirname):
         os.mkdir(dirname)
-    
+
     mod = import_mod(dirname, modname)
     if mod is not None:
         # Module exists in cache
         return mod
-    
+
     # Write necessary files to compile the module
-    cpp_file = os.path.join(dirname, 'jitmod.cpp')
-    cmake_file = os.path.join(dirname, 'CMakeLists.txt')
-    with open(cpp_file, 'wt') as f:
+    cpp_file = os.path.join(dirname, "jitmod.cpp")
+    cmake_file = os.path.join(dirname, "CMakeLists.txt")
+    with open(cpp_file, "wt") as f:
         f.write(cpp_code)
-    with open(cmake_file, 'wt') as f:
-        f.write(CMAKE_TEMPLATE.replace('MODNAME', modname))
-    
+    with open(cmake_file, "wt") as f:
+        f.write(CMAKE_TEMPLATE.replace("MODNAME", modname))
+
     # Compile the module
     if not compile_mod(dirname, verbose):
-        raise ValueError('Could not compile module in %s' % dirname)
-    
+        raise ValueError("Could not compile module in %s" % dirname)
+
     # Import the compiled module
     mod = import_mod(dirname, modname, verbose)
-    
+
     if mod is None:
-        raise ValueError('Could not import the compiled module in %s' % dirname)
+        raise ValueError("Could not import the compiled module in %s" % dirname)
     else:
         return mod
 
@@ -73,27 +72,26 @@ def import_mod(dirname, modname, verbose=False):
 
 def compile_mod(dirname, verbose):
     # Compile the module
-    stdoutf = os.path.join(dirname, 'stdout.txt')
-    stderrf = os.path.join(dirname, 'stderr.txt')
-    shellscript = os.path.join(dirname, 'runme.sh')
-    with open(shellscript, 'wt') as sh:
-        sh.write('#!/bin/sh\n')
-        sh.write('set -eu\n')
-        sh.write('cmake .\n')
-        sh.write('make\n')
-    with open(stdoutf, 'wb') as out, open(stderrf, 'wb') as err:
+    stdoutf = os.path.join(dirname, "stdout.txt")
+    stderrf = os.path.join(dirname, "stderr.txt")
+    shellscript = os.path.join(dirname, "runme.sh")
+    with open(shellscript, "wt") as sh:
+        sh.write("#!/bin/sh\n")
+        sh.write("set -eu\n")
+        sh.write("cmake .\n")
+        sh.write("make\n")
+    with open(stdoutf, "wb") as out, open(stderrf, "wb") as err:
         try:
-            p = subprocess.Popen(['sh', shellscript], cwd=dirname,
-                                 stdout=out, stderr=err)
+            p = subprocess.Popen(["sh", shellscript], cwd=dirname, stdout=out, stderr=err)
             ok = p.wait() == 0
         except Exception as e:
-            err.write('\n\nGOT Python EXCEPTION\n%r' % repr(e))
+            err.write("\n\nGOT Python EXCEPTION\n%r" % repr(e))
             ok = False
-    
+
     if not ok:
-        print('#############################################################')
-        print('Compiler stdout:\n' + open(stdoutf, 'rt').read())
-        print('#############################################################')
-        print('Compiler stderr:\n' + open(stderrf, 'rt').read())
-        print('#############################################################')
+        print("#############################################################")
+        print("Compiler stdout:\n" + open(stdoutf, "rt").read())
+        print("#############################################################")
+        print("Compiler stderr:\n" + open(stderrf, "rt").read())
+        print("#############################################################")
     return ok

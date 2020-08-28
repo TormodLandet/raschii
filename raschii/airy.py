@@ -1,11 +1,10 @@
 from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
-from .common import (blend_air_and_wave_velocities,
-                     blend_air_and_wave_velocity_cpp)
+from .common import blend_air_and_wave_velocities, blend_air_and_wave_velocity_cpp
 
 
 class AiryWave:
-    required_input = ('height', 'depth', 'length')
-    optional_input = {'air': None, 'g': 9.81}
+    required_input = ("height", "depth", "length")
+    optional_input = {"air": None, "g": 9.81}
 
     def __init__(self, height, depth, length, air=None, g=9.81):
         """
@@ -21,10 +20,10 @@ class AiryWave:
         self.air = air
         self.g = g
         self.order = 1
-        self.warnings = ''
+        self.warnings = ""
 
         self.k = 2 * pi / length
-        self.omega = (self.k * g * tanh(self.k * depth))**0.5
+        self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
         self.c = self.omega / self.k
         self.T = self.length / self.c  # Wave period
 
@@ -64,8 +63,7 @@ class AiryWave:
         vel[:, 1] = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(k * x - w * t)
 
         if not all_points_wet:
-            blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
-                                          self.eta_eps)
+            blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
 
         return vel
 
@@ -74,8 +72,12 @@ class AiryWave:
         Return C++ code for evaluating the elevation of this specific wave.
         The positive traveling direction is x[0]
         """
-        return '%r + %r / 2.0 * cos(%r * (x[0] - %r * t))' % \
-            (self.depth, self.height, self.k, self.c)
+        return "%r + %r / 2.0 * cos(%r * (x[0] - %r * t))" % (
+            self.depth,
+            self.height,
+            self.k,
+            self.c,
+        )
 
     def velocity_cpp(self, all_points_wet=False):
         """
@@ -89,10 +91,18 @@ class AiryWave:
         d = self.depth
         w = self.omega
 
-        cpp_x = '%r * cosh(%r * x[2]) * cos(%r * x[0] - %r * t)' %\
-                (w * H / (2 * sinh(k * d)), k, k, w)
-        cpp_z = '%r * sinh(%r * x[2]) * sin(%r * x[0] - %r * t)' %\
-                (w * H / (2 * sinh(k * d)), k, k, w)
+        cpp_x = "%r * cosh(%r * x[2]) * cos(%r * x[0] - %r * t)" % (
+            w * H / (2 * sinh(k * d)),
+            k,
+            k,
+            w,
+        )
+        cpp_z = "%r * sinh(%r * x[2]) * sin(%r * x[0] - %r * t)" % (
+            w * H / (2 * sinh(k * d)),
+            k,
+            k,
+            w,
+        )
 
         if all_points_wet:
             return cpp_x, cpp_z
@@ -103,15 +113,15 @@ class AiryWave:
         cpp_psiw = cpp_psia = cpp_slope = None
         if self.air is not None:
             cpp_ax, cpp_az = self.air.velocity_cpp()
-            cpp_psiw = self.stream_function_cpp(frame='c')
-            cpp_psia = self.air.stream_function_cpp(frame='c')
+            cpp_psiw = self.stream_function_cpp(frame="c")
+            cpp_psia = self.air.stream_function_cpp(frame="c")
             cpp_slope = self.slope_cpp()
 
-        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, 'x',
-                                                self.eta_eps, self.air,
-                                                cpp_psiw, cpp_psia, cpp_slope)
-        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, 'z',
-                                                self.eta_eps, self.air,
-                                                cpp_psiw, cpp_psia, cpp_slope)
+        cpp_x = blend_air_and_wave_velocity_cpp(
+            cpp_x, cpp_ax, e_cpp, "x", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope
+        )
+        cpp_z = blend_air_and_wave_velocity_cpp(
+            cpp_z, cpp_az, e_cpp, "z", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope
+        )
 
         return cpp_x, cpp_z

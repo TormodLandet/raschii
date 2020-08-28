@@ -26,15 +26,21 @@ def check_breaking_criteria(height, depth, length):
     h2 = 0.78 * depth
     h3 = 0.142 * tanh(2 * pi * depth / length) * length
 
-    err = warn = ''
-    for name, hmax in (('Length criterion', h1),
-                       ('Depth criterion', h2),
-                       ('Combined criterion', h3)):
+    err = warn = ""
+    for name, hmax in (
+        ("Length criterion", h1),
+        ("Depth criterion", h2),
+        ("Combined criterion", h3),
+    ):
         if height > hmax:
-            err += '%s is exceeded, %.2f > %.2f\n' % (name, height, hmax)
+            err += "%s is exceeded, %.2f > %.2f\n" % (name, height, hmax)
         elif height > hmax * 0.9:
-            warn += '%s is close to exceeded, %.2f = %.2f * %.3f\n' % \
-                (name, height, hmax, height / hmax)
+            warn += "%s is close to exceeded, %.2f = %.2f * %.3f\n" % (
+                name,
+                height,
+                hmax,
+                height / hmax,
+            )
     return err, warn
 
 
@@ -48,7 +54,7 @@ def sinh_by_cosh(a, b):
         if ai == 0:
             continue
         f = bi / ai
-        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+        if (ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9):
             ans[i] = math.exp(ai * (1 - f))
         else:
             sa = math.sinh(ai)
@@ -68,7 +74,7 @@ def cosh_by_cosh(a, b):
             ans[i] = 1.0 / math.cosh(bi)
             continue
         f = bi / ai
-        if ((ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9)):
+        if (ai > 30 and 0.5 < f < 1.5) or (ai > 200 and 0.1 < f < 1.9):
             ans[i] = math.exp(ai * (1 - f))
         else:
             ca = math.cosh(ai)
@@ -106,8 +112,8 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
             eb = ea[blend]
             Z = (zb - eb) / (d - eb)
             vel_water = vel[above]
-            psi_wave = wave.stream_function(xb, zb, t, frame='c')
-            psi_air = air.stream_function(xb, zb, t, frame='c')
+            psi_wave = wave.stream_function(xb, zb, t, frame="c")
+            psi_air = air.stream_function(xb, zb, t, frame="c")
             detadx = wave.surface_slope(xb, t)
 
             if False:
@@ -119,31 +125,38 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
                 f = Z * Z * Z * (Z * (Z * 6 - 15) + 10)
                 dfdZ = Z * Z * (30 + Z * (30 * Z - 60))
 
-            dZdx = (zb - d) / (d - eb)**2 * detadx
+            dZdx = (zb - d) / (d - eb) ** 2 * detadx
             dZdz = 1 / (d - eb)
             dfdx = dfdZ * dZdx
             dfdz = dfdZ * dZdz
 
             vel_air[blend, 0] = (1 - f) * vel_water[blend, 0] + f * vel_air[blend, 0]
             vel_air[blend, 1] = (1 - f) * vel_water[blend, 1] + f * vel_air[blend, 1]
-            vel_air[blend, 0] += - dfdz * psi_wave + dfdz * psi_air
-            vel_air[blend, 1] -= - dfdx * psi_wave + dfdx * psi_air
+            vel_air[blend, 0] += -dfdz * psi_wave + dfdz * psi_air
+            vel_air[blend, 1] -= -dfdx * psi_wave + dfdx * psi_air
         vel[above] = vel_air
     else:
         vel[above] = 0
 
 
-def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
-                                    eta_eps, air=None, psi_wave_cpp=None,
-                                    psi_air_cpp=None, slope_cpp=None):
+def blend_air_and_wave_velocity_cpp(
+    wave_cpp,
+    air_cpp,
+    elevation_cpp,
+    direction,
+    eta_eps,
+    air=None,
+    psi_wave_cpp=None,
+    psi_air_cpp=None,
+    slope_cpp=None,
+):
     """
     Return C++ code which blends the velocities in the water into the velocities
     in the air in such a way that the C++ code replicates the Python results
     from the blend_air_and_wave_velocities() function
     """
     if air is None:
-        return 'x[2] < (%s) + %r ? (%s) : (%s)' % (elevation_cpp, eta_eps,
-                                                   wave_cpp, '0.0')
+        return "x[2] < (%s) + %r ? (%s) : (%s)" % (elevation_cpp, eta_eps, wave_cpp, "0.0")
 
     cpp = """[&]() {{
         const double elev = ({ecpp});
@@ -179,16 +192,21 @@ def blend_air_and_wave_velocity_cpp(wave_cpp, air_cpp, elevation_cpp, direction,
 
         // The point is above the blending zone
         return val_air;
-    }}()""".format(ecpp=elevation_cpp, uw_cpp=wave_cpp, ua_cpp=air_cpp,
-                   eps=eta_eps, d=air.blending_height + air.depth_water,
-                   slope_cpp=slope_cpp)
+    }}()""".format(
+        ecpp=elevation_cpp,
+        uw_cpp=wave_cpp,
+        ua_cpp=air_cpp,
+        eps=eta_eps,
+        d=air.blending_height + air.depth_water,
+        slope_cpp=slope_cpp,
+    )
 
     # Compute the product rule code
-    if direction == 'x':
+    if direction == "x":
         sign = -1
-        prcode = 'dfdz * (%s) - dfdz * (%s)' % (psi_wave_cpp, psi_air_cpp)
-    elif direction == 'z':
+        prcode = "dfdz * (%s) - dfdz * (%s)" % (psi_wave_cpp, psi_air_cpp)
+    elif direction == "z":
         sign = +1
-        prcode = 'dfdx * (%s) - dfdx * (%s)' % (psi_wave_cpp, psi_air_cpp)
+        prcode = "dfdx * (%s) - dfdx * (%s)" % (psi_wave_cpp, psi_air_cpp)
 
     return cpp % (sign, prcode)
