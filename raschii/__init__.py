@@ -6,7 +6,7 @@ raschii, the Arctic Krill.
 
 SPDX-License-Identifier: Apache-2.0
 """
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 from .common import check_breaking_criteria, RasciiError, NonConvergenceError  # NOQA
 from .airy import AiryWave
