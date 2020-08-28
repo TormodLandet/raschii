@@ -1,3 +1,7 @@
+import os
+import pytest
+
+
 def test_readme_example():
     import raschii
 
@@ -5,6 +9,15 @@ def test_readme_example():
     print(fwave.surface_elevation(x=0))
     print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
     print(fwave.velocity(x=0, z=0.2))
+
+
+@pytest.mark.parametrize("wave_model_name", ["Fenton", "Stokes"])
+def test_readme_swd_waves(wave_model_name, tmpdir):
+    from raschii.cmd.swd import write_swd
+
+    swd_file = os.path.join(tmpdir.mkdir("swd"), "readme_test_%s.swd" % wave_model_name)
+
+    write_swd(swd_file, wave_model_name, 0.2, 1.5, 2, N=5, dt=0.01, tmax=10)
 
 
 def test_user_doc():
