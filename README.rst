@@ -24,6 +24,10 @@ and boundary conditions in a FEM solver. There is also a limited `Dart port
    A comparison of fifth order Stokes waves and fifth order Fenton stream
    function waves. Deep water, wave heigh 12 m, wave length 100 m.
 
+As of version 1.0.3, Raschii can output waves on the SWD_ (spectral wave data)
+standard file format for use in analysis programs (CFD, boundary element etc).
+
+.. _SWD: https://github.com/SpectralWaveData/spectral_wave_data
 
 Installation and running
 ------------------------
@@ -79,14 +83,15 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
-Version 1.0.3 - Xyz XX. YYYY
+Version 1.0.3 - Aug 28. 2020
 ............................
-
-Unreleased development version
 
 - Fix missing time dependency in Stokes surface surface elevation
 - Ensure all wave models implement ``T`` and ``omega`` attributes
 - Test that the surface elevation has the correct period for all wave models
+- Include `SWD <https://github.com/SpectralWaveData/spectral_wave_data>`_ file 
+  format support for writing generated waves to files for interchange with other
+  tools.
 
 Version 1.0.2 - Jun 4. 2018
 ............................
