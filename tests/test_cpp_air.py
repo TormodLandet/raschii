@@ -2,6 +2,7 @@ import numpy
 import pytest
 from raschii import get_wave_model
 from jit_helper import jit_compile
+from utils import skip_on_windows
 
 
 @pytest.fixture(params=["ConstantAir", "FentonAir"])
@@ -41,6 +42,7 @@ def check_results(xr, zr, expected, computed, name, tolerance):
     assert max_abs_err < tolerance
 
 
+@skip_on_windows
 def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -48,15 +50,15 @@ def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double stream_function(vector<double> x, double t=0.0) {
         double value = CODE_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("sfunc", &stream_function, py::arg("x"), py::arg("t")=0.0);
@@ -85,6 +87,7 @@ def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     check_results(xr, zr, sf_py, sf_cpp, test_name, 1e-4)
 
 
+@skip_on_windows
 def test_cpp_vs_py_air_velocity(tmpdir, air_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -92,20 +95,20 @@ def test_cpp_vs_py_air_velocity(tmpdir, air_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double vel_x(vector<double> x, double t=0.0) {
         double value = CODE_X_GOES_HERE;
         return value;
     }
-    
+
     double vel_z(vector<double> x, double t=0.0) {
         double value = CODE_Z_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("vel_x", &vel_x, py::arg("x"), py::arg("t")=0.0);

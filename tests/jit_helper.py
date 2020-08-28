@@ -80,7 +80,7 @@ def compile_mod(dirname, verbose):
         sh.write("set -eu\n")
         sh.write("cmake .\n")
         sh.write("make\n")
-    with open(stdoutf, "wb") as out, open(stderrf, "wb") as err:
+    with open(stdoutf, "w") as out, open(stderrf, "w") as err:
         try:
             p = subprocess.Popen(["sh", shellscript], cwd=dirname, stdout=out, stderr=err)
             ok = p.wait() == 0

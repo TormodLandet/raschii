@@ -1,6 +1,7 @@
 import numpy
 import pytest
 from jit_helper import jit_compile
+from utils import skip_on_windows
 
 
 @pytest.fixture(params=["deep1", "shallow1"])
@@ -96,6 +97,7 @@ def test_fenton_air_with_fenton(wave_with_air_model):
     assert max_abs_div < 1e-5
 
 
+@skip_on_windows
 def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
     # Get the wave from the fixture
     fwave, air, time, plot = wave_with_air_model

@@ -2,6 +2,7 @@ import numpy
 import pytest
 from raschii import get_wave_model
 from jit_helper import jit_compile
+from utils import skip_on_windows
 
 
 @pytest.fixture(params=["Airy", "Stokes", "Fenton"])
@@ -51,6 +52,7 @@ def check_results(xr, zr, expected, computed, name, tolerance):
     assert max_abs_err < tolerance
 
 
+@skip_on_windows
 def test_cpp_jit(tmpdir):
     """
     Test the example from the pybind11 docs. If this fails then the build tool
@@ -58,14 +60,14 @@ def test_cpp_jit(tmpdir):
     """
     cpp_code = """
     #include <pybind11/pybind11.h>
-    
+
     int add(int i, int j) {
         return i + j;
     }
-    
+
     PYBIND11_MODULE(MODNAME, m) {
         m.doc() = "pybind11 example plugin"; // optional module docstring
-    
+
         m.def("add", &add, "A function which adds two numbers");
     }
     """
@@ -74,6 +76,7 @@ def test_cpp_jit(tmpdir):
     assert mod.add(5, 37) == 42
 
 
+@skip_on_windows
 def test_cpp_vs_py_elevation(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -81,15 +84,15 @@ def test_cpp_vs_py_elevation(tmpdir, wave_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double elevation(vector<double> x, double t=0.0) {
         double value = CODE_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("elevation", &elevation, py::arg("x"), py::arg("t")=0.0);
@@ -117,6 +120,7 @@ def test_cpp_vs_py_elevation(tmpdir, wave_model):
     check_results(xr, zr, e_py, e_cpp, test_name, 1e-14)
 
 
+@skip_on_windows
 def test_cpp_vs_py_velocity(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -124,20 +128,20 @@ def test_cpp_vs_py_velocity(tmpdir, wave_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double vel_x(vector<double> x, double t=0.0) {
         double value = CODE_X_GOES_HERE;
         return value;
     }
-    
+
     double vel_z(vector<double> x, double t=0.0) {
         double value = CODE_Z_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("vel_x", &vel_x, py::arg("x"), py::arg("t")=0.0);
@@ -174,6 +178,7 @@ def test_cpp_vs_py_velocity(tmpdir, wave_model):
     check_results(xr, zr, vel_py[:, 1], vz_cpp, test_name_z, 1e-5)
 
 
+@skip_on_windows
 def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -181,15 +186,15 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double stream_function(vector<double> x, double t=0.0) {
         double value = CODE_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("sfunc", &stream_function, py::arg("x"), py::arg("t")=0.0);
@@ -217,6 +222,7 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     check_results(xr, zr, sf_py, sf_cpp, test_name, 1e-3)
 
 
+@skip_on_windows
 def test_cpp_vs_py_slope(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -224,15 +230,15 @@ def test_cpp_vs_py_slope(tmpdir, wave_model):
     #include <cmath>
     #include <pybind11/pybind11.h>
     #include <pybind11/stl.h>
-    
+
     using namespace std;
     const double pi = M_PI;
-    
+
     double slope(vector<double> x, double t=0.0) {
         double value = CODE_GOES_HERE;
         return value;
     }
-    
+
     namespace py = pybind11;
     PYBIND11_MODULE(MODNAME, m) {
         m.def("slope", &slope, py::arg("x"), py::arg("t")=0.0);
