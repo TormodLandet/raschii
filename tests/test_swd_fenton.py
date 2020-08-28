@@ -1,15 +1,16 @@
 import os
 import math
-import pytest
 
 import raschii
-from spectral_wave_data import SpectralWaveData
+from utils import skip_swd_uninstalled
 
 
+@skip_swd_uninstalled
 def test_swd_fenton(tmpdir):
+    from spectral_wave_data import SpectralWaveData
 
-    dir = str(tmpdir.mkdir("swd"))
-    file_swd = os.path.join(dir, "fenton.swd")
+    dir_swd = str(tmpdir.mkdir("swd"))
+    file_swd = os.path.join(dir_swd, "fenton.swd")
 
     height = 5.0
     depth = 15.0
@@ -18,17 +19,17 @@ def test_swd_fenton(tmpdir):
     dt = 0.1
     ncomp = 30
 
-    WaveModel, AirModel = raschii.get_wave_model('Fenton')
+    WaveModel, AirModel = raschii.get_wave_model("Fenton")
     wave = WaveModel(height=height, depth=depth, length=length, N=ncomp)
     wave.write_swd(file_swd, dt=dt, nperiods=nperiods)
     # raschii and swd apply the same definitions for initial x, t and wave propagation direction...
     swd = SpectralWaveData(file_swd, x0=0.0, y0=0.0, t0=0.0, beta=0.0)
 
-    assert swd['prog'].startswith('raschii-')
-    assert swd['n'] == ncomp
-    tmax = swd['tmax']
+    assert swd["prog"].startswith("raschii-")
+    assert swd["n"] == ncomp
+    tmax = swd["tmax"]
 
-    for t_swd in [0.0, 15 * dt]:   # No interpolation round-off in swd at exact time steps
+    for t_swd in [0.0, 15 * dt]:  # No interpolation round-off in swd at exact time steps
         assert t_swd <= tmax
 
         x_swd = 0.4 * length
