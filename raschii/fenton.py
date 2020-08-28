@@ -1,15 +1,32 @@
 import math
-from numpy import (pi, cos, sin, zeros, arange, trapz, isfinite, newaxis, array,
-                   asarray, linspace, cosh, sinh)
+from numpy import (
+    pi,
+    cos,
+    sin,
+    zeros,
+    arange,
+    trapz,
+    isfinite,
+    newaxis,
+    array,
+    asarray,
+    linspace,
+    cosh,
+    sinh,
+)
 from numpy.linalg import solve
-from .common import (NonConvergenceError, sinh_by_cosh, cosh_by_cosh,
-                     blend_air_and_wave_velocities,
-                     blend_air_and_wave_velocity_cpp)
+from .common import (
+    NonConvergenceError,
+    sinh_by_cosh,
+    cosh_by_cosh,
+    blend_air_and_wave_velocities,
+    blend_air_and_wave_velocity_cpp,
+)
 
 
 class FentonWave:
-    required_input = {'height', 'depth', 'length', 'N'}
-    optional_input = {'air': None, 'g': 9.81, 'relax': 0.5}
+    required_input = {"height", "depth", "length", "N"}
+    optional_input = {"air": None, "g": 9.81, "relax": 0.5}
 
     def __init__(self, height, depth, length, N, air=None, g=9.81, relax=0.5):
         """
@@ -28,7 +45,7 @@ class FentonWave:
         self.air = air
         self.g = g
         self.relax = relax
-        self.warnings = ''
+        self.warnings = ""
 
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
@@ -43,11 +60,11 @@ class FentonWave:
 
     def set_data(self, data):
         self.data = data
-        self.eta = data['eta']         # Wave elevation at colocation points
-        self.x = data['x']             # Positions of colocation points
-        self.k = data['k']             # Wave number
-        self.c = data['c']             # Phase speed
-        self.cs = self.c - data['Q']   # Mean Stokes drift speed
+        self.eta = data["eta"]  # Wave elevation at colocation points
+        self.x = data["x"]  # Positions of colocation points
+        self.k = data["k"]  # Wave number
+        self.c = data["c"]  # Phase speed
+        self.cs = self.c - data["Q"]  # Mean Stokes drift speed
         self.T = self.length / self.c  # Wave period
         self.omega = self.c * self.k  # Wave frequency
 
@@ -57,7 +74,7 @@ class FentonWave:
         J = arange(0, N + 1)
         self.E = trapz(self.eta * cos(J * J[:, newaxis] * pi / N))
 
-    def stream_function(self, x, z, t=0, frame='b'):
+    def stream_function(self, x, z, t=0, frame="b"):
         """
         Compute the stream function at time t for position(s) x
         """
@@ -68,16 +85,15 @@ class FentonWave:
         x2, z2 = x2[:, newaxis], z2[:, newaxis]
 
         N = len(self.eta) - 1
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         J = arange(1, N + 1)
 
-        psi = (sinh(J * k * z2) / cosh(J * k * self.depth) *
-               cos(J * k * x2)).dot(B[1:])
+        psi = (sinh(J * k * z2) / cosh(J * k * self.depth) * cos(J * k * x2)).dot(B[1:])
 
-        if frame == 'b':
+        if frame == "b":
             return B[0] * z + psi
-        elif frame == 'c':
+        elif frame == "c":
             return psi
 
     def surface_elevation(self, x, t=0):
@@ -106,8 +122,7 @@ class FentonWave:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return - 2 * trapz(self.E * J * k *
-                           sin(J * k * (x[:, newaxis] - c * t))) / N
+        return -2 * trapz(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
     def velocity(self, x, z, t=0, all_points_wet=False):
         """
@@ -120,26 +135,31 @@ class FentonWave:
         z = asarray(z, dtype=float)
 
         N = len(self.eta) - 1
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         c = self.c
         J = arange(1, N + 1)
 
         vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (B[1:] * cos(J * k * (x[:, newaxis] - c * t)) *
-                         cosh(J * k * z[:, newaxis]) /
-                         cosh(J * k * self.depth)).dot(J)
-        vel[:, 1] = k * (B[1:] * sin(J * k * (x[:, newaxis] - c * t)) *
-                         sinh(J * k * z[:, newaxis]) /
-                         cosh(J * k * self.depth)).dot(J)
+        vel[:, 0] = k * (
+            B[1:]
+            * cos(J * k * (x[:, newaxis] - c * t))
+            * cosh(J * k * z[:, newaxis])
+            / cosh(J * k * self.depth)
+        ).dot(J)
+        vel[:, 1] = k * (
+            B[1:]
+            * sin(J * k * (x[:, newaxis] - c * t))
+            * sinh(J * k * z[:, newaxis])
+            / cosh(J * k * self.depth)
+        ).dot(J)
 
         if not all_points_wet:
-            blend_air_and_wave_velocities(x, z, t, self, self.air, vel,
-                                          self.eta_eps)
+            blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
 
         return vel
 
-    def stream_function_cpp(self, frame='b'):
+    def stream_function_cpp(self, frame="b"):
         """
         Return C++ code for evaluating the stream function of this specific
         wave. The positive traveling direction is x[0] and the vertical
@@ -148,19 +168,22 @@ class FentonWave:
         """
         N = len(self.eta) - 1
         J = arange(1, N + 1)
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         c = self.c
 
         Jk = J * k
         facs = B[1:] / cosh(Jk * self.depth)
 
-        cpp = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])' %
-                         (facs[i], Jk[i], c, Jk[i]) for i in range(N))
+        cpp = " + ".join(
+            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])"
+            % (facs[i], Jk[i], c, Jk[i])
+            for i in range(N)
+        )
 
-        if frame == 'b':
-            return '%r * x[2] + %s' % (B[0], cpp)
-        elif frame == 'c':
+        if frame == "b":
+            return "%r * x[2] + %s" % (B[0], cpp)
+        elif frame == "c":
             return cpp
 
     def elevation_cpp(self):
@@ -172,9 +195,10 @@ class FentonWave:
         facs = self.E * 2 / N
         facs[0] *= 0.5
         facs[-1] *= 0.5
-        code = ' + '.join('%r * cos(%d * %r * (x[0] - %r * t))' %
-                          (facs[j], j, self.k, self.c)
-                          for j in range(0, N + 1))
+        code = " + ".join(
+            "%r * cos(%d * %r * (x[0] - %r * t))" % (facs[j], j, self.k, self.c)
+            for j in range(0, N + 1)
+        )
         return code
 
     def slope_cpp(self):
@@ -186,9 +210,10 @@ class FentonWave:
         facs = self.E * 2 / N * self.k * -1.0
         facs[0] *= 0.5
         facs[-1] *= 0.5
-        code = ' + '.join('%r * %d * sin(%d * %r * (x[0] - %r * t))' %
-                          (facs[j], j, j, self.k, self.c)
-                          for j in range(0, N + 1))
+        code = " + ".join(
+            "%r * %d * sin(%d * %r * (x[0] - %r * t))" % (facs[j], j, j, self.k, self.c)
+            for j in range(0, N + 1)
+        )
         return code
 
     def velocity_cpp(self, all_points_wet=False):
@@ -200,17 +225,23 @@ class FentonWave:
         """
         N = len(self.eta) - 1
         J = arange(1, N + 1)
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         c = self.c
 
         Jk = J * k
         facs = J * B[1:] * k / cosh(Jk * self.depth)
 
-        cpp_x = ' + '.join('%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])' %
-                           (facs[i], Jk[i], c, Jk[i]) for i in range(N))
-        cpp_z = ' + '.join('%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])' %
-                           (facs[i], Jk[i], c, Jk[i]) for i in range(N))
+        cpp_x = " + ".join(
+            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])"
+            % (facs[i], Jk[i], c, Jk[i])
+            for i in range(N)
+        )
+        cpp_z = " + ".join(
+            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])"
+            % (facs[i], Jk[i], c, Jk[i])
+            for i in range(N)
+        )
 
         if all_points_wet:
             return cpp_x, cpp_z
@@ -221,22 +252,47 @@ class FentonWave:
         cpp_psiw = cpp_psia = cpp_slope = None
         if self.air is not None:
             cpp_ax, cpp_az = self.air.velocity_cpp()
-            cpp_psiw = self.stream_function_cpp(frame='c')
-            cpp_psia = self.air.stream_function_cpp(frame='c')
+            cpp_psiw = self.stream_function_cpp(frame="c")
+            cpp_psia = self.air.stream_function_cpp(frame="c")
             cpp_slope = self.slope_cpp()
 
-        cpp_x = blend_air_and_wave_velocity_cpp(cpp_x, cpp_ax, e_cpp, 'x',
-                                                self.eta_eps, self.air,
-                                                cpp_psiw, cpp_psia, cpp_slope)
-        cpp_z = blend_air_and_wave_velocity_cpp(cpp_z, cpp_az, e_cpp, 'z',
-                                                self.eta_eps, self.air,
-                                                cpp_psiw, cpp_psia, cpp_slope)
+        cpp_x = blend_air_and_wave_velocity_cpp(
+            cpp_x,
+            cpp_ax,
+            e_cpp,
+            "x",
+            self.eta_eps,
+            self.air,
+            cpp_psiw,
+            cpp_psia,
+            cpp_slope,
+        )
+        cpp_z = blend_air_and_wave_velocity_cpp(
+            cpp_z,
+            cpp_az,
+            e_cpp,
+            "z",
+            self.eta_eps,
+            self.air,
+            cpp_psiw,
+            cpp_psia,
+            cpp_slope,
+        )
 
         return cpp_x, cpp_z
 
 
-def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
-                        tolerance=1e-8, relax=1.0, num_steps=None):
+def fenton_coefficients(
+    height,
+    depth,
+    length,
+    N,
+    g=9.8,
+    maxiter=500,
+    tolerance=1e-8,
+    relax=1.0,
+    num_steps=None,
+):
     """
     Find B, Q and R by Newton-Raphson following Rienecker and Fenton (1981)
 
@@ -247,7 +303,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
     H = height / depth
     lam = length / depth
     k = 2 * pi / lam
-    c = (math.tanh(k) / k)**0.5
+    c = (math.tanh(k) / k) ** 0.5
     D = 1
     N_unknowns = 2 * (N + 1) + 2
 
@@ -265,7 +321,7 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         B[1] = -H / (4 * c * k)
         eta = 1 + H / 2 * cos(k * x)
         Q = c
-        R = 1 + 0.5 * c**2
+        R = 1 + 0.5 * c ** 2
         return B, Q, R, eta
 
     def optimize(B, Q, R, eta, H):
@@ -278,8 +334,8 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         """
         # Insert initial guesses into coefficient vector
         coeffs = zeros(N_unknowns, float)
-        coeffs[:N + 1] = B
-        coeffs[N + 1:2 * N + 2] = eta
+        coeffs[: N + 1] = B
+        coeffs[N + 1 : 2 * N + 2] = eta
         coeffs[2 * N + 2] = Q
         coeffs[2 * N + 3] = R
         f = func(coeffs, H, k, D, J, M)
@@ -292,25 +348,33 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
 
             # Check the progress
             error = abs(f).max()
-            eta_max = coeffs[N + 1:2 * N + 2].max()
-            eta_min = coeffs[N + 1:2 * N + 2].min()
+            eta_max = coeffs[N + 1 : 2 * N + 2].max()
+            eta_min = coeffs[N + 1 : 2 * N + 2].min()
             if eta_max > 2:
-                raise NonConvergenceError('Optimization did not converge. Got '
-                                          'max(eta)/depth = %r in iteration %d' % (eta_max, it))
+                raise NonConvergenceError(
+                    "Optimization did not converge. Got "
+                    "max(eta)/depth = %r in iteration %d" % (eta_max, it)
+                )
             elif eta_min < 0.1:
-                raise NonConvergenceError('Optimization did not converge. Got '
-                                          'min(eta)/depth = %r in iteration %d' % (eta_min, it))
+                raise NonConvergenceError(
+                    "Optimization did not converge. Got "
+                    "min(eta)/depth = %r in iteration %d" % (eta_min, it)
+                )
             elif not isfinite(error):
-                raise NonConvergenceError('Optimization did not converge. Got '
-                                          'error %r in iteration %d' % (error, it))
+                raise NonConvergenceError(
+                    "Optimization did not converge. Got "
+                    "error %r in iteration %d" % (error, it)
+                )
             elif error < tolerance:
-                B = coeffs[:N + 1]
-                eta = coeffs[N + 1:2 * N + 2]
+                B = coeffs[: N + 1]
+                eta = coeffs[N + 1 : 2 * N + 2]
                 Q = coeffs[2 * N + 2]
                 R = coeffs[2 * N + 3]
                 return B, Q, R, eta, error, it
-        raise NonConvergenceError('Optimization did not converge after %d '
-                                  'iterations, error = %r' % (it, error))
+        raise NonConvergenceError(
+            "Optimization did not converge after %d "
+            "iterations, error = %r" % (it, error)
+        )
 
     # Perform the optimization, optionally in steps gradually increasing H
     steps = wave_height_steps(num_steps, D, lam, H)
@@ -319,17 +383,19 @@ def fenton_coefficients(height, depth, length, N, g=9.8, maxiter=500,
         B, Q, R, eta, error, niter = optimize(B, Q, R, eta, Hi)
 
     # Scale back to physical space
-    B[0] *= (g * depth)**0.5
-    B[1:] *= (g * depth**3)**0.5
-    return {'x': x * depth,
-            'eta': eta * depth,
-            'B': B,
-            'Q': Q * (g * depth**3)**0.5,
-            'R': R * g * depth,
-            'k': k / depth,
-            'c': B[0],
-            'error': error,
-            'niter': niter}
+    B[0] *= (g * depth) ** 0.5
+    B[1:] *= (g * depth ** 3) ** 0.5
+    return {
+        "x": x * depth,
+        "eta": eta * depth,
+        "B": B,
+        "Q": Q * (g * depth ** 3) ** 0.5,
+        "R": R * g * depth,
+        "k": k / depth,
+        "c": B[0],
+        "error": error,
+        "niter": niter,
+    }
 
 
 def wave_height_steps(num_steps, D, lam, H):
@@ -362,8 +428,8 @@ def func(coeffs, H, k, D, J, M):
     N = J.size
 
     B0 = coeffs[0]
-    B = coeffs[1:N + 1]
-    eta = coeffs[N + 1:2 * N + 2]
+    B = coeffs[1 : N + 1]
+    eta = coeffs[N + 1 : 2 * N + 2]
     Q = coeffs[2 * N + 2]
     R = coeffs[2 * N + 3]
 
@@ -387,7 +453,7 @@ def func(coeffs, H, k, D, J, M):
         f[m] = -B0 * eta[m] + B.dot(S1 * C2) + Q
 
         # Enforce the dynamic free surface boundary condition
-        f[N + 1 + m] = (um**2 + vm**2) / 2 + eta[m] - R
+        f[N + 1 + m] = (um ** 2 + vm ** 2) / 2 + eta[m] - R
 
     # Enforce mean(eta) = D
     f[-2] = trapz(eta) / N - 1
@@ -419,8 +485,8 @@ def fprime(coeffs, H, k, D, J, M):
 
     jac = zeros((N_unknowns, N_unknowns), float)
     B0 = coeffs[0]
-    B = coeffs[1:N + 1]
-    eta = coeffs[N + 1:2 * N + 2]
+    B = coeffs[1 : N + 1]
+    eta = coeffs[N + 1 : 2 * N + 2]
 
     for m in range(N + 1):
         S1 = sinh_by_cosh(J * k * eta[m], J * k * D)
@@ -439,19 +505,20 @@ def fprime(coeffs, H, k, D, J, M):
 
         # Derivatives of the eq. for the streamline along the free surface
         jac[m, N + 1 + m] = um
-        jac[0:N + 1, 0] = -eta
-        jac[m, 1:N + 1] = SC
+        jac[0 : N + 1, 0] = -eta
+        jac[m, 1 : N + 1] = SC
         jac[m, -2] = 1
 
         # Derivatives of the dynamic free surface boundary condition
-        jac[N + 1 + m, N + 1 + m] = 1 + (um * k**2 * B.dot(J**2 * SC) +
-                                         vm * k**2 * B.dot(J**2 * CS))
+        jac[N + 1 + m, N + 1 + m] = 1 + (
+            um * k ** 2 * B.dot(J ** 2 * SC) + vm * k ** 2 * B.dot(J ** 2 * CS)
+        )
         jac[N + 1 + m, -1] = -1
         jac[N + 1 + m, 0] = -um
-        jac[N + 1 + m, 1:N + 1] = k * um * J * CC + k * vm * J * SS
+        jac[N + 1 + m, 1 : N + 1] = k * um * J * CC + k * vm * J * SS
 
     # Derivative of mean(eta) = 1
-    jac[-2, N + 1:2 * N + 2] = M * 0 + 1 / N
+    jac[-2, N + 1 : 2 * N + 2] = M * 0 + 1 / N
     jac[-2, N + 1] = 1 / (2 * N)
     jac[-2, 2 * N + 1] = 1 / (2 * N)
 
