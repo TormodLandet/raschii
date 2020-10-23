@@ -125,3 +125,20 @@ class AiryWave:
         )
 
         return cpp_x, cpp_z
+
+    def write_swd(self, path, dt, tmax=None, nperiods=None):
+        """
+        NOT IMPLEMENTED FOR AIRY!
+
+        Write a SWD-file of the wave field according to the file
+        specification in the Github repository spectral-wave-data ....
+
+        * path:     Full path of the new SWD file
+        * dt:       The temporal sampling spacing in the SWD file
+        * tmax:     The temporal sampling range in the SWD file is [0, tmax]
+        * nperiods: Alternative specification: tmax = nperiods * wave_period
+        """
+
+        print("Airy does not currently support writing SWD files.")
+        print("Please use the Stokes wave model with order N=1")
+        return NotImplemented

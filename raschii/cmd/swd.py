@@ -13,8 +13,9 @@ def write_swd(swd_file_name, model_name, height, depth, length, N, dt, tmax):
     if wave.warnings:
         print("WARNINGS for %s:\n%s" % (model_name, wave.warnings))
 
-    wave.write_swd(swd_file_name, dt=dt, tmax=tmax)
-    print("WRITE SWD DONE\nWrote", swd_file_name)
+    status = wave.write_swd(swd_file_name, dt=dt, tmax=tmax)
+    if status is not NotImplemented:
+        print("WRITE SWD DONE\nWrote", swd_file_name)
 
 
 def main():
