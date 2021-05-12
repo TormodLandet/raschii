@@ -9,24 +9,24 @@ jobs:
       - run:
           name: Install apt test dependencies
           command: |
-              apt update
-              apt install -y python3 python3-dev python3-wheel python3-pip
-              apt install -y cmake g++ wget
+            apt update
+            apt install -y python3 python3-dev python3-wheel python3-pip
+            apt install -y cmake g++ wget
       - run:
           name: Install pip test dependencies
           command: pip3 install pip pytest flake8 --upgrade
       - run:
           name: Install pybind11 (for testing generated C++ code)
           environment:
-            - PYBIND11_VERSION: 2.4.3
+            PYBIND11_VERSION: 2.4.3
           command: |
-              mkdir build_pybind && cd build_pybind
-              wget -nc --quiet https://github.com/pybind/pybind11/archive/v${PYBIND11_VERSION}.tar.gz
-              tar -xf v${PYBIND11_VERSION}.tar.gz
-              cd pybind11-${PYBIND11_VERSION} && mkdir build && cd build
-              cmake -DPYBIND11_TEST=False ../
-              make && make install
-              cd ../../.. && rm -rf build_pybind
+            mkdir build_pybind && cd build_pybind
+            wget -nc --quiet https://github.com/pybind/pybind11/archive/v${PYBIND11_VERSION}.tar.gz
+            tar -xf v${PYBIND11_VERSION}.tar.gz
+            cd pybind11-${PYBIND11_VERSION} && mkdir build && cd build
+            cmake -DPYBIND11_TEST=False ../
+            make && make install
+            cd ../../.. && rm -rf build_pybind
       - run:
           name: Install Raschii with its dependencies
           command: pip3 install .
@@ -35,6 +35,11 @@ jobs:
       #    command: python3 -m flake8 raschii
       - run:
           name: Run unit tests
+          environment:
+            # For some reason we need to set the number of cores for OpenBLAS,
+            # otherwise numpy.linalg.solve hangs forever on some inputs. Maybe
+            # a bug in the CircleCI virtual machine / OpenBLAS CPUID interaction?
+            OPENBLAS_NUM_THREADS: 1
           command: python3 -m pytest -v tests/ --junitxml=~/reports/pytest/py3.xml --durations=10
       - store_test_results:
           path: ~/reports
@@ -43,10 +48,10 @@ jobs:
 
 workflows:
   version: 2
-  on-commit:  # Runs on every commit
+  on-commit: # Runs on every commit
     jobs:
       - install-and-test
-  scheduled:  # Runs every Saturday morning at 08:00 UTC
+  scheduled: # Runs every Saturday morning at 08:00 UTC
     triggers:
       - schedule:
           cron: "0 8 * * 6"
