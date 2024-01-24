@@ -1,9 +1,8 @@
 name: raschiienv
 channels:
-  - trlandet
-  - defaults
+  - conda-forge
 dependencies:
-  - python==3.5
+  - python>3.7
   - sphinx>=1.5.1
   - sphinx_rtd_theme
   - numpy

@@ -1,11 +1,12 @@
+version: 2
+
 build:
-  image: latest
+  os: "ubuntu-22.04"
+  tools:
+    python: "mambaforge-22.9"
 
-python:
-  version: 3.6
-
-# Don't build any extra formats, just html
-formats: []
+sphinx:
+  configuration: documentation/conf.py
 
 conda:
-  file: documentation/conda_environment.yml
+  environment: documentation/conda_environment.yml
