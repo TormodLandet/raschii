@@ -116,6 +116,7 @@ Version 1.0.4 - Aug 28. 2020
 ............................
 
 - Add the ``raschii.cmd.plot`` and ``raschii.cmd.swd`` command line programs
+- Update January 2024: add mention of these (and ``write_swd``) to the docs 
 
 Version 1.0.3 - Aug 28. 2020
 ............................
