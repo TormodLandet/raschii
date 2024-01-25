@@ -215,7 +215,7 @@ def makeXY(x, ymin, ymax, Ny):
     """
     Return X and Y matrices where X positions are spaced according to the input
     x vector and y is linearly interpolated by the boundaries that are given for
-    each x position 
+    each x position
     """
     fac = numpy.linspace(0, 1, Ny)
     X, F = numpy.meshgrid(x, fac)
