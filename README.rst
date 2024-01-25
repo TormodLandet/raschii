@@ -112,11 +112,18 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
+Version 1.0.5 - Jan 25. 2024
+............................
+
+- Update the documentation
+- Unbreak the read-the-docs builder
+- Switch to pyproject.toml from setup.py (replace setuptools with hatchling)
+- No new code or functionality added or removed, just housekeeping
+
 Version 1.0.4 - Aug 28. 2020
 ............................
 
 - Add the ``raschii.cmd.plot`` and ``raschii.cmd.swd`` command line programs
-- Update January 2024: add mention of these (and ``write_swd``) to the docs 
 
 Version 1.0.3 - Aug 28. 2020
 ............................
