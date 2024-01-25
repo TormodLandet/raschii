@@ -4,7 +4,7 @@ description = "A Python implementation of nonlinear regular wave theories (Stoke
 readme = "README.rst"
 authors = [{name = "Tormod Landet", email = "tormod@landet.net"}]
 license = "apache-2.0"
-requires-python = ">=3.7"
+requires-python = ">=3.6"
 dependencies = ["numpy"]
 
 classifiers = [
