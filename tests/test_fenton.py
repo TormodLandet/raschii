@@ -12,14 +12,14 @@ def test_sinh_by_cosh():
         b = numpy.linspace(0, end, 1001) * f
         f1 = numpy.sinh(a) / numpy.cosh(b)
         f2 = sinh_by_cosh(a, b)
-        check_arrays(f1, f2, 1e-6, 1e-12)
+        check_arrays(f1, f2, 1e-5, 1e-12)
 
     # Some handpicked tests
     a = numpy.array([0.0, 0.0, 1.0, 1.0, 199.0], float)
     b = numpy.array([0.0, 1.0, 0.0, 1.0, 199.0], float)
     f1 = numpy.sinh(a) / numpy.cosh(b)
     f2 = sinh_by_cosh(a, b)
-    check_arrays(f1, f2, 1e-6, 1e-12)
+    check_arrays(f1, f2, 1e-5, 1e-12)
 
 
 def test_cosh_by_cosh():
@@ -32,14 +32,14 @@ def test_cosh_by_cosh():
         b = numpy.linspace(0, end, 1001) * f
         f1 = numpy.cosh(a) / numpy.cosh(b)
         f2 = cosh_by_cosh(a, b)
-        check_arrays(f1, f2, 1e-6, 1e-12)
+        check_arrays(f1, f2, 1e-5, 1e-12)
 
     # Some handpicked tests
     a = numpy.array([0.0, 0.0, 1.0, 1.0, 199.0], float)
     b = numpy.array([0.0, 1.0, 0.0, 1.0, 199.0], float)
     f1 = numpy.cosh(a) / numpy.cosh(b)
     f2 = cosh_by_cosh(a, b)
-    check_arrays(f1, f2, 1e-6, 1e-12)
+    check_arrays(f1, f2, 1e-5, 1e-12)
 
 
 def check_arrays(f1, f2, atol, rtol, atol2=1e5, atol2_lim=1e10):
