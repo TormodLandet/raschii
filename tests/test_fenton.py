@@ -42,21 +42,28 @@ def test_cosh_by_cosh():
     check_arrays(f1, f2, 1e-6, 1e-12)
 
 
-def check_arrays(f1, f2, atol, rtol):
-    # Compute the absolute and the relative error
+def check_arrays(f1, f2, atol, rtol, atol2=1e5, atol2_lim=1e10):
+    """
+    Compute the absolute and the relative error
+    """
+    assert len(f1) == len(f2)
     err = abs(f1 - f2)
-    imax = numpy.argmax(err)
-    if err.max() == 0:
-        e1 = e2 = 0
-    else:
-        e1 = err.max()
-        e2 = err[imax] / f1[imax]
+    for i, e1 in enumerate(err):
+        if e1 == 0:
+            continue
 
-    if e1 > atol or e2 > rtol:
-        print("Found abserr %r (tol: %r) and relerr %r (tol: %r)" % (e1, atol, e2, rtol))
-        print("imax = %r, f1[imax] = %r, f2[imax] = %r" % (imax, f1[imax], f2[imax]))
-    assert e1 < atol
-    assert e2 < rtol
+        # Relative error
+        e2 = e1 / f1[i] if f1[i] != 0 else err
+
+        # Change atol if f1 is VERY large
+        at = atol if abs(f1[i]) < atol2_lim else atol2
+
+        # Check for errors
+        if e1 > at or e2 > rtol:
+            print("Found abserr %r (tol: %r) and relerr %r (tol: %r)" % (e1, at, e2, rtol))
+            print("i = %r, f1[imax] = %r, f2[imax] = %r" % (i, f1[i], f2[i]))
+        assert e1 < at
+        assert e2 < rtol
 
 
 def test_fenton_jacobian():
