@@ -43,7 +43,7 @@ if not "NO_GEN_JS" in os.environ:
         cmds = [
             (["git", "clone", repo_url, repo_name], "."),
             (["cp", "raschii_web.html", "../raschii_dart.html.in"], repo_name),
-            (["dart2js", "raschii_web.dart", "-m", "-o", "raschii.js"], repo_name),
+            (["dart", "compile", "js", "raschii_web.dart", "-o", "raschii.js", "-O2"], repo_name),
             (["mv", "raschii.js", "../_static/"], repo_name),
             (["rm", "-rf", repo_name], "."),
         ]
