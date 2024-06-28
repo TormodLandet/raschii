@@ -55,7 +55,7 @@ class ConstantAirPhase:
         the mean water level.
         """
         if frame == "b":
-            return "%r * x[2]" % self.c
+            return f"{float(self.c)!r} * x[2]"
         elif frame == "c":
             return "0.0"
 

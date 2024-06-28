@@ -72,12 +72,14 @@ class AiryWave:
         Return C++ code for evaluating the elevation of this specific wave.
         The positive traveling direction is x[0]
         """
-        return "%r + %r / 2.0 * cos(%r * (x[0] - %r * t))" % (
-            self.depth,
-            self.height,
-            self.k,
-            self.c,
-        )
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        depth = float(self.depth)
+        height = float(self.height)
+        k = float(self.k)
+        c = float(self.c)
+
+        return f"{depth!r} + {height!r} / 2.0 * cos({k!r} * (x[0] - {c!r} * t))"
 
     def velocity_cpp(self, all_points_wet=False):
         """
@@ -86,23 +88,16 @@ class AiryWave:
         positive traveling direction is x[0] and the vertical coordinate is x[2]
         which is zero at the bottom and equal to +depth at the mean water level.
         """
-        H = self.height
-        k = self.k
-        d = self.depth
-        w = self.omega
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        H = float(self.height)
+        k = float(self.k)
+        d = float(self.depth)
+        w = float(self.omega)
+        a = float(w * H / (2 * sinh(k * d)))
 
-        cpp_x = "%r * cosh(%r * x[2]) * cos(%r * x[0] - %r * t)" % (
-            w * H / (2 * sinh(k * d)),
-            k,
-            k,
-            w,
-        )
-        cpp_z = "%r * sinh(%r * x[2]) * sin(%r * x[0] - %r * t)" % (
-            w * H / (2 * sinh(k * d)),
-            k,
-            k,
-            w,
-        )
+        cpp_x = f"{a!r} * cosh({k!r} * x[2]) * cos({k!r} * x[0] - {w!r} * t)"
+        cpp_z = f"{a!r} * sinh({k!r} * x[2]) * sin({k!r} * x[0] - {w!r} * t)"
 
         if all_points_wet:
             return cpp_x, cpp_z

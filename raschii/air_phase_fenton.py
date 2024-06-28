@@ -95,15 +95,22 @@ class FentonAirPhase:
         Jk = J * k
         facs = self.B / cosh(Jk * self.height)
 
-        z2 = "(%r - x[2])" % (self.depth_water + self.height,)
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        z2 = float(self.depth_water + self.height)
+        c = float(self.c)
+        Jk  = [float(val) for val in Jk]
+        facs  = [float(val) for val in facs]
+
+        z2_cpp = f"({z2!r} - x[2])"
         cpp = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * %s)" % (facs[i], Jk[i], c, Jk[i], z2)
+            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * {z2_cpp})"
             for i in range(N)
         )
 
         if frame == "b":
-            B0 = self.c
-            return "%r * x[2] + %s" % (B0, cpp)
+            B0 = float(self.c)
+            return f"{B0!r} * x[2] + {cpp}"
         elif frame == "c":
             return cpp
 
@@ -122,13 +129,20 @@ class FentonAirPhase:
         Jk = J * k
         facs = J * self.B * k / cosh(Jk * self.height)
 
-        z2 = "(%r - x[2])" % (self.depth_water + self.height,)
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        z2 = float(self.depth_water + self.height)
+        c = float(self.c)
+        Jk  = [float(val) for val in Jk]
+        facs  = [float(val) for val in facs]
+
+        z2_cpp = f"({z2!r} - x[2])"
         cpp_x = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * %s)" % (-facs[i], Jk[i], c, Jk[i], z2)
+            f"{-facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh{Jk[i]!r} * {z2_cpp})"
             for i in range(N)
         )
         cpp_z = " + ".join(
-            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * %s)" % (facs[i], Jk[i], c, Jk[i], z2)
+            f"{facs[i]!r} * sin({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * {z2_cpp})"
             for i in range(N)
         )
         return (cpp_x, cpp_z)
