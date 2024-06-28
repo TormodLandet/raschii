@@ -138,7 +138,7 @@ class FentonAirPhase:
 
         z2_cpp = f"({z2!r} - x[2])"
         cpp_x = " + ".join(
-            f"{-facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh{Jk[i]!r} * {z2_cpp})"
+            f"{-facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * {z2_cpp})"
             for i in range(N)
         )
         cpp_z = " + ".join(

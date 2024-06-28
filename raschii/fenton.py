@@ -188,7 +188,7 @@ class FentonWave:
         facs  = np2py(facs)
 
         cpp = " + ".join(
-            f"{facs[i]!r} * cos({Jk[i]!r}) * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
+            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
             for i in range(N)
         )
 
