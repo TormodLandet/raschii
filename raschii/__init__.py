@@ -6,7 +6,10 @@ raschii, the Arctic Krill.
 
 SPDX-License-Identifier: Apache-2.0
 """
+
 __version__ = "1.0.5"
+
+from typing import Union, Tuple, Optional
 
 from .common import check_breaking_criteria, RasciiError, NonConvergenceError  # NOQA
 from .airy import AiryWave
@@ -23,7 +26,9 @@ WAVE_MODELS = {"Airy": AiryWave, "Fenton": FentonWave, "Stokes": StokesWave}
 AIR_MODELS = {"FentonAir": FentonAirPhase, "ConstantAir": ConstantAirPhase}
 
 
-def get_wave_model(model_name, air_model_name=None):
+def get_wave_model(
+    model_name: str, air_model_name: Optional[str] = None
+) -> Tuple[Union[AiryWave, StokesWave, FentonWave], Union[FentonAirPhase, ConstantAirPhase]]:
     """
     Get a Raschii wave model by name
     """
