@@ -31,37 +31,40 @@ class FentonWave:
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81, "relax": 0.5}
 
-    def __init__(self, height, depth, length, N, air=None, g=9.81, relax=0.5):
+    def __init__(self, height: float, depth: float, length: float, N: int, air=None, g: float=9.81, relax: float=0.5):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
 
         * height: wave height above still water level
-        * depth: still water distance from the flat sea bottom to the surface
+        * depth: still water distance from the flat sea bottom to the free surface
         * length: the periodic length of the wave (distance between peaks)
         * N: the number of coefficients in the truncated Fourier series
         """
-        self.height = height
-        self.depth = depth
-        self.length = length
-        self.order = N
-        self.air = air
-        self.g = g
-        self.relax = relax
-        self.warnings = ""
+        self.height: float = height  #: The wave height
+        self.depth: float = depth  #: The water depth
+        self.length: float = length  #: The wave length
+        self.order: int = N  #: The approximation order
+        self.air = air  #: The optional air-phase model
+        self.g: float = g  #: The acceleration of gravity
+        self.relax: float = relax  #: The numerical relaxation in the optimization loop
+        self.warnings: str = ""  #: Warnings raised when generating this wave
 
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
         self.set_data(data)
 
         # For evaluating velocities close to the free surface
-        self.eta_eps = self.height / 1e5
+        self.eta_eps: float = self.height / 1e5
 
         # Provide velocities also in the air phase
         if self.air is not None:
             self.air.set_wave(self)
 
     def set_data(self, data):
+        """
+        Update the coefficients defining this stream-function wave
+        """
         self.data = data
         self.eta = data["eta"]  # Wave elevation at colocation points
         self.x = data["x"]  # Positions of colocation points

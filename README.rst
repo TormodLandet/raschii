@@ -112,6 +112,13 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
+Version 1.0.6 - June XX. 2024
+............................
+
+- Support for numpy 2.0
+- Add type annotations
+
+
 Version 1.0.5 - Jan 25. 2024
 ............................
 

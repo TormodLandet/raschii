@@ -8,24 +8,24 @@ class StokesWave:
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81}
 
-    def __init__(self, height, depth, length, N, air=None, g=9.81):
+    def __init__(self, height: float, depth: float, length: float, N: int, air=None, g: float=9.81):
         """
         Implement Stokes waves based on the paper by J. D. Fenton (1985),
-        "A Fifth‐Order Stokes Theory for Steady Waves".
+        "A Fifth-Order Stokes Theory for Steady Waves".
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
         * length: the periodic length of the wave (distance between peaks)
         * N: the number of coefficients in the truncated Fourier series
         """
-        self.height = height
-        self.depth = depth
-        self.length = length
-        self.order = N
-        self.air = air
-        self.g = g
-        self.warnings = ""
-
+        self.height: float = height  #: The wave height
+        self.depth: float = depth  #: The water depth
+        self.length: float = length  #: The wave length
+        self.order: int = N  #: The approximation order
+        self.air = air  #: The optional air-phase model
+        self.g: float = g  #: The acceleration of gravity
+        self.warnings: str = ""  #: Warnings raised when generating this wave
+        
         if N < 1:
             self.warnings = "Stokes order must be at least 1, using order 1"
             self.order = 1
@@ -33,7 +33,7 @@ class StokesWave:
             self.warnings = "Stokes order is maximum 5, using order 5"
             self.order = 4
 
-        # Find the coeffients through optimization
+        # Find the coeffients through explicit formulas
         self.k = 2 * pi / length  # The wave number
         data = stokes_coefficients(self.k * depth, self.order)
         self.set_data(data)
@@ -46,6 +46,9 @@ class StokesWave:
             self.air.set_wave(self)
 
     def set_data(self, data):
+        """
+        Update the coefficients defining this Stokes wave
+        """
         self.data = data
         k = 2 * pi / self.length
         eps = k * self.height / 2
