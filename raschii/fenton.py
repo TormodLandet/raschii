@@ -173,18 +173,23 @@ class FentonWave:
         J = arange(1, N + 1)
         B = self.data["B"]
         k = self.k
-        c = self.c
+        c = float(self.c)
 
         Jk = J * k
         facs = B[1:] / cosh(Jk * self.depth)
 
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        Jk = [float(val) for val in Jk]
+        facs  = [float(val) for val in facs]
+
         cpp = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * sinh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
+            f"{facs[i]!r} * cos({Jk[i]!r}) * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
             for i in range(N)
         )
 
         if frame == "b":
-            return "%r * x[2] + %s" % (B[0], cpp)
+            return f"{float(B[0])!r} * x[2] + {cpp}"
         elif frame == "c":
             return cpp
 
@@ -197,8 +202,15 @@ class FentonWave:
         facs = self.E * 2 / N
         facs[0] *= 0.5
         facs[-1] *= 0.5
+
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        k = float(self.k)
+        c = float(self.c)
+        facs  = [float(val) for val in facs]
+
         code = " + ".join(
-            "%r * cos(%d * %r * (x[0] - %r * t))" % (facs[j], j, self.k, self.c)
+            f"{facs[j]!r} * cos({j:d} * {k!r} * (x[0] - {c!r} * t))"
             for j in range(0, N + 1)
         )
         return code
@@ -212,8 +224,15 @@ class FentonWave:
         facs = self.E * 2 / N * self.k * -1.0
         facs[0] *= 0.5
         facs[-1] *= 0.5
+
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        k = float(self.k)
+        c = float(self.c)
+        facs  = [float(val) for val in facs]
+
         code = " + ".join(
-            "%r * %d * sin(%d * %r * (x[0] - %r * t))" % (facs[j], j, j, self.k, self.c)
+            f"{facs[j]!r} * {j:d} * sin({j:d} * {k!r} * (x[0] - {c!r} * t))"
             for j in range(0, N + 1)
         )
         return code
@@ -234,12 +253,18 @@ class FentonWave:
         Jk = J * k
         facs = J * B[1:] * k / cosh(Jk * self.depth)
 
+        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
+        # We use repr to make Python output a "smart" amount of digits
+        c = float(self.c)
+        Jk  = [float(val) for val in Jk]
+        facs  = [float(val) for val in facs]
+
         cpp_x = " + ".join(
-            "%r * cos(%f * (x[0] - %r * t)) * cosh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
+            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * x[2])"
             for i in range(N)
         )
         cpp_z = " + ".join(
-            "%r * sin(%f * (x[0] - %r * t)) * sinh(%r * x[2])" % (facs[i], Jk[i], c, Jk[i])
+            f"{facs[i]!r} * sin({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * x[2])"
             for i in range(N)
         )
 
