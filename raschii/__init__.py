@@ -19,10 +19,10 @@ from .air_phase_fenton import FentonAirPhase
 from .air_phase_constant import ConstantAirPhase
 
 
-# The available wave models
+#: The available wave models. A dictionary mapping model name (str) to model class.
 WAVE_MODELS = {"Airy": AiryWave, "Fenton": FentonWave, "Stokes": StokesWave}
 
-# Air phase models
+#: The available air-phase models. A dictionary mapping model name (str) to model class.
 AIR_MODELS = {"FentonAir": FentonAirPhase, "ConstantAir": ConstantAirPhase}
 
 

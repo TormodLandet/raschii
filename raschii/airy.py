@@ -6,7 +6,7 @@ class AiryWave:
     required_input = ("height", "depth", "length")
     optional_input = {"air": None, "g": 9.81}
 
-    def __init__(self, height, depth, length, air=None, g=9.81):
+    def __init__(self, height: float, depth: float, length: float, air=None, g: float = 9.81):
         """
         Linear Airy waves
 
@@ -14,13 +14,12 @@ class AiryWave:
         * depth: still water distance from the flat sea bottom to the surface
         * length: the periodic length of the wave (distance between peaks)
         """
-        self.height = height
-        self.depth = depth
-        self.length = length
-        self.air = air
-        self.g = g
-        self.order = 1
-        self.warnings = ""
+        self.height: float = height  #: The wave height
+        self.depth: float = depth  #: The water depth
+        self.length: float = length  #: The wave length
+        self.air = air  #: The optional air-phase model
+        self.g: float = g  #: The acceleration of gravity
+        self.warnings: str = ""  #: Warnings raised when generating this wave
 
         self.k = 2 * pi / length
         self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5

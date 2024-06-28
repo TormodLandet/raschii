@@ -20,14 +20,21 @@
 # -- Get the current version of Raschii ---------------------------------------
 
 import os
+import sys
+
+
+def import_raschii():
+    here = os.path.abspath(os.path.dirname(__file__))
+    sys.path.insert(0, os.path.join(here, ".."))
+
+    import raschii
+
+    return raschii
 
 
 def get_raschii_version():
-    here = os.path.abspath(os.path.dirname(__file__))
-    init_py = os.path.join(here, "..", "raschii", "__init__.py")
-    for line in open(init_py, encoding="utf-8"):
-        if line.startswith("__version__"):
-            return line.split("=")[1].strip()[1:-1]
+    raschii = import_raschii()
+    return raschii.__version__
 
 
 # -- Build the RaschiiDart online calculator javascript code  -----------------
@@ -77,7 +84,7 @@ if not "NO_GEN_JS" in os.environ:
 # -- Project information -----------------------------------------------------
 
 project = "raschii"
-copyright = "2018, Tormod Landet"
+copyright = "2018-2024, Tormod Landet"
 author = "Tormod Landet"
 
 # The full version, including alpha/beta/rc tags
@@ -119,7 +126,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
