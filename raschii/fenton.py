@@ -5,7 +5,6 @@ from numpy import (
     sin,
     zeros,
     arange,
-    trapz,
     isfinite,
     newaxis,
     asarray,
@@ -23,6 +22,7 @@ from .common import (
     cosh_by_cosh,
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
+    trapezoid_integration
 )
 from .swd_tools import SwdShape2
 
@@ -75,7 +75,7 @@ class FentonWave:
         N = len(self.eta) - 1
         self.E = zeros(N + 1, float)
         J = arange(0, N + 1)
-        self.E = trapz(self.eta * cos(J * J[:, newaxis] * pi / N))
+        self.E = trapezoid_integration(self.eta * cos(J * J[:, newaxis] * pi / N))
 
     def stream_function(self, x, z, t=0, frame="b"):
         """
@@ -111,7 +111,7 @@ class FentonWave:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return 2 * trapz(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+        return 2 * trapezoid_integration(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
 
     def surface_slope(self, x, t=0):
         """
@@ -125,7 +125,7 @@ class FentonWave:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return -2 * trapz(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
+        return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
     def velocity(self, x, z, t=0, all_points_wet=False):
         """
@@ -506,7 +506,7 @@ def func(coeffs, H, k, D, J, M):
         f[N + 1 + m] = (um ** 2 + vm ** 2) / 2 + eta[m] - R
 
     # Enforce mean(eta) = D
-    f[-2] = trapz(eta) / N - 1
+    f[-2] = trapezoid_integration(eta) / N - 1
 
     # Enforce eta_0 - eta_N = H, the wave height criterion
     f[-1] = eta[0] - eta[-1] - H

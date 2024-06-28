@@ -210,3 +210,13 @@ def blend_air_and_wave_velocity_cpp(
         prcode = "dfdx * (%s) - dfdx * (%s)" % (psi_wave_cpp, psi_air_cpp)
 
     return cpp % (sign, prcode)
+
+
+def trapezoid_integration(*argv, **kwargs):
+    """
+    Compatibility for numpy 2.0 rename of np.trapz to np.trapezoid
+    """
+    if hasattr(np, 'trapezoid'):
+        return np.trapezoid(*argv, **kwargs)
+    else:
+        return np.trapz(*argv, **kwargs)
