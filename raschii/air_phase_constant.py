@@ -1,4 +1,4 @@
-from numpy import asarray, zeros
+import numpy as np
 from .common import AIR_BLENDING_HEIGHT_FACTOR
 
 
@@ -26,7 +26,7 @@ class ConstantAirPhase:
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
-        z = asarray(z, dtype=float)
+        z = np.asarray(z, dtype=float)
 
         if frame == "e":
             return self.c * z
@@ -42,10 +42,10 @@ class ConstantAirPhase:
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
-        x = asarray(x, dtype=float)
-        z = asarray(z, dtype=float)
+        x = np.asarray(x, dtype=float)
+        z = np.asarray(z, dtype=float)
 
-        return zeros((x.size, 2), float)
+        return np.zeros((x.size, 2), float)
 
     def stream_function_cpp(self, frame="b"):
         """
@@ -71,6 +71,4 @@ class ConstantAirPhase:
         return (cpp_x, cpp_z)
 
     def __repr__(self):
-        return (
-            "ConstantAirPhase(height={s.height}, blending_height=" "{s.blending_height})"
-        ).format(s=self)
+        return f"ConstantAirPhase(height={self.height}, blending_height={self.blending_height})"

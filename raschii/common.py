@@ -1,6 +1,6 @@
 import math
 from math import pi, tanh
-import numpy
+import numpy as np
 
 
 # If the air phase blending_height is None then the wave height times this
@@ -49,7 +49,7 @@ def sinh_by_cosh(a, b):
     A version of sinh(a)/cosh(b) where "b = a * f" and f is close
     to 1. This can then be written exp(a * (1 - f)) for large a
     """
-    ans = numpy.zeros(a.size, float)
+    ans = np.zeros(a.size, float)
     for i, (ai, bi) in enumerate(zip(a, b)):
         if ai == 0:
             continue
@@ -68,7 +68,7 @@ def cosh_by_cosh(a, b):
     A version of cosh(a)/cosh(b) where "b = a * f" and f is close
     to 1. This can then be written exp(a * (1 - f)) for large a
     """
-    ans = numpy.zeros(a.size, float)
+    ans = np.zeros(a.size, float)
     for i, (ai, bi) in enumerate(zip(a, b)):
         if ai == 0:
             ans[i] = 1.0 / math.cosh(bi)

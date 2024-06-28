@@ -1,5 +1,5 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
-import numpy
+import numpy as np
 from .common import blend_air_and_wave_velocities
 from .swd_tools import SwdShape2
 
@@ -66,8 +66,8 @@ class StokesWave:
         Compute the surface elavation at time t for position(s) x
         """
         if isinstance(x, (float, int)):
-            x = numpy.array([x], float)
-        x = numpy.asarray(x)
+            x = np.array([x], float)
+        x = np.asarray(x)
         x2 = x - self.c * t
 
         d = self.depth
@@ -75,7 +75,7 @@ class StokesWave:
         eps = k * self.height / 2
         kd = k * d
         D = self.data
-        cos = numpy.cos
+        cos = np.cos
         eta = (
             kd
             + eps * cos(k * x2)
@@ -98,8 +98,8 @@ class StokesWave:
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
-        x = numpy.asarray(x, dtype=float)
-        z = numpy.asarray(z, dtype=float)
+        x = np.asarray(x, dtype=float)
+        z = np.asarray(z, dtype=float)
         x2 = x - self.c * t
 
         def my_cosh_cos(i, j):
@@ -112,8 +112,8 @@ class StokesWave:
                     * self.data[n]
                     * j
                     * self.k
-                    * numpy.cosh(j * self.k * z)
-                    * numpy.cos(j * self.k * x2)
+                    * np.cosh(j * self.k * z)
+                    * np.cos(j * self.k * x2)
                 )
 
         def my_sinh_sin(i, j):
@@ -126,12 +126,12 @@ class StokesWave:
                     * self.data[n]
                     * j
                     * self.k
-                    * numpy.sinh(j * self.k * z)
-                    * numpy.sin(j * self.k * x2)
+                    * np.sinh(j * self.k * z)
+                    * np.sin(j * self.k * x2)
                 )
 
         eps = self.k * self.height / 2
-        vel = numpy.zeros((x.size, 2), float)
+        vel = np.zeros((x.size, 2), float)
         vel[:, 0] = (
             my_cosh_cos(1, 1)
             + my_cosh_cos(2, 2)
@@ -194,7 +194,7 @@ class StokesWave:
         # Hence dh[j, t]/dt = I * j * self.k * self.c * h[j, t]
 
         nc = self.order + 1  # Include Bias term
-        ecs = numpy.empty(nc, numpy.complex_)
+        ecs = np.empty(nc, complex)
         ecs[0] = 0.0  # zero at calm water line
         ecs[1] = eps + eps ** 3 * D["B31"] - eps ** 5 * (D["B53"] + D["B55"])
         if self.order > 1:
@@ -213,17 +213,17 @@ class StokesWave:
         # where c[j, t] = I * vcs[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
         # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
 
-        vcs = numpy.empty(nc, numpy.complex_)
+        vcs = np.empty(nc, complex)
         vcs[0] = 0.0
-        vcs[1] = (eps * D["A11"] + eps ** 3 * D["A31"] + eps ** 5 * D["A51"]) * numpy.cosh(kd)
+        vcs[1] = (eps * D["A11"] + eps ** 3 * D["A31"] + eps ** 5 * D["A51"]) * np.cosh(kd)
         if self.order > 1:
-            vcs[2] = (eps ** 2 * D["A22"] + eps ** 4 * D["A42"]) * numpy.cosh(2 * kd)
+            vcs[2] = (eps ** 2 * D["A22"] + eps ** 4 * D["A42"]) * np.cosh(2 * kd)
         if self.order > 2:
-            vcs[3] = (eps ** 3 * D["A33"] + eps ** 5 * D["A53"]) * numpy.cosh(3 * kd)
+            vcs[3] = (eps ** 3 * D["A33"] + eps ** 5 * D["A53"]) * np.cosh(3 * kd)
         if self.order > 3:
-            vcs[4] = eps ** 4 * D["A44"] * numpy.cosh(4 * kd)
+            vcs[4] = eps ** 4 * D["A44"] * np.cosh(4 * kd)
         if self.order > 4:
-            vcs[5] = eps ** 5 * D["A55"] * numpy.cosh(5 * kd)
+            vcs[5] = eps ** 5 * D["A55"] * np.cosh(5 * kd)
         vcs *= 1.0j * D["C0"] * sqrt(self.g / self.k ** 3)
 
         input_data = {

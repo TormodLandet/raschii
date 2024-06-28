@@ -62,10 +62,10 @@ class SwdShape2:
                 version = line.split("=")[1].strip()[1:-1]
         prog = "raschii-" + version
 
-        h_swd = np.empty(self.n_swd + 1, np.complex_)
-        ht_swd = np.empty(self.n_swd + 1, np.complex_)
-        c_swd = np.empty(self.n_swd + 1, np.complex_)
-        ct_swd = np.empty(self.n_swd + 1, np.complex_)
+        h_swd = np.empty(self.n_swd + 1, complex)
+        ht_swd = np.empty(self.n_swd + 1, complex)
+        c_swd = np.empty(self.n_swd + 1, complex)
+        ct_swd = np.empty(self.n_swd + 1, complex)
         dtime = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
         nsteps = int((tmax + 0.0001 * dt) / dt + 1)
 

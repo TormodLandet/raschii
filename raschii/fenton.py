@@ -13,8 +13,7 @@ from numpy import (
     cosh,
     sinh,
     array,
-    empty,
-    complex_,
+    empty
 )
 from numpy.linalg import solve
 from numpy.fft import irfft
@@ -320,7 +319,7 @@ class FentonWave:
         # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
 
         B = self.data["B"]
-        vcs = empty(nc, complex_)
+        vcs = empty(nc, complex)
         vcs[0] = 0.0
         for j in range(1, nc):
             vcs[j] = 1.0j * B[j]
