@@ -1,5 +1,5 @@
 import numpy as np
-from .common import AIR_BLENDING_HEIGHT_FACTOR
+from .common import AIR_BLENDING_HEIGHT_FACTOR, np2py
 
 
 class ConstantAirPhase:
@@ -55,7 +55,7 @@ class ConstantAirPhase:
         the mean water level.
         """
         if frame == "b":
-            return f"{float(self.c)!r} * x[2]"
+            return f"{np2py(self.c)!r} * x[2]"
         elif frame == "c":
             return "0.0"
 

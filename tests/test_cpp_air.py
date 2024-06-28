@@ -144,3 +144,21 @@ def test_cpp_vs_py_air_velocity(tmpdir, air_model):
     test_name_z = "%s C++ z-velocity" % air_model.__class__.__name__
     check_results(xr, zr, vel_py[:, 0], vx_cpp, test_name_x, 1e-5)
     check_results(xr, zr, vel_py[:, 1], vz_cpp, test_name_z, 1e-5)
+
+
+def test_cpp_air_stream_function_nocompile(air_model):
+    # Check that the wave model produces valid C++ code
+    air_model, height, depth, length = air_model
+    cpp = air_model.stream_function_cpp(frame="c")
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False
+
+
+def test_cpp_air_velocity_nocompile(air_model):
+    # Check that the wave model produces valid C++ code
+    air_model, height, depth, length = air_model
+    cpp = air_model.velocity_cpp()
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False

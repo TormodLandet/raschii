@@ -1,6 +1,6 @@
 from numpy import zeros, asarray, arange, sin, cos, sinh, cosh, newaxis
 from numpy.linalg import solve
-from .common import sinh_by_cosh, AIR_BLENDING_HEIGHT_FACTOR
+from .common import sinh_by_cosh, AIR_BLENDING_HEIGHT_FACTOR, np2py
 
 
 class FentonAirPhase:
@@ -97,10 +97,10 @@ class FentonAirPhase:
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        z2 = float(self.depth_water + self.height)
-        c = float(self.c)
-        Jk  = [float(val) for val in Jk]
-        facs  = [float(val) for val in facs]
+        z2 = np2py(self.depth_water + self.height)
+        c = np2py(self.c)
+        Jk  = np2py(Jk)
+        facs  = np2py(facs)
 
         z2_cpp = f"({z2!r} - x[2])"
         cpp = " + ".join(
@@ -109,7 +109,7 @@ class FentonAirPhase:
         )
 
         if frame == "b":
-            B0 = float(self.c)
+            B0 = np2py(self.c)
             return f"{B0!r} * x[2] + {cpp}"
         elif frame == "c":
             return cpp
@@ -131,10 +131,10 @@ class FentonAirPhase:
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        z2 = float(self.depth_water + self.height)
-        c = float(self.c)
-        Jk  = [float(val) for val in Jk]
-        facs  = [float(val) for val in facs]
+        z2 = np2py(self.depth_water + self.height)
+        c = np2py(self.c)
+        Jk  = np2py(Jk)
+        facs  = np2py(facs)
 
         z2_cpp = f"({z2!r} - x[2])"
         cpp_x = " + ".join(

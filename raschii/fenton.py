@@ -22,7 +22,8 @@ from .common import (
     cosh_by_cosh,
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
-    trapezoid_integration
+    trapezoid_integration,
+    np2py
 )
 from .swd_tools import SwdShape2
 
@@ -176,15 +177,15 @@ class FentonWave:
         J = arange(1, N + 1)
         B = self.data["B"]
         k = self.k
-        c = float(self.c)
 
         Jk = J * k
         facs = B[1:] / cosh(Jk * self.depth)
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        Jk = [float(val) for val in Jk]
-        facs  = [float(val) for val in facs]
+        c = np2py(self.c)
+        Jk = np2py(Jk)
+        facs  = np2py(facs)
 
         cpp = " + ".join(
             f"{facs[i]!r} * cos({Jk[i]!r}) * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
@@ -192,7 +193,7 @@ class FentonWave:
         )
 
         if frame == "b":
-            return f"{float(B[0])!r} * x[2] + {cpp}"
+            return f"{np2py(B[0])!r} * x[2] + {cpp}"
         elif frame == "c":
             return cpp
 
@@ -208,9 +209,9 @@ class FentonWave:
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        k = float(self.k)
-        c = float(self.c)
-        facs  = [float(val) for val in facs]
+        k = np2py(self.k)
+        c = np2py(self.c)
+        facs  = np2py(facs)
 
         code = " + ".join(
             f"{facs[j]!r} * cos({j:d} * {k!r} * (x[0] - {c!r} * t))"
@@ -230,9 +231,9 @@ class FentonWave:
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        k = float(self.k)
-        c = float(self.c)
-        facs  = [float(val) for val in facs]
+        k = np2py(self.k)
+        c = np2py(self.c)
+        facs  = np2py(facs)
 
         code = " + ".join(
             f"{facs[j]!r} * {j:d} * sin({j:d} * {k!r} * (x[0] - {c!r} * t))"
@@ -258,9 +259,9 @@ class FentonWave:
 
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        c = float(self.c)
-        Jk  = [float(val) for val in Jk]
-        facs  = [float(val) for val in facs]
+        c = np2py(self.c)
+        Jk  = np2py(Jk)
+        facs  = np2py(facs)
 
         cpp_x = " + ".join(
             f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * x[2])"

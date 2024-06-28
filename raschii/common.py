@@ -220,3 +220,20 @@ def trapezoid_integration(*argv, **kwargs):
         return np.trapezoid(*argv, **kwargs)
     else:
         return np.trapz(*argv, **kwargs)
+
+def np2py(val):
+    """
+    Convert a numpy array or numpy number into a list of Python floats
+    or a single Python float
+
+    We want the base types so that we can call repr() and get something
+    that is pure Python (works in C++ after repr() conversion to code
+    string) and does not include the string "np.float64" or similar
+    (which repr() will in numpy 2.0)
+    """
+    if hasattr(val, 'tolist'):
+        return val.tolist()  # Convert numpy array to Python list of float
+    elif hasattr(val, 'item'):
+        return val.item()  # Convert numpy float64 to Python float
+    else:
+        return val  # Assume this is allready a Python float

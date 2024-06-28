@@ -265,3 +265,36 @@ def test_cpp_vs_py_slope(tmpdir, wave_model):
     # Check the results
     test_name = "%s C++ surface slope" % wave_model.__class__.__name__
     check_results(xr, zr, slope_py, slope_cpp, test_name, 1e-16)
+
+
+def test_cpp_elevation_nocompile(wave_model):
+    # Check that the wave model produces valid C++ code
+    cpp = wave_model.elevation_cpp()
+    assert "x[2]" not in cpp
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False
+
+
+def test_cpp_velocity_nocompile(wave_model):
+    # Check that the wave model produces valid C++ code
+    cpp = wave_model.velocity_cpp()
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False
+
+
+def test_cpp_stream_function_nocompile(wave_model):
+    # Check that the wave model produces valid C++ code
+    cpp = wave_model.stream_function_cpp()
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False
+
+
+def test_cpp_slope_nocompile(wave_model):
+    # Check that the wave model produces valid C++ code
+    cpp = wave_model.slope_cpp()
+    if 'np.' in cpp or 'numpy' in cpp:
+        print(cpp)
+        assert False

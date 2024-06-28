@@ -1,5 +1,5 @@
 from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
-from .common import blend_air_and_wave_velocities, blend_air_and_wave_velocity_cpp
+from .common import blend_air_and_wave_velocities, blend_air_and_wave_velocity_cpp, np2py
 
 
 class AiryWave:
@@ -74,10 +74,10 @@ class AiryWave:
         """
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
-        depth = float(self.depth)
-        height = float(self.height)
-        k = float(self.k)
-        c = float(self.c)
+        depth = np2py(self.depth)
+        height = np2py(self.height)
+        k = np2py(self.k)
+        c = np2py(self.c)
 
         return f"{depth!r} + {height!r} / 2.0 * cos({k!r} * (x[0] - {c!r} * t))"
 
