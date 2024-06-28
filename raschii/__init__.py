@@ -7,7 +7,8 @@ raschii, the Arctic Krill.
 SPDX-License-Identifier: Apache-2.0
 """
 
-__version__ = "1.0.5"
+#: The three-digit version number of Raschii
+__version__ = "1.0.6"
 
 from typing import Union, Tuple, Optional
 
