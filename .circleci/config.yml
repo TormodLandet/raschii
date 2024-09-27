@@ -39,9 +39,15 @@ jobs:
       - run:
           name: Run unit tests with latest Python from uv
           command: |
+            # Install uv
             curl -LsSf https://astral.sh/uv/install.sh | sh
+            source $HOME/.cargo/env
+            
+            # Create virtual env with latest Python
             uv python install cpython
             uv sync --python cpython --no-build --reinstall
+            
+            # Run pytest in the virtual env with the uv Python
             uv run pytest -v tests/ --durations=10
 
 workflows:
