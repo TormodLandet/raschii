@@ -14,3 +14,5 @@ dist/
 *egg-info*
 documentation/_build
 *.swd
+.venv
+uv.lock

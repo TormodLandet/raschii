@@ -24,7 +24,7 @@ jobs:
           command: |
               pip3 install .
       - run:
-          name: Run unit tests
+          name: Run unit tests with system Python
           environment:
             # For some reason we need to set the number of cores for OpenBLAS,
             # otherwise numpy.linalg.solve hangs forever on some inputs. Maybe
@@ -35,6 +35,14 @@ jobs:
           path: ~/reports
       - store_artifacts:
           path: ~/reports
+
+      - run:
+          name: Run unit tests with latest Python from uv
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            uv python install cpython
+            uv sync --python cpython --no-build --reinstall
+            uv run pytest -v tests/ --durations=10
 
 workflows:
   version: 2
