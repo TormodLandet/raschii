@@ -45,7 +45,7 @@ jobs:
             
             # Create virtual env with latest Python
             uv python install cpython
-            uv sync --python cpython --no-build --reinstall
+            uv sync --python cpython
             
             # Run pytest in the virtual env with the uv Python
             uv run pytest -v tests/ --durations=10
