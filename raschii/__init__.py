@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 """
 
 #: The three-digit version number of Raschii
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 from typing import Union, Tuple, Optional
 

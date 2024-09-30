@@ -8,10 +8,10 @@ named after `Thysanoessa raschii
 Supported wave models are currently:
 
 - Stream function waves (M. M. Rienecker and J. D. Fenton, 1981)
-- Stokes second through fifth order waves (based on J. D. Fenton, 1985) 
-- Airy waves, standard linar waves cosine waves
+- Stokes second- through fifth-order waves (based on J. D. Fenton, 1985) 
+- Airy waves, the standard linar wave theory
 
-Raschii includes a command line program to plot regular waves from the suported
+Raschii includes a command line program to plot regular waves from the supported
 wave models and C++ code generation for using the results in other programs, 
 such as in `FEniCS <https://www.fenicsproject.org/>`_ expressions for initial
 and boundary conditions in a FEM solver. There is also a limited `Dart port
@@ -21,11 +21,14 @@ and boundary conditions in a FEM solver. There is also a limited `Dart port
 .. figure:: http://raschii.readthedocs.io/en/latest/_static/fenton_stokes.png
    :alt: A comparison of Stokes and Fenton waves of fifth order
 
-   A comparison of fifth order Stokes waves and fifth order Fenton stream
+   A comparison of fifth-order Stokes waves and fifth-order Fenton stream
    function waves. Deep water, wave heigh 12 m, wave length 100 m.
 
 As of version 1.0.3, Raschii can output waves on the SWD_ (spectral wave data)
-standard file format for use in analysis programs (CFD, boundary element etc).
+standard file format for use as the incomming incident waves in flow analysis
+programs such as boundary element and CFD (Euler and Navier-Stokes equation solvers).
+The SWD export functionality is in use in the Maritime and Offshore industries for
+3D-flow analyses of floating and fixed structures subjected to ocean surface waves.
 
 .. _SWD: https://github.com/SpectralWaveData/spectral_wave_data
 
@@ -112,7 +115,14 @@ and the current CI build status is |circleci_status|.
 Releases
 --------
 
-Version 1.0.6 - June 28. 2024
+Version 1.0.7 - Sep 30. 2024
+.............................
+
+- Support for numpy 2.1
+- Drop support for Python 3.9 and older (`following numpy <https://numpy.org/neps/nep-0029-deprecation_policy.html>`_)
+- Added testing with latest Python avaliable via uv (currently CPython 3.12)
+
+Version 1.0.6 - Jun 28. 2024
 .............................
 
 - Support for numpy 2.0
