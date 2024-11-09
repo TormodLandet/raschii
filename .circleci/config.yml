@@ -38,10 +38,12 @@ jobs:
 
       - run:
           name: Run unit tests with latest Python from uv
+          environment:
+            UV_UNMANAGED_INSTALL: "$HOME/.local/bin"
           command: |
             # Install uv
             curl -LsSf https://astral.sh/uv/install.sh | sh
-            source $HOME/.cargo/env
+            export PATH="${UV_UNMANAGED_INSTALL}:${PATH}"
             
             # Create virtual env with latest Python
             uv python install cpython
