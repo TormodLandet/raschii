@@ -409,6 +409,7 @@ class FentonWave(WaveModel):
             "T": self.T,
             "height": self.height,
             "depth": self.depth,
+            "depth_actual": depth,
             "N": self.order,
             "air": self.air.__class__.__name__,
             "g": self.g,

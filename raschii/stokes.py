@@ -257,7 +257,7 @@ class StokesWave(WaveModel):
         vcs = np.zeros(nc, complex)
         vcs[0] = 0.0
         vcs[1] = (eps * D["A11"] + eps**3 * D["A31"] + eps**5 * D["A51"]) * np.cosh(kd)
-        
+
         if self.order > 1:
             multiplier = eps**2 * D["A22"] + eps**4 * D["A42"]
             if multiplier != 0.0:
@@ -285,7 +285,8 @@ class StokesWave(WaveModel):
             "T": self.T,
             "length": self.length,
             "height": self.height,
-            "depth": depth,
+            "depth": self.depth,
+            "depth_actual": depth,
             "N": self.order,
             "air": self.air.__class__.__name__,
             "g": self.g,
