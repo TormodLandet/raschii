@@ -135,6 +135,11 @@ Version 1.1.0 - Jun XX. 2025
 
 - UNRELEASED, work in progress
 - Support for giving the wave period instead of the wave length
+- Support for infinite depth waves. This is not fully complete, but should be
+  sufficient to export propper SWD files for infinite depth waves.
+  Set depth=-1 to use infinite depth waves.
+- Better testing of the SWD file exporter when the SpectralWaveData package is not installed
+  by including a simplified SWD file reader for the tests.
 - Move repository and CI to GitHub. Tested on Python 3.10 (Ubuntu 22.04), and Python 3.12 (uv).
 
 Version 1.0.7 - Sep 30. 2024

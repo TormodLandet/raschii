@@ -16,12 +16,36 @@ class NonConvergenceError(RasciiError):
     pass
 
 
-def check_breaking_criteria(height, depth, length):
+def check_breaking_criteria(
+    height: float, depth: float, length: float | None = None, period: float | None = None
+):
     """
     Return two empty strings if everything is OK, else a string with
     warnings about breaking criteria and a string with warnings about
     being close to a breaking criterion
+
+    * height: wave height above still water level
+    * depth: still water distance from the flat sea bottom to the free surface
+        in meters, but you can give -1.0 for infinite depth
+    * length: the periodic length of the wave (optional, if not given then period is used)
+    * period: the wave period (optional, if not given then length is used)
+      Since we need the wave length we assume Airy to convert period to length!
     """
+    if length is None:
+        if period is None:
+            raise RasciiError("Either length or period must be given")
+
+        # We do not know the wave model, so we assume it is Airy
+        # which should give a ballpark OK-ish answer
+        from .airy import compute_length_from_period
+
+        length = compute_length_from_period(depth=depth, period=period)
+    
+    if depth < 0.0:
+        # Use a large depth for infinite depth waves, same as is used
+        # in the stokes_coefficients and fenton_coefficients functions
+        depth = 25 * length
+
     h1 = 0.14 * length
     h2 = 0.78 * depth
     h3 = 0.142 * tanh(2 * pi * depth / length) * length
@@ -216,10 +240,11 @@ def trapezoid_integration(*argv, **kwargs):
     """
     Compatibility for numpy 2.0 rename of np.trapz to np.trapezoid
     """
-    if hasattr(np, 'trapezoid'):
+    if hasattr(np, "trapezoid"):
         return np.trapezoid(*argv, **kwargs)
     else:
         return np.trapz(*argv, **kwargs)
+
 
 def np2py(val):
     """
@@ -231,9 +256,9 @@ def np2py(val):
     string) and does not include the string "np.float64" or similar
     (which repr() will in numpy 2.0)
     """
-    if hasattr(val, 'tolist'):
+    if hasattr(val, "tolist"):
         return val.tolist()  # Convert numpy array to Python list of float
-    elif hasattr(val, 'item'):
+    elif hasattr(val, "item"):
         return val.item()  # Convert numpy float64 to Python float
     else:
         return val  # Assume this is allready a Python float

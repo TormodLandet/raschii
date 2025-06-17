@@ -51,6 +51,7 @@ class FentonWave(WaveModel):
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the free surface
+          in meters, but you can give -1.0 for infinite depth
         * length: the periodic length of the wave (optional, if not given then period is used)
         * N: the number of coefficients in the truncated Fourier series
         * period: the wave period (optional, if not given then length is used)
