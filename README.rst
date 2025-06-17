@@ -32,20 +32,26 @@ The SWD export functionality is in use in the Maritime and Offshore industries f
 
 .. _SWD: https://github.com/SpectralWaveData/spectral_wave_data
 
+
 Installation and running
 ------------------------
 
-Raschii can be installed by running::
+Raschii can be installed by running
+
+.. code:: bash
 
     python -m pip install raschii
 
 Substitute ``python`` with ``python3`` as appropriate to your installation.
 The command will also install any dependencies (numpy).
 
+
 Using Raschii from Python
 .........................
 
-An example of using Raschii from Python::
+An example of using Raschii from Python:
+
+.. code:: python
 
     import raschii
     
@@ -54,18 +60,26 @@ An example of using Raschii from Python::
     print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
     print(fwave.velocity(x=0, z=0.2))
 
-This will output::
+This will output:
+
+.. code:: output
 
     [0.67352456]
     [0.67352456 0.61795882 0.57230232 0.53352878]
     [[0.27263788 0.        ]]
+
+See the `documentation <https://raschii.readthedocs.io/en/latest/usage.html>`_ for more
+information on the available parameters, methods and attributes of the wave classes.
+
 
 Using Raschii from the command line
 ...................................
 
 You can also use Raschii from the command line. You can plot the wave
 elevation and particle velocities, and also write swd files. See the 
-help for the command line programs to get detailed usage info::
+help for the command line programs to get detailed usage info.
+
+.. code:: bash
 
   python -m raschii.cmd.plot -h
   python -m raschii.cmd.swd -h
@@ -74,7 +88,9 @@ Substitute ``python`` with ``python3`` as appropriate to your installation.
 You must install the ``matplotlib`` Python package to be able to use the
 plot command.
 
-An example of using Rascii from the command line::
+An example of using Rascii from the command line
+
+.. code:: bash
 
   # Plot a 0.2 m high wave that is 2 meters long in 1.5 meters water depth
   # Some information abot the wave is also shown
@@ -85,6 +101,7 @@ An example of using Rascii from the command line::
 
 The plot tool allows comparing multiple waves, the SWD file writer only
 supports a single wave at a time and does currently not support Airy waves.
+
 
 Documentation
 -------------
@@ -112,6 +129,13 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 
 Releases
 --------
+
+Version 1.1.0 - Jun XX. 2025
+.............................
+
+- UNRELEASED, work in progress
+- Support for giving the wave period instead of the wave length
+- Move repository and CI to GitHub. Tested on Python 3.10 (Ubuntu 22.04), and Python 3.12 (uv).
 
 Version 1.0.7 - Sep 30. 2024
 .............................

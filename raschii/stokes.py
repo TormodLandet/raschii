@@ -1,6 +1,6 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy as np
-from .common import blend_air_and_wave_velocities
+from .common import blend_air_and_wave_velocities, RasciiError, NonConvergenceError
 from .swd_tools import SwdShape2
 
 
@@ -8,16 +8,31 @@ class StokesWave:
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81}
 
-    def __init__(self, height: float, depth: float, length: float, N: int, air=None, g: float=9.81):
+    def __init__(
+        self,
+        height: float,
+        depth: float,
+        length: float | None = None,
+        N: int = 5,
+        period: float | None = None,
+        air=None,
+        g: float = 9.81,
+    ):
         """
         Implement Stokes waves based on the paper by J. D. Fenton (1985),
         "A Fifth-Order Stokes Theory for Steady Waves".
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
-        * length: the periodic length of the wave (distance between peaks)
+        * length: the periodic length of the wave (optional, if not given then period is used)
         * N: the number of coefficients in the truncated Fourier series
+        * period: the wave period (optional, if not given then length is used)
         """
+        if length is None:
+            if period is None:
+                raise RasciiError("Either length or period must be given, both are None!")
+            length = compute_length_from_period(height=height, depth=depth, period=period, N=N, g=g)
+
         self.height: float = height  #: The wave height
         self.depth: float = depth  #: The water depth
         self.length: float = length  #: The wave length
@@ -25,7 +40,7 @@ class StokesWave:
         self.air = air  #: The optional air-phase model
         self.g: float = g  #: The acceleration of gravity
         self.warnings: str = ""  #: Warnings raised when generating this wave
-        
+
         if N < 1:
             self.warnings = "Stokes order must be at least 1, using order 1"
             self.order = 1
@@ -55,8 +70,8 @@ class StokesWave:
         d = self.depth
 
         c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(self.g / k)
-        Q = (c * d * sqrt(k ** 3 / self.g) + data["D2"] * eps ** 2 + data["D4"] * eps ** 4) * sqrt(
-            self.g / k ** 3
+        Q = (c * d * sqrt(k**3 / self.g) + data["D2"] * eps**2 + data["D4"] * eps**4) * sqrt(
+            self.g / k**3
         )
 
         self.c = c  # Phase speed
@@ -82,10 +97,10 @@ class StokesWave:
         eta = (
             kd
             + eps * cos(k * x2)
-            + eps ** 2 * D["B22"] * cos(2 * k * x2)
-            + eps ** 3 * D["B31"] * (cos(k * x2) - cos(3 * k * x2))
-            + eps ** 4 * (D["B42"] * cos(2 * k * x2) + D["B44"] * cos(4 * k * x2))
-            + eps ** 5
+            + eps**2 * D["B22"] * cos(2 * k * x2)
+            + eps**3 * D["B31"] * (cos(k * x2) - cos(3 * k * x2))
+            + eps**4 * (D["B42"] * cos(2 * k * x2) + D["B44"] * cos(4 * k * x2))
+            + eps**5
             * (
                 -(D["B53"] + D["B55"]) * cos(k * x2)
                 + D["B53"] * cos(3 * k * x2)
@@ -157,7 +172,7 @@ class StokesWave:
             + my_sinh_sin(5, 3)
             + my_sinh_sin(5, 5)
         )
-        vel *= self.data["C0"] * sqrt(self.g / self.k ** 3)
+        vel *= self.data["C0"] * sqrt(self.g / self.k**3)
 
         if not all_points_wet:
             blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
@@ -199,15 +214,15 @@ class StokesWave:
         nc = self.order + 1  # Include Bias term
         ecs = np.empty(nc, complex)
         ecs[0] = 0.0  # zero at calm water line
-        ecs[1] = eps + eps ** 3 * D["B31"] - eps ** 5 * (D["B53"] + D["B55"])
+        ecs[1] = eps + eps**3 * D["B31"] - eps**5 * (D["B53"] + D["B55"])
         if self.order > 1:
-            ecs[2] = eps ** 2 * D["B22"] + eps ** 4 * D["B42"]
+            ecs[2] = eps**2 * D["B22"] + eps**4 * D["B42"]
         if self.order > 2:
-            ecs[3] = -(eps ** 3) * D["B31"] + eps ** 5 * D["B53"]
+            ecs[3] = -(eps**3) * D["B31"] + eps**5 * D["B53"]
         if self.order > 3:
-            ecs[4] = eps ** 4 * D["B44"]
+            ecs[4] = eps**4 * D["B44"]
         if self.order > 4:
-            ecs[5] = eps ** 5 * D["B55"]
+            ecs[5] = eps**5 * D["B55"]
         ecs /= self.k
 
         # From particle velocities we construct the SWD velocity potential...
@@ -218,16 +233,16 @@ class StokesWave:
 
         vcs = np.empty(nc, complex)
         vcs[0] = 0.0
-        vcs[1] = (eps * D["A11"] + eps ** 3 * D["A31"] + eps ** 5 * D["A51"]) * np.cosh(kd)
+        vcs[1] = (eps * D["A11"] + eps**3 * D["A31"] + eps**5 * D["A51"]) * np.cosh(kd)
         if self.order > 1:
-            vcs[2] = (eps ** 2 * D["A22"] + eps ** 4 * D["A42"]) * np.cosh(2 * kd)
+            vcs[2] = (eps**2 * D["A22"] + eps**4 * D["A42"]) * np.cosh(2 * kd)
         if self.order > 2:
-            vcs[3] = (eps ** 3 * D["A33"] + eps ** 5 * D["A53"]) * np.cosh(3 * kd)
+            vcs[3] = (eps**3 * D["A33"] + eps**5 * D["A53"]) * np.cosh(3 * kd)
         if self.order > 3:
-            vcs[4] = eps ** 4 * D["A44"] * np.cosh(4 * kd)
+            vcs[4] = eps**4 * D["A44"] * np.cosh(4 * kd)
         if self.order > 4:
-            vcs[5] = eps ** 5 * D["A55"] * np.cosh(5 * kd)
-        vcs *= 1.0j * D["C0"] * sqrt(self.g / self.k ** 3)
+            vcs[5] = eps**5 * D["A55"] * np.cosh(5 * kd)
+        vcs *= 1.0j * D["C0"] * sqrt(self.g / self.k**3)
 
         input_data = {
             "model": "Stokes",
@@ -418,3 +433,54 @@ def stokes_coefficients(kd, N):
     )
 
     return data
+
+
+def compute_length_from_period(
+    height: float,
+    depth: float,
+    period: float,
+    N: int = 5,
+    g: float = 9.81,
+    relax: float = 0.5,
+):
+    """
+    Compute the wave length from the wave period using the Fenton wave theory
+
+    This would be much faster if we had an implementation of the Stokes wave
+    theory dispersion relation, which should be not too hard to implement ...
+    """
+    from .airy import compute_length_from_period as airy_compute_length_from_period
+
+    # Initial guess is based on the linear dispersion relation for deep water waves
+    length = airy_compute_length_from_period(depth=depth, period=period, g=g)
+
+    # Find the length by Newton iterations
+    wave1 = StokesWave(height=height, depth=depth, length=length * 0.95, N=N, g=g)
+    wave2 = StokesWave(height=height, depth=depth, length=length * 1.05, N=N, g=g)
+
+    length_N = 0.0
+    iter = 0
+    while abs(length_N - length) > 1e-4:
+        # Store the previous length
+        length = length_N
+
+        # New guess for the wave length by interpolation
+        f = (period - wave1.T) / (wave2.T - wave1.T)
+        length_N = wave1.length + (wave2.length - wave1.length) * f
+
+        # Resulting wave period for the new length from the dispersion relation
+        waveN = StokesWave(height=height, depth=depth, length=length_N, N=N, g=g)
+
+        # Update the two points used for the interpolation in the next iteration
+        if waveN.T < period:
+            wave1 = waveN
+        else:
+            wave2 = waveN
+
+        iter += 1
+        if iter > 100:
+            raise NonConvergenceError(
+                "Failed to converge when computing wave length from period for Stokes waves"
+            )
+
+    return length_N

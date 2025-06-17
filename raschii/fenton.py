@@ -12,7 +12,7 @@ from numpy import (
     cosh,
     sinh,
     array,
-    empty
+    empty,
 )
 from numpy.linalg import solve
 from numpy.fft import irfft
@@ -23,7 +23,8 @@ from .common import (
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
     trapezoid_integration,
-    np2py
+    np2py,
+    RasciiError
 )
 from .swd_tools import SwdShape2
 
@@ -32,16 +33,34 @@ class FentonWave:
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81, "relax": 0.5}
 
-    def __init__(self, height: float, depth: float, length: float, N: int, air=None, g: float=9.81, relax: float=0.5):
+    def __init__(
+        self,
+        height: float,
+        depth: float,
+        length: float | None = None,
+        N: int = 5,
+        period: float | None = None,
+        air=None,
+        g: float = 9.81,
+        relax: float = 0.5,
+    ):
         """
         Implement stream function waves based on the paper by Rienecker and
         Fenton (1981)
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the free surface
-        * length: the periodic length of the wave (distance between peaks)
+        * length: the periodic length of the wave (optional, if not given then period is used)
         * N: the number of coefficients in the truncated Fourier series
+        * period: the wave period (optional, if not given then length is used)
         """
+        if length is None:
+            if period is None:
+                raise RasciiError("Either length or period must be given, both are None!")
+            length = compute_length_from_period(
+                height=height, depth=depth, period=period, N=N, g=g, relax=relax
+            )
+
         self.height: float = height  #: The wave height
         self.depth: float = depth  #: The water depth
         self.length: float = length  #: The wave length
@@ -185,7 +204,7 @@ class FentonWave:
         # We use repr to make Python output a "smart" amount of digits
         c = np2py(self.c)
         Jk = np2py(Jk)
-        facs  = np2py(facs)
+        facs = np2py(facs)
 
         cpp = " + ".join(
             f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
@@ -211,11 +230,10 @@ class FentonWave:
         # We use repr to make Python output a "smart" amount of digits
         k = np2py(self.k)
         c = np2py(self.c)
-        facs  = np2py(facs)
+        facs = np2py(facs)
 
         code = " + ".join(
-            f"{facs[j]!r} * cos({j:d} * {k!r} * (x[0] - {c!r} * t))"
-            for j in range(0, N + 1)
+            f"{facs[j]!r} * cos({j:d} * {k!r} * (x[0] - {c!r} * t))" for j in range(0, N + 1)
         )
         return code
 
@@ -233,7 +251,7 @@ class FentonWave:
         # We use repr to make Python output a "smart" amount of digits
         k = np2py(self.k)
         c = np2py(self.c)
-        facs  = np2py(facs)
+        facs = np2py(facs)
 
         code = " + ".join(
             f"{facs[j]!r} * {j:d} * sin({j:d} * {k!r} * (x[0] - {c!r} * t))"
@@ -260,8 +278,8 @@ class FentonWave:
         # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
         # We use repr to make Python output a "smart" amount of digits
         c = np2py(self.c)
-        Jk  = np2py(Jk)
-        facs  = np2py(facs)
+        Jk = np2py(Jk)
+        facs = np2py(facs)
 
         cpp_x = " + ".join(
             f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * x[2])"
@@ -402,7 +420,7 @@ def fenton_coefficients(
         B[1] = -H / (4 * c * k)
         eta = 1 + H / 2 * cos(k * x)
         Q = c
-        R = 1 + 0.5 * c ** 2
+        R = 1 + 0.5 * c**2
         return B, Q, R, eta
 
     def optimize(B, Q, R, eta, H):
@@ -443,7 +461,7 @@ def fenton_coefficients(
                 )
             elif not isfinite(error):
                 raise NonConvergenceError(
-                    "Optimization did not converge. Got " "error %r in iteration %d" % (error, it)
+                    "Optimization did not converge. Got error %r in iteration %d" % (error, it)
                 )
             elif error < tolerance:
                 B = coeffs[: N + 1]
@@ -452,7 +470,7 @@ def fenton_coefficients(
                 R = coeffs[2 * N + 3]
                 return B, Q, R, eta, error, it
         raise NonConvergenceError(
-            "Optimization did not converge after %d " "iterations, error = %r" % (it, error)
+            "Optimization did not converge after %d iterations, error = %r" % (it, error)
         )
 
     # Perform the optimization, optionally in steps gradually increasing H
@@ -463,12 +481,12 @@ def fenton_coefficients(
 
     # Scale back to physical space
     B[0] *= (g * depth) ** 0.5
-    B[1:] *= (g * depth ** 3) ** 0.5
+    B[1:] *= (g * depth**3) ** 0.5
     return {
         "x": x * depth,
         "eta": eta * depth,
         "B": B,
-        "Q": Q * (g * depth ** 3) ** 0.5,
+        "Q": Q * (g * depth**3) ** 0.5,
         "R": R * g * depth,
         "k": k / depth,
         "c": B[0],
@@ -532,7 +550,7 @@ def func(coeffs, H, k, D, J, M):
         f[m] = -B0 * eta[m] + B.dot(S1 * C2) + Q
 
         # Enforce the dynamic free surface boundary condition
-        f[N + 1 + m] = (um ** 2 + vm ** 2) / 2 + eta[m] - R
+        f[N + 1 + m] = (um**2 + vm**2) / 2 + eta[m] - R
 
     # Enforce mean(eta) = D
     f[-2] = trapezoid_integration(eta) / N - 1
@@ -590,7 +608,7 @@ def fprime(coeffs, H, k, D, J, M):
 
         # Derivatives of the dynamic free surface boundary condition
         jac[N + 1 + m, N + 1 + m] = 1 + (
-            um * k ** 2 * B.dot(J ** 2 * SC) + vm * k ** 2 * B.dot(J ** 2 * CS)
+            um * k**2 * B.dot(J**2 * SC) + vm * k**2 * B.dot(J**2 * CS)
         )
         jac[N + 1 + m, -1] = -1
         jac[N + 1 + m, 0] = -um
@@ -606,3 +624,54 @@ def fprime(coeffs, H, k, D, J, M):
     jac[-1, 2 * N + 1] = -1
 
     return jac
+
+
+def compute_length_from_period(
+    height: float,
+    depth: float,
+    period: float,
+    N: int = 5,
+    g: float = 9.81,
+    relax: float = 0.5,
+):
+    """
+    Compute the wave length from the wave period using the Fenton wave theory
+
+    This would be much faster if we had an implementation of the Fenton wave
+    theory dispersion relation for arbitrary order N
+    """
+    from .airy import compute_length_from_period as airy_compute_length_from_period
+
+    # Initial guess is based on the linear dispersion relation for deep water waves
+    length = airy_compute_length_from_period(depth=depth, period=period, g=g)
+
+    # Find the length by Newton iterations
+    wave1 = FentonWave(height=height, depth=depth, length=length * 0.95, N=N, g=g, relax=relax)
+    wave2 = FentonWave(height=height, depth=depth, length=length * 1.05, N=N, g=g, relax=relax)
+
+    length_N = 0.0
+    iter = 0
+    while abs(length_N - length) > 1e-4:
+        # Store the previous length
+        length = length_N
+
+        # New guess for the wave length by interpolation
+        f = (period - wave1.T) / (wave2.T - wave1.T)
+        length_N = wave1.length + (wave2.length - wave1.length) * f
+
+        # Resulting wave period for the new length from the dispersion relation
+        waveN = FentonWave(height=height, depth=depth, length=length_N, N=N, g=g, relax=relax)
+
+        # Update the two points used for the interpolation in the next iteration
+        if waveN.T < period:
+            wave1 = waveN
+        else:
+            wave2 = waveN
+
+        iter += 1
+        if iter > 100:
+            raise NonConvergenceError(
+                "Failed to converge when computing wave length from period for Fenton waves"
+            )
+
+    return length_N

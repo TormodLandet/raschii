@@ -29,6 +29,9 @@ Documentation = "https://raschii.readthedocs.io/"
 test = [
     "pytest >= 8.0",
 ]
+docs = [
+    "sphinx >= 8.0",
+]
 
 [tool.uv]
 default-groups = ["test"]

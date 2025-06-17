@@ -9,6 +9,8 @@ The default acceleration of gravity is ``9.81``, so the input quantities should
 be given in the SI system.
 
 
+.. _theory_airy:
+
 Airy
 ====
 
@@ -16,6 +18,8 @@ This is the simplest wave theory, a single cosine wave. It is included mostly
 for testing the other models and is only valid in the limit of very low waves
 in very deep water. 
 
+
+.. _theory_stokes:
 
 Stokes
 ======
@@ -36,6 +40,8 @@ Further details and analytical expression for all the coefficients in the
 perturbation expansion can be found in the original paper, available on `John D.
 Fentons web pages <http://johndfenton.com/Papers/Papers-John%20Fenton.html>`_.
 
+
+.. _theory_fenton:
 
 Fenton
 ======
@@ -83,6 +89,7 @@ used in the Newton-iterations can be found in the original paper, available on
 
 .. #############################################################################
 
+.. _theory_air-phase_models:
 
 ================
 Air phase models
