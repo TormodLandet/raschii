@@ -33,7 +33,7 @@ jobs:
           OPENBLAS_NUM_THREADS: 1
         run: |
           mkdir -p reports/pytest-system
-          python3 -m pytest -v tests/ --durations=10 --junitxml=reports/pytest-system/py3.xml
+          python3 -m pytest -W error -v tests/ --durations=10 --junitxml=reports/pytest-system/py3.xml
 
       - name: Upload test results (from system Python)
         if: always()
@@ -55,7 +55,7 @@ jobs:
       - name: Run unit tests with uv
         run: |
           mkdir -p reports/pytest-uv
-          uv run pytest -v tests/ --durations=10 --junitxml=reports/pytest-uv/py3.xml
+          uv run pytest -W error -v tests/ --durations=10 --junitxml=reports/pytest-uv/py3.xml
 
       - name: Upload test results (from uv)
         if: always()
