@@ -2,8 +2,7 @@ syntax: glob
 .*
 !/.gitignore
 !/.readthedocs.yml
-!/.flake8
-!/.circleci
+!/.github
 *.pyc
 *.png
 !documentation/*/*.png

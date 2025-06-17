@@ -1,0 +1,65 @@
+name: CI with pytest
+
+on:
+  push:
+    branches:
+      - '**'
+  schedule:
+    - cron: '0 8 * * 6'
+
+jobs:
+  install-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install apt test dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3 python3-dev python3-wheel python3-pip
+          sudo apt install -y cmake g++ wget curl
+
+      - name: Install pip test dependencies
+        run: pip3 install pip pytest flake8 --upgrade
+
+      - name: Install pybind11 (for testing generated C++ code)
+        run: pip3 install "pybind11[global]"
+
+      - name: Install Raschii with its dependencies
+        run: pip3 install .
+
+      - name: Run unit tests with system Python
+        env:
+          OPENBLAS_NUM_THREADS: 1
+        run: |
+          mkdir -p reports/pytest-system
+          python3 -m pytest -v tests/ --durations=10 --junitxml=reports/pytest-system/py3.xml
+
+      - name: Upload test results (from system Python)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-system-python
+          path: reports/pytest-system
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          python-version: 3.13
+          enable-cache: true
+
+      - name: Install dependencies with uv
+        run: uv sync
+
+      - name: Run unit tests with uv
+        run: |
+          mkdir -p reports/pytest-uv
+          uv run pytest -v tests/ --durations=10 --junitxml=reports/pytest-uv/py3.xml
+
+      - name: Upload test results (from uv)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-uv-python
+          path: reports/pytest-uv

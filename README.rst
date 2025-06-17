@@ -100,16 +100,14 @@ The documentation can be found on `Raschii's Read-the-Docs pages
 Development
 -----------
 
-Raschii is developed in Python on `Bitbucket <https://bitbucket.org/trlandet/raschii>`_
-by use of the Git version control system. If you are reading this on github,
-please be aware that you are seeing a mirror that could potentially be months
-out of date. All pull requests and issues should go to the Bitbucket repository.
+Raschii is developed in Python on `GitHub <https://github.com/TormodLandet/raschii>`_
+by use of the Git version control system.
 
-Raschii is automatically tested on `CircleCI <https://circleci.com/bb/trlandet/raschii/tree/master>`_  
-and the current CI build status is |circleci_status|.
+Raschii is automatically tested using pytest and GitHub Actions and the current CI build status is
+|circleci_status|.
 
-.. |circleci_status| image:: https://circleci.com/bb/trlandet/raschii.svg?style=svg&circle-token=d0d6c55654d1c7ba49a9679d7dd1623e1b52b748
-  :target: https://circleci.com/bb/trlandet/raschii/tree/master
+.. |circleci_status| image:: https://github.com/TormodLandet/raschii/actions/workflows/pytest.yml/badge.svg
+  :target: https://github.com/TormodLandet/raschii/actions/workflows/pytest.yml
 
 
 Releases
@@ -194,6 +192,8 @@ The initial release of Raschii
 Copyright and license
 ---------------------
 
-Raschii is copyright Tormod Landet, 2018. Raschii is licensed under the Apache
-2.0 license, a  permissive free software license compatible with version 3 of
-the GNU GPL. See the file ``LICENSE`` for the details.
+Raschii is copyright Tormod Landet (2018--).
+
+Raschii is licensed under the Apache 2.0 license,
+a permissive free software license compatible with version 3 of the GNU GPL.
+See the file ``LICENSE`` for the details.
