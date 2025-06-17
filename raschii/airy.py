@@ -6,9 +6,10 @@ from .common import (
     RasciiError,
     NonConvergenceError,
 )
+from .base_classes import WaveModel
 
 
-class AiryWave:
+class AiryWave(WaveModel):
     required_input = ("height", "depth", "length")
     optional_input = {"air": None, "g": 9.81}
 
@@ -26,6 +27,7 @@ class AiryWave:
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
+          in meters, but you can give -1.0 for infinite depth
         * length: the periodic length of the wave (optional, if not given then period is used)
         * period: the wave period (optional, if not given then length is used)
         """
@@ -42,7 +44,12 @@ class AiryWave:
         self.warnings: str = ""  #: Warnings raised when generating this wave
 
         self.k = 2 * pi / length
-        self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
+        if self.depth < 0:
+            # Infinite depth
+            self.omega = (self.k * g) ** 0.5
+        else:
+            # Finite depth
+            self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
         self.c = self.omega / self.k
         self.T = self.length / self.c  # Wave period
 
@@ -53,20 +60,36 @@ class AiryWave:
         if self.air is not None:
             self.air.set_wave(self)
 
-    def surface_elevation(self, x, t=0):
+    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
         """
         Compute the surface elavation at time t for position(s) x
         """
         if isinstance(x, (float, int)):
             x = array([x], float)
         x = asarray(x)
-        return self.depth + self.height / 2 * cos(self.k * x - self.omega * t)
 
-    def velocity(self, x, z, t=0, all_points_wet=False):
+        if include_depth:
+            if self.depth < 0:
+                raise RasciiError("Cannot include depth in elevation for infinite depth")
+            offset = self.depth
+        else:
+            offset = 0.0
+
+        return offset + self.height / 2 * cos(self.k * x - self.omega * t)
+
+    def velocity(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+        all_points_wet: bool = False,
+    ):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         x = asarray(x, dtype=float)
@@ -165,6 +188,10 @@ def compute_length_from_period(depth: float, period: float, g: float = 9.81) -> 
     """
     # Infinite depth approximation
     length = g * period**2 / (2 * pi)
+
+    if depth < 0:
+        # No need to compute the length via iterations for infinite depth
+        return length
 
     # Find the length by Newton iterations
     length_1 = length * 0.95

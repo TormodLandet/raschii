@@ -39,7 +39,7 @@ Raschii linear waves, see :ref:`the Airy wave model <theory_airy>`.
 Stokes waves
 ------------
 
-Raschii implements the Stokes 1st, 2nd, and 5th order wave models, see :ref:`the Stokes wave model <theory_stokes>`.
+Raschii implements the Stokes 1st through 5th order order wave models, see :ref:`the Stokes wave model <theory_stokes>`.
 
 .. autoclass:: raschii.StokesWave
     :class-doc-from: init

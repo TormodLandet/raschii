@@ -24,12 +24,13 @@ from .common import (
     blend_air_and_wave_velocity_cpp,
     trapezoid_integration,
     np2py,
-    RasciiError
+    RasciiError,
 )
-from .swd_tools import SwdShape2
+from .swd_tools import SwdShape1and2
+from .base_classes import WaveModel
 
 
-class FentonWave:
+class FentonWave(WaveModel):
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81, "relax": 0.5}
 
@@ -122,7 +123,7 @@ class FentonWave:
         elif frame == "c":
             return psi
 
-    def surface_elevation(self, x, t=0):
+    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
         """
         Compute the surface elevation at time t for position(s) x
         """
@@ -134,7 +135,17 @@ class FentonWave:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        return 2 * trapezoid_integration(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+        eta = 2 * trapezoid_integration(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+
+        if include_depth:
+            if self.depth < 0:
+                raise RasciiError("Cannot include depth in elevation for infinite depth")
+            subtract = 0.0
+        else:
+            # Apply consistent water depth limitation with 'fenton_coefficients'
+            subtract = 25 * self.length if self.depth < 0 else self.depth
+
+        return eta - subtract
 
     def surface_slope(self, x, t=0):
         """
@@ -150,11 +161,19 @@ class FentonWave:
         k, c = self.k, self.c
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
-    def velocity(self, x, z, t=0, all_points_wet=False):
+    def velocity(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+        all_points_wet: bool = False,
+    ):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         x = asarray(x, dtype=float)
@@ -192,6 +211,8 @@ class FentonWave:
         coordinate is x[2] which is zero at the bottom and equal to +depth at
         the mean water level.
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
         N = len(self.eta) - 1
         J = arange(1, N + 1)
         B = self.data["B"]
@@ -221,6 +242,8 @@ class FentonWave:
         Return C++ code for evaluating the elevation of this specific wave.
         The positive traveling direction is x[0]
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
         N = self.E.size - 1
         facs = self.E * 2 / N
         facs[0] *= 0.5
@@ -242,6 +265,8 @@ class FentonWave:
         Return C++ code for evaluating the surface slope of this specific wave.
         The positive traveling direction is x[0]
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
         N = self.E.size - 1
         facs = self.E * 2 / N * self.k * -1.0
         facs[0] *= 0.5
@@ -266,6 +291,8 @@ class FentonWave:
         positive traveling direction is x[0] and the vertical coordinate is x[2]
         which is zero at the bottom and equal to +depth at the mean water level.
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
         N = len(self.eta) - 1
         J = arange(1, N + 1)
         B = self.data["B"]
@@ -322,11 +349,16 @@ class FentonWave:
         * tmax:     The temporal sampling range in the SWD file is [0, tmax]
         * nperiods: Alternative specification: tmax = nperiods * wave_period
         """
-
         if tmax is None:
             assert nperiods is not None
             tmax = nperiods * self.T
         assert tmax > dt > 0.0
+
+        # Apply consistent water depth limitation with 'fenton_coefficients'
+        if self.depth < 0:
+            depth = 25 * self.length
+        else:
+            depth = self.depth
 
         # The swd coordinate system is earth fixed with zswd=0 in the calm
         # surface. Hence:
@@ -349,7 +381,7 @@ class FentonWave:
         # res[:] other than Bias and Nyquist must be doubled. Skip zero sinusoidal coefficients...
         ecs = empty(nc)
         ecs[0] = (
-            res[0].real - self.depth
+            res[0].real - depth
         )  # Also shift zero to free surface. (Should be very close to zero)
         for j in range(1, nc - 1):
             ecs[j] = 2.0 * res[2 * j].real
@@ -383,7 +415,7 @@ class FentonWave:
             "relax": self.relax,
         }
 
-        swd = SwdShape2(
+        swd = SwdShape1and2(
             self.T, self.length, self.depth, vcs, ecs, input_data, self.g, order_zpos=-1
         )
         swd.write(path, dt, tmax=tmax)
@@ -398,6 +430,9 @@ def fenton_coefficients(
     Using relaxation can help in some difficult cases, try a value less than 1
     to decrease convergence speed, but increase chances of converging.
     """
+    if depth < 0:
+        depth = 25 * length
+
     # Non dimensionalised input
     H = height / depth
     lam = length / depth

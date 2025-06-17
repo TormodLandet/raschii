@@ -1,5 +1,6 @@
-import os
 import math
+
+import pytest
 
 import raschii
 from utils import skip_swd_uninstalled
@@ -9,9 +10,7 @@ from utils import skip_swd_uninstalled
 def test_swd_stokes(tmpdir):
     from spectral_wave_data import SpectralWaveData
 
-    dir_swd = str(tmpdir.mkdir("swd"))
-    file_swd = os.path.join(dir_swd, "stokes.swd")
-
+    file_swd = tmpdir / "stokes.swd"
     height = 5.0
     depth = 15.0
     length = 200
@@ -56,3 +55,42 @@ def test_swd_stokes(tmpdir):
         assert math.isclose(zs_swd, zs_raschii_wl, rel_tol=eps_r, abs_tol=eps_a)
 
     swd.close()
+
+
+@pytest.mark.parametrize("depth", [15.0, 200, -1.0])
+def test_swd_stokes_simplified_reader(depth, tmpdir):
+    from raschii.swd_tools import SwdReaderForRaschiiTests
+
+    file_swd = tmpdir / "stokes.swd"
+    height = 5.0
+    length = 200
+    nperiods = 0.4
+    dt = 0.1
+    norder = 5
+
+    WaveModel, AirModel = raschii.get_wave_model("Stokes")
+    wave = WaveModel(height=height, depth=depth, length=length, N=norder)
+    wave.write_swd(file_swd, dt=dt, nperiods=nperiods)
+
+    eps_r = 1.0e-6  # Swd files store data in float (single) precision
+    eps_a = 1.0e-6
+
+    swd = SwdReaderForRaschiiTests(file_swd)
+    assert math.isclose(swd.dk, wave.k, rel_tol=eps_r, abs_tol=eps_a)
+    assert math.isclose(swd.depth, wave.depth, rel_tol=eps_r, abs_tol=eps_a)
+
+    if depth < 1:
+        assert swd.shp == 1, "Expected infinite depth SWD file"
+    else:
+        assert swd.shp == 2, "Expected finite depth SWD file"
+
+    # Compare surface elevations
+    eps_r = eps_a = 1.0e-5
+    dx = length / 23
+    i_time = 13
+    t_check = swd.t_vector[i_time]
+    for x in [dx * i for i in range(30)]:
+        swdfile_eta = swd.surface_elevation(x=x)[i_time].item()
+        raschii_eta = wave.surface_elevation(x=x, t=t_check, include_depth=False).item()
+
+        assert math.isclose(swdfile_eta, raschii_eta, rel_tol=eps_r, abs_tol=eps_a)

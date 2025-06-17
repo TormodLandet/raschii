@@ -1,10 +1,11 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy as np
 from .common import blend_air_and_wave_velocities, RasciiError, NonConvergenceError
-from .swd_tools import SwdShape2
+from .swd_tools import SwdShape1and2
+from .base_classes import WaveModel
 
 
-class StokesWave:
+class StokesWave(WaveModel):
     required_input = {"height", "depth", "length", "N"}
     optional_input = {"air": None, "g": 9.81}
 
@@ -24,6 +25,7 @@ class StokesWave:
 
         * height: wave height above still water level
         * depth: still water distance from the flat sea bottom to the surface
+          in meters, but you can give -1.0 for infinite depth
         * length: the periodic length of the wave (optional, if not given then period is used)
         * N: the number of coefficients in the truncated Fourier series
         * period: the wave period (optional, if not given then length is used)
@@ -69,6 +71,11 @@ class StokesWave:
         eps = k * self.height / 2
         d = self.depth
 
+        # Apply consistent water depth limitation with 'stokes_coefficients': kd <= 50 * pi
+        if d < 0:
+            d = 50 * pi / self.k
+        d = min(d, 50 * pi / self.k)
+
         c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(self.g / k)
         Q = (c * d * sqrt(k**3 / self.g) + data["D2"] * eps**2 + data["D4"] * eps**4) * sqrt(
             self.g / k**3
@@ -79,7 +86,7 @@ class StokesWave:
         self.T = self.length / self.c  # Wave period
         self.omega = self.c * self.k  # Wave frequency
 
-    def surface_elevation(self, x, t=0):
+    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
         """
         Compute the surface elavation at time t for position(s) x
         """
@@ -88,15 +95,12 @@ class StokesWave:
         x = np.asarray(x)
         x2 = x - self.c * t
 
-        d = self.depth
         k = self.k
         eps = k * self.height / 2
-        kd = k * d
         D = self.data
         cos = np.cos
         eta = (
-            kd
-            + eps * cos(k * x2)
+            eps * cos(k * x2)
             + eps**2 * D["B22"] * cos(2 * k * x2)
             + eps**3 * D["B31"] * (cos(k * x2) - cos(3 * k * x2))
             + eps**4 * (D["B42"] * cos(2 * k * x2) + D["B44"] * cos(4 * k * x2))
@@ -107,13 +111,29 @@ class StokesWave:
                 + D["B55"] * cos(5 * k * x2)
             )
         ) / k
-        return eta
 
-    def velocity(self, x, z, t=0, all_points_wet=False):
+        if include_depth:
+            if self.depth < 0:
+                raise RasciiError("Cannot include depth in elevation for infinite depth")
+            offset = self.depth
+        else:
+            offset = 0.0
+
+        return offset + eta
+
+    def velocity(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+        all_points_wet: bool = False,
+    ):
         """
         Compute the fluid velocity at time t for position(s) (x, z)
         where z is 0 at the bottom and equal to depth at the free surface
         """
+        if self.depth < 0:
+            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         x = np.asarray(x, dtype=float)
@@ -195,7 +215,10 @@ class StokesWave:
         assert tmax > dt > 0.0
 
         # Apply consistent water depth limitation with 'stokes_coefficients': kd <= 50 * pi
-        depth = min(self.depth, 50 * pi / self.k)
+        if self.depth < 0:
+            depth = 50 * pi / self.k
+        else:
+            depth = min(self.depth, 50 * pi / self.k)
 
         kd = self.k * depth
         eps = self.k * self.height / 2
@@ -231,17 +254,30 @@ class StokesWave:
         # where c[j, t] = I * vcs[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
         # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
 
-        vcs = np.empty(nc, complex)
+        vcs = np.zeros(nc, complex)
         vcs[0] = 0.0
         vcs[1] = (eps * D["A11"] + eps**3 * D["A31"] + eps**5 * D["A51"]) * np.cosh(kd)
+        
         if self.order > 1:
-            vcs[2] = (eps**2 * D["A22"] + eps**4 * D["A42"]) * np.cosh(2 * kd)
+            multiplier = eps**2 * D["A22"] + eps**4 * D["A42"]
+            if multiplier != 0.0:
+                vcs[2] = multiplier * np.cosh(2 * kd)
+
         if self.order > 2:
-            vcs[3] = (eps**3 * D["A33"] + eps**5 * D["A53"]) * np.cosh(3 * kd)
+            multiplier = eps**3 * D["A33"] + eps**5 * D["A53"]
+            if multiplier != 0.0:
+                vcs[3] = multiplier * np.cosh(3 * kd)
+
         if self.order > 3:
-            vcs[4] = eps**4 * D["A44"] * np.cosh(4 * kd)
+            multiplier = eps**4 * D["A44"]
+            if multiplier != 0.0:
+                vcs[4] = multiplier * np.cosh(4 * kd)
+
         if self.order > 4:
-            vcs[5] = eps**5 * D["A55"] * np.cosh(5 * kd)
+            multiplier = eps**5 * D["A55"]
+            if multiplier != 0.0:
+                vcs[5] = multiplier * np.cosh(5 * kd)
+
         vcs *= 1.0j * D["C0"] * sqrt(self.g / self.k**3)
 
         input_data = {
@@ -256,7 +292,7 @@ class StokesWave:
             "c": self.c,
         }
 
-        swd = SwdShape2(
+        swd = SwdShape1and2(
             self.T, self.length, self.depth, vcs, ecs, input_data, self.g, order_zpos=self.order
         )
         swd.write(path, dt, tmax=tmax)
@@ -285,7 +321,7 @@ def stokes_coefficients(kd, N):
     The code uses pow instead of ** to be compatible with Dart
     """
     # Limit depth to 25 wave lengths to avoid overflow
-    if kd > 50 * pi:
+    if kd > 50 * pi or kd < 0:
         kd = 50 * pi
 
     S = sech(2 * kd)
@@ -441,7 +477,6 @@ def compute_length_from_period(
     period: float,
     N: int = 5,
     g: float = 9.81,
-    relax: float = 0.5,
 ):
     """
     Compute the wave length from the wave period using the Fenton wave theory
