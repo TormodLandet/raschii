@@ -4,8 +4,8 @@ Online wave calculator demo
 
 
 If you are reading this in a web browser then a demo should be shown below.
-Please note that the Python to Javascript transpilers are corrently not advanced
-enough to convert the Raschii Python code to a format runable on the web, so 
+Please note that the Python to Javascript transpilers are currently not advanced
+enough to convert the Raschii Python code to a format runnable on the web, so 
 what you are seeing is a `port of Raschii to the web-friendly Dart language 
 <https://bitbucket.org/trlandet/raschiidart>`_.
 

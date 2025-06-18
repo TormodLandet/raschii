@@ -1,4 +1,4 @@
-..  Index  of the Raschii documentation
+..  Index of the Raschii documentation
     The page uses the README in the main folder
     but substitutes the documentation section with
     a table of contents
@@ -14,8 +14,9 @@
    :maxdepth: 2
    :caption: Contents:
 
+   theory
    usage
-   wave_models
+   usage_command_line
    raschii_dart
    api_docs
 

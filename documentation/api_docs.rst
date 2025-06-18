@@ -2,7 +2,7 @@
 Raschii Python API
 =========================
 
-Documentation of the Raschii Python API, automatically generated from the source-code comments.
+Documentation of the Raschii Python API, automatically generated from the source code comments.
 
 .. contents::
    :local:
@@ -39,7 +39,7 @@ Raschii linear waves, see :ref:`the Airy wave model <theory_airy>`.
 Stokes waves
 ------------
 
-Raschii implements the Stokes 1st through 5th order order wave models, see :ref:`the Stokes wave model <theory_stokes>`.
+Raschii implements the Stokes 1st through 5th order wave models, see :ref:`the Stokes wave model <theory_stokes>`.
 
 .. autoclass:: raschii.StokesWave
     :class-doc-from: init
@@ -61,10 +61,10 @@ Air model classes
 
 Raschii implements special support for kinematics above the free surface,
 see :ref:`theory_air-phase_models` for details.
-You can use these to construct a fully divergence free velocity field for a computational domain
+You can use these to construct a fully divergence-free velocity field for a computational domain
 with both water and air phases.
-This is normally not done in lower-order methods such as the typicall finite-volume solvers
-(OpenFOAM etc.), but has been used in a higher-order fully divergence free DG-FEM solver to
+This is normally not done in lower-order methods such as the typical finite-volume solvers
+(OpenFOAM etc.), but has been used in a higher-order fully divergence-free DG-FEM solver to
 construct consistent initial and boundary conditions.
 
 .. autoclass:: raschii.FentonAirPhase

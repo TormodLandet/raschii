@@ -1,3 +1,15 @@
+.. _theory_manual:
+
+#############
+Theory manual
+#############
+
+.. contents::
+  :local:
+
+
+.. _theory_wave_models:
+
 ===========
 Wave models
 ===========
@@ -29,16 +41,16 @@ paper *A Fifth‐Order Stokes Theory for Steady Waves*. By increasing the
 requested order ``N``, the code will include more and more expansion
 coefficients, starting from linear Airy waves at 1st order and properly
 replicating 2nd, 3rd, 4th and finally 5th order Stokes waves. Any higher order
-wave requested will issue a warning and return the fift order solution.
+wave requested will issue a warning and return the fifth order solution.
 
-Stokes waves are good approximation in the deep water limit. No time consuming 
+Stokes waves are a good approximation in the deep water limit. No time-consuming 
 calculations are required to generate these waves and the computations will not
 diverge. Both of these issues can be problematic for stream function waves that
 need to optimize a non-linear function of many parameters.
 
-Further details and analytical expression for all the coefficients in the 
+Further details and analytical expressions for all the coefficients in the 
 perturbation expansion can be found in the original paper, available on `John D.
-Fentons web pages <http://johndfenton.com/Papers/Papers-John%20Fenton.html>`_.
+Fenton's web pages <http://johndfenton.com/Papers/Papers-John%20Fenton.html>`_.
 
 
 .. _theory_fenton:
@@ -50,14 +62,14 @@ Fenton stream function wave theory is a high order regular wave theory based on
 truncated Fourier series approximating the stream function. This method of 
 constructing non-linear regular waves was pioneered by Dean (1965). Our
 implementation is based on Rienecker and Fenton's 1981 paper, *A Fourier 
-approximation method for steady water waves*, which is often refered to as
+approximation method for steady water waves*, which is often referred to as
 "Fenton" stream function wave theory to differentiate it from the original
 "Dean" stream function wave theory.
 
 The method is based on collocation (solving the non-linear equations exactly in
 N + 1 points) and is based on Newton–Raphson iterations to tackle the
 non-linearities. The unknowns are the expansion coefficients :math:`B_j`, the
-wave elevation :math:`\eta(x_m)`, the stream functions value at the free surface
+wave elevation :math:`\eta(x_m)`, the stream function's value at the free surface
 :math:`Q` and the Bernoulli constant at the free surface :math:`R`.
 
 The stream function a-priori satisfies the bottom boundary condition at z=0 and
@@ -72,7 +84,7 @@ also the Laplace equation :math:`\nabla^2\Psi=0`. It is defined as
 which is non-linear in :math:`\eta` on the free surface where :math:`z=\eta`. To
 find the unknowns the following conditions are requested to be met:
 
-- The free surface is a stream line, such that
+- The free surface is a streamline, such that
   :math:`\Psi(x, \eta) = -Q`.
 - The pressure is constant at the free surface
   (Bernoulli constant :math:`R`).
@@ -81,9 +93,9 @@ find the unknowns the following conditions are requested to be met:
 - The mean wave elevation is :math:`D`, such that
   :math:`\int_0^{\lambda/2} \eta\,\mathrm d x = D \lambda / 2`. 
 
-Further details and analytical expression for all terms of the Jacobian matrix
+Further details and analytical expressions for all terms of the Jacobian matrix
 used in the Newton-iterations can be found in the original paper, available on
-`John D. Fentons web pages
+`John D. Fenton's web pages
 <http://johndfenton.com/Papers/Papers-John%20Fenton.html>`_.
 
 
@@ -95,9 +107,9 @@ used in the Newton-iterations can be found in the original paper, available on
 Air phase models
 ================
 
-Raschii was origially written to provide good initial conditions for an exactly
-divergence free two-phase Navier-Stokes solver based on DG FEM, Ocellaris_. In
-order to initialise the domain with a divergence free velocity field it is
+Raschii was originally written to provide good initial conditions for an exactly
+divergence-free two-phase Navier-Stokes solver based on DG FEM, Ocellaris_. In
+order to initialise the domain with a divergence-free velocity field it is
 important to also compute the velocities in the air phase in a consistent 
 manner.
 
@@ -116,7 +128,7 @@ FentonAir
 =========
 
 The Fourier series stream function from Rienecker and Fenton (1981) is used also
-for the air phase. Using a stream function ensures an exactly divergence free
+for the air phase. Using a stream function ensures an exactly divergence-free
 velocity field.
 
 The :ref:`Fenton stream function <eq_fenton_sf>` is linear in the unknown
@@ -127,7 +139,7 @@ simple linear solve to satisfy that the free surface is a stream function also
 in the air phase. 
 
 The same collocation method as in the *Fenton* wave model is used to construct
-the equation system for the unknown coefficients and the same equi-distant
+the equation system for the unknown coefficients and the same equidistant
 collocation points are used. In order to use the Fenton stream function the
 z-coordinate is flipped such that the air velocities are purely horizontal a
 specified "depth" above the free surface.
@@ -146,8 +158,8 @@ The combined velocity field in the water and air domains can be obtained by
 simply changing the stream function at the free surface. The result obtained by
 using Fenton stream functions in both the water and air phases can be seen in 
 the below figure. The velocities normal to the surface are continuous as one 
-would expect since the free surface is a stream line in both domains. The
-velocities parallel to the surface are discontinuous with magnitues of
+would expect since the free surface is a streamline in both domains. The
+velocities parallel to the surface are discontinuous with magnitudes of
 approximately the same size, but different directions. This is similar to what
 can be found in many textbooks for potential flow linear waves on the interface
 between two fluids. Full continuity cannot be enforced without any viscosity.
@@ -160,18 +172,18 @@ into a finite element space.
 
    Unblended stream function velocities near the free surface. Fenton wave and
    FentonAir solution for wave height 12m, depth 200 m and wave length 100 m
-   with an fifth order stream function and a 100 m air layer thickness above the
+   with a fifth order stream function and a 100 m air layer thickness above the
    still water height. Produced by ``python3 demos/plot_wave.py Fenton+FentonAir
    12 200 100 -N 5 -a 100 -b 0 -v --ymin 150 --ymax 250``.
 
 To combat these problems the two stream functions are blended together. The
 stream function in the water domain is left entirely undisturbed, but from the
 free surface up to ``z = d = air.blending_height + wave.depth`` the stream
-function in the water is smoothly transitioned into the the stream function in
+function in the water is smoothly transitioned into the stream function in
 the air. The blending height can be set to a different value than the height of
 the air layer—by default it is the same as twice the wave height. The results
 can be seen in the figure below. The resulting velocity field is exactly
-divergence free since the blending is done to create a new stream function from
+divergence-free since the blending is done to create a new stream function from
 which the velocities are calculated.
 
 .. math::
@@ -204,6 +216,6 @@ and bottom of the blending zone.
 
    Blended stream function velocities near the free surface. Fenton wave and
    FentonAir solution for wave height 12m, depth 200 m and wave length 100 m
-   with an fifth order stream function and a 100 m air layer thickness above the
+   with a fifth order stream function and a 100 m air layer thickness above the
    still water height. Produced by ``python3 demos/plot_wave.py Fenton+FentonAir
    12 200 100 -N 5 -a 100 -b 30 -v --ymin 150 --ymax 250``.
