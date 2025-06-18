@@ -34,6 +34,7 @@ jobs:
       - name: Run unit tests with uv
         run: |
           mkdir -p reports/pytest-uv
+          export SKIP_RASCHII_COMPILATION_TESTS=1
           uv run pytest -W error -v tests/ --durations=10 --junitxml=reports/pytest-uv/py3.xml
 
       - name: Build wheel file

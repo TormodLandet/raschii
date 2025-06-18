@@ -2,7 +2,7 @@ import numpy
 import pytest
 from raschii import get_wave_model
 from jit_helper import jit_compile
-from utils import skip_on_windows
+from utils import skipif_no_compile
 
 
 @pytest.fixture(params=["ConstantAir", "FentonAir"])
@@ -42,7 +42,7 @@ def check_results(xr, zr, expected, computed, name, tolerance):
     assert max_abs_err < tolerance
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -87,7 +87,7 @@ def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     check_results(xr, zr, sf_py, sf_cpp, test_name, 1e-4)
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_air_velocity(tmpdir, air_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES

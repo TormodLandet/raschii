@@ -2,7 +2,7 @@ import numpy
 import pytest
 from raschii import get_wave_model
 from jit_helper import jit_compile
-from utils import skip_on_windows
+from utils import skipif_no_compile
 
 
 @pytest.fixture(params=["Airy", "Stokes", "Fenton"])
@@ -52,7 +52,7 @@ def check_results(xr, zr, expected, computed, name, tolerance):
     assert max_abs_err < tolerance
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_jit(tmpdir):
     """
     Test the example from the pybind11 docs. If this fails then the build tool
@@ -76,7 +76,7 @@ def test_cpp_jit(tmpdir):
     assert mod.add(5, 37) == 42
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_elevation(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -120,7 +120,7 @@ def test_cpp_vs_py_elevation(tmpdir, wave_model):
     check_results(xr, zr, e_py, e_cpp, test_name, 1e-14)
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_velocity(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -178,7 +178,7 @@ def test_cpp_vs_py_velocity(tmpdir, wave_model):
     check_results(xr, zr, vel_py[:, 1], vz_cpp, test_name_z, 1e-5)
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
@@ -222,7 +222,7 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     check_results(xr, zr, sf_py, sf_cpp, test_name, 1e-3)
 
 
-@skip_on_windows
+@skipif_no_compile
 def test_cpp_vs_py_slope(tmpdir, wave_model):
     cpp_wrapper = """
     #define _USE_MATH_DEFINES
