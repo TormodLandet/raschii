@@ -121,9 +121,9 @@ Raschii is developed in Python on `GitHub <https://github.com/TormodLandet/rasch
 using the Git version control system.
 
 Raschii is automatically tested using pytest and GitHub Actions and the current CI build status is
-|circleci_status|.
+|ci_status|.
 
-.. |circleci_status| image:: https://github.com/TormodLandet/raschii/actions/workflows/pytest.yml/badge.svg
+.. |ci_status| image:: https://github.com/TormodLandet/raschii/actions/workflows/pytest.yml/badge.svg
   :target: https://github.com/TormodLandet/raschii/actions/workflows/pytest.yml
 
 
