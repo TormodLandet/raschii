@@ -130,10 +130,9 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
-Version 1.1.0 - Jun XX. 2025
+Version 1.1.0 - Jun 18. 2025
 .............................
 
-- UNRELEASED, work in progress
 - Support for giving the wave period instead of the wave length
 - Support for infinite depth waves. This is not fully complete, but should be
   sufficient to export proper SWD files for infinite depth waves.
