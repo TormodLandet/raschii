@@ -1,6 +1,8 @@
-import numpy
 from math import pi, sinh, cosh, tanh
-from matplotlib import pyplot
+import sys
+
+import numpy
+
 from raschii import get_wave_model, check_breaking_criteria
 
 
@@ -18,10 +20,16 @@ def plot_wave(
     plot_quiver=False,
     ymin=None,
     ymax=None,
-):
+) -> int:
     """
     Plot waves with the given parameters
     """
+    try:
+        from matplotlib import pyplot
+    except ImportError:
+        print("You need to install matplotlib to plot waves")
+        return 10
+
     # Figure for plot of wave with quiver
     fig1, ax1 = pyplot.subplots(1, 1)
 
@@ -209,6 +217,7 @@ def plot_wave(
     fig1.tight_layout()
     fig2.tight_layout(rect=[0, 0.0, 1, 0.95])
     pyplot.show()
+    return 0
 
 
 def makeXY(x, ymin, ymax, Ny):
@@ -226,13 +235,13 @@ def makeXY(x, ymin, ymax, Ny):
     return X, Y
 
 
-def main():
+def main() -> int:
     # Get command line arguments
     import argparse
 
     parser = argparse.ArgumentParser(prog="raschii.cmd.plot", description="Plot a Raschii wave")
     parser.add_argument(
-        "wave_type", help="Name of the wave model. " 'You can specify several, e.g., "Fenton,Airy"'
+        "wave_type", help='Name of the wave model. You can specify several, e.g., "Fenton,Airy"'
     )
     parser.add_argument("wave_height", help="Wave height", type=float)
     parser.add_argument("water_depth", help="The still water depth", type=float)
@@ -275,10 +284,10 @@ def main():
     if warn:
         print(warn)
     if err and not args.force:
-        exit(1)
+        return 1
 
     model_names = args.wave_type.split(",")
-    plot_wave(
+    return plot_wave(
         model_names=model_names,
         height=args.wave_height,
         depth=args.water_depth,
@@ -294,4 +303,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    status = main()
+    sys.exit(status if status is not None else 0)

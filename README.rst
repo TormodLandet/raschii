@@ -1,22 +1,25 @@
 Raschii
 =======
 
-Raschii is a Python library for constructing non-linear regular waves and is
-named after `Thysanoessa raschii
-<https://en.wikipedia.org/wiki/Thysanoessa_raschii>`_, the Arctic Krill.
-
-Supported wave models are currently:
+Raschii is a Python library for constructing non-linear regular waves.
+Supported wave models are:
 
 - Stream function waves (M. M. Rienecker and J. D. Fenton, 1981)
 - Stokes second- through fifth-order waves (based on J. D. Fenton, 1985) 
 - Airy waves, the standard linear wave theory
 
-Raschii includes a command line program to plot regular waves from the supported
-wave models and C++ code generation for using the results in other programs, 
-such as in `FEniCS <https://www.fenicsproject.org/>`_ expressions for initial
-and boundary conditions in a FEM solver. There is also a limited `Dart port
-<https://bitbucket.org/trlandet/raschiidart>`_ which is used in the `online demo
-<https://raschii.readthedocs.io/en/latest/raschii_dart.html>`_.
+Raschii directly computes the series expansion coefficients (for Stokes waves),
+or solves a minimization problem for the coefficients (for stream function
+waves). Once the expansion coefficients of the wave has been found you can
+
+1) Compute the free-surface elevation
+2) Compute the particle velocities at any point in the wave field (and in the
+   air phase by use of the potential-flow solution above the free-surface).
+3) Export the wave field to a file in the SWD_ file format (Spectral Wave Data, see
+   more below). The SWD library can then be used to compute many other properties
+   such as the velocity potential, the particle accelerations, the stream function,
+   the Bernoulli pressure, `and several other properties
+   <https://spectral-wave-data.readthedocs.io/en/latest/theory.html#spectral-kinematics>`_.
 
 .. figure:: http://raschii.readthedocs.io/en/latest/_static/fenton_stokes.png
    :alt: A comparison of Stokes and Fenton waves of fifth order
@@ -24,11 +27,24 @@ and boundary conditions in a FEM solver. There is also a limited `Dart port
    A comparison of fifth-order Stokes waves and fifth-order Fenton stream
    function waves. Deep water, wave height 12 m, wave length 100 m.
 
-As of version 1.0.3, Raschii can output waves in the SWD_ (spectral wave data)
-standard file format for use as the incoming incident waves in flow analysis
-programs such as boundary element and CFD (Euler and Navier-Stokes equation solvers).
-The SWD export functionality is in use in the Maritime and Offshore industries for
-3D-flow analyses of floating and fixed structures subjected to ocean surface waves.
+
+Using the Raschii waves
+-----------------------
+
+Raschii can output waves in the SWD_ (spectral wave data) standard file format for
+use as the incoming incident waves in flow analysis programs such as potential-flow
+or CFD (Euler and Navier-Stokes equations etc). The SWD file format is used by other
+linear and non-linear wave-generation tools, such as the non-linear irregular-wave
+HOSM solver DNV WAMOD. By supporting the SWD file format you avoid having to implement
+your own wave models for all types of waves, and you can instead use a uniform wave
+API for all types of linear and non-linear waves and let the SWD library handle the
+details of the wave kinematics.
+
+Raschii also includes a command line program to plot regular waves from the supported
+wave models and C++ code generation for using the results in other programs, such as
+in `FEniCS <https://www.fenicsproject.org/>`_ expressions for initial and boundary
+conditions in a FEM solver (if you do not want to link to the SWD library for some
+reason).
 
 .. _SWD: https://github.com/SpectralWaveData/spectral_wave_data
 
@@ -36,14 +52,13 @@ The SWD export functionality is in use in the Maritime and Offshore industries f
 Installation and running
 ------------------------
 
-Raschii can be installed by running
+Raschii can be installed using pip, uv, or any other Python package manager that
+supports the `Python Package Index (PyPI) <https://pypi.org/project/raschii>`_.
+Example:
 
 .. code:: bash
 
-    python -m pip install raschii
-
-Substitute ``python`` with ``python3`` as appropriate to your installation.
-The command will also install any dependencies (numpy).
+    pip install raschii
 
 
 Using Raschii from Python
@@ -56,6 +71,7 @@ An example of using Raschii from Python:
     import raschii
     
     fwave = raschii.FentonWave(height=0.25, depth=0.5, length=2.0, N=20)
+
     print(fwave.surface_elevation(x=0))
     print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
     print(fwave.velocity(x=0, z=0.2))
@@ -84,9 +100,8 @@ help for the command line programs to get detailed usage info.
   python -m raschii.cmd.plot -h
   python -m raschii.cmd.swd -h
 
-Substitute ``python`` with ``python3`` as appropriate to your installation.
-You must install the ``matplotlib`` Python package to be able to use the
-plot command.
+Substitute ``python`` with ``python3`` or ``uv run``  as appropriate to your installation.
+You must install the ``matplotlib`` Python package to be able to use the plot command.
 
 An example of using Raschii from the command line:
 

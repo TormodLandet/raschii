@@ -48,11 +48,13 @@ You can get the crest velocity by running
 
 This will show that the crest velocity is approximately 7.6 m/s.
 
-You can give period instead of wave length if you want (added in version 1.1.0).
-This is slightly slower, but still relatively instant unless you are generating
-a ton of waves. The period is used to iteratively try to find a wave length that
-results in the correct period, which is easy for deep-water Airy waves and not
-so easy for finite depth and higher-order waves.
+You can give the wave period instead of the wave length if this is more convenient.
+Specifying the period makes the calculations slightly slower, but the answer is still
+given almost instantly, so unless you are generating a lot of waves it should not be a
+problem. The wave length is computed from the wave period by an iterative procedure
+that finds the wave length that results in the requested non-linear wave period. This
+is easy for deep-water Airy waves and not so easy for finite depth and higher-order
+non-linear waves, hence the need for iteration.
 
 
 Most common parameters
