@@ -206,7 +206,7 @@ class FentonWave(WaveModel):
         t = t[:, newaxis] # shape (n_times, 1)
 
         N = len(self.eta) - 1
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         c = self.c
         depth = self.depth
@@ -214,7 +214,7 @@ class FentonWave(WaveModel):
 
         phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
         kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
-        kh = J * k * depth                           # shape (N,)
+        kh = J * k * depth                        # shape (N,)
 
         vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
         vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
@@ -270,7 +270,7 @@ class FentonWave(WaveModel):
         t = t[:, newaxis] # shape (n_times, 1)
 
         N = len(self.eta) - 1
-        B = self.data['B']
+        B = self.data["B"]
         k = self.k
         c = self.c
         depth = self.depth
@@ -278,7 +278,7 @@ class FentonWave(WaveModel):
 
         phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
         kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
-        kh = J * k * depth                           # shape (N,)
+        kh = J * k * depth                        # shape (N,)
 
         acc_x = k * sum(J * B[1:] * J * k * c * sin(phase) * cosh(kz) / cosh(kh), axis=-1)
         acc_z = k * sum(J * B[1:] * J * k * -c * cos(phase) * sinh(kz) / cosh(kh), axis=-1)
