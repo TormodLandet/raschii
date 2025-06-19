@@ -13,7 +13,11 @@ from numpy import (
     sinh,
     array,
     empty,
+    broadcast_arrays,
+    atleast_1d,
+    stack
 )
+from numpy.typing import NDArray
 from numpy.linalg import solve
 from numpy.fft import irfft
 from .common import (
@@ -24,7 +28,7 @@ from .common import (
     blend_air_and_wave_velocity_cpp,
     trapezoid_integration,
     np2py,
-    RasciiError,
+    RaschiiError,
 )
 from .swd_tools import SwdShape1and2
 from .base_classes import WaveModel
@@ -44,6 +48,8 @@ class FentonWave(WaveModel):
         air=None,
         g: float = 9.81,
         relax: float = 0.5,
+        maxiter: int = 500,
+        num_steps: int = None
     ):
         """
         Implement stream function waves based on the paper by Rienecker and
@@ -58,7 +64,7 @@ class FentonWave(WaveModel):
         """
         if length is None:
             if period is None:
-                raise RasciiError("Either length or period must be given, both are None!")
+                raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(
                 height=height, depth=depth, period=period, N=N, g=g, relax=relax
             )
@@ -73,7 +79,7 @@ class FentonWave(WaveModel):
         self.warnings: str = ""  #: Warnings raised when generating this wave
 
         # Find the coeffients through optimization
-        data = fenton_coefficients(height, depth, length, N, g, relax=relax)
+        data = fenton_coefficients(height, depth, length, N, g, relax=relax, maxiter=maxiter, num_steps=num_steps)
         self.set_data(data)
 
         # For evaluating velocities close to the free surface
@@ -140,7 +146,7 @@ class FentonWave(WaveModel):
 
         if include_depth:
             if self.depth < 0:
-                raise RasciiError("Cannot include depth in elevation for infinite depth")
+                raise RaschiiError("Cannot include depth in elevation for infinite depth")
             subtract = 0.0
         else:
             # Apply consistent water depth limitation with 'fenton_coefficients'
@@ -162,48 +168,133 @@ class FentonWave(WaveModel):
         k, c = self.k, self.c
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
-    def velocity(
-        self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
-        all_points_wet: bool = False,
-    ):
+    def velocity(self, x: NDArray, z: NDArray, t: NDArray = 0, all_points_wet: bool = False):
         """
-        Compute the fluid velocity at time t for position(s) (x, z)
-        where z is 0 at the bottom and equal to depth at the free surface
+        Computes the horizontal and vertical fluid velocity at each position `(x, z)` at each time `t`. 
+        Supports scalar and 1D array inputs, and will return the velocity corresponding to the inputs' shapes.
+        The `x` and `z` inputs are broadcast together into `N` input points. The length of the `t` input specifies `T` unique times.
+
+        Parameters
+        ----------
+        x : float | array
+            Horizontal position(s)
+        z : float | array
+            Vertical position(s) where z = 0 at the sea floor and z = depth at the free surface
+        t : float | array = 0
+            Time(s) at which to compute the velocity at each (x, z) point
+
+        Returns
+        -------
+        velocity : ndarray
+            The horizontal and vertical fluid velocity at each time `t` at each position `(x, z)`. The shape of the output is:
+            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal velocity and the second element is vertical velocity)
+            - (N, 2) if `x` or `z` are arrays and `t` is scalar
+            - (T, 2) if `x` and `z` are scalars and `t` is an array
+            - (T, N, 2) if `x` or `z` are arrays and `t` is an array
         """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
-        if isinstance(x, (float, int)):
-            x, z = [x], [z]
-        x = asarray(x, dtype=float)
-        z = asarray(z, dtype=float)
+        time_is_scalar = asarray(t).ndim == 0
+        point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
+
+        x = atleast_1d(x)
+        z = atleast_1d(z)
+        t = atleast_1d(t)
+
+        x, z = broadcast_arrays(x, z)
+
+        x = x[newaxis, :] # shape (1, n_points)
+        z = z[newaxis, :] # shape (1, n_points)
+        t = t[:, newaxis] # shape (n_times, 1)
 
         N = len(self.eta) - 1
-        B = self.data["B"]
+        B = self.data['B']
         k = self.k
         c = self.c
+        depth = self.depth
         J = arange(1, N + 1)
 
-        vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (
-            B[1:]
-            * cos(J * k * (x[:, newaxis] - c * t))
-            * cosh(J * k * z[:, newaxis])
-            / cosh(J * k * self.depth)
-        ).dot(J)
-        vel[:, 1] = k * (
-            B[1:]
-            * sin(J * k * (x[:, newaxis] - c * t))
-            * sinh(J * k * z[:, newaxis])
-            / cosh(J * k * self.depth)
-        ).dot(J)
+        phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
+        kh = J * k * depth                           # shape (N,)
+
+        vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
+        vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
+
+        vel = stack([vel_x, vel_z], axis=-1)  # shape (n_times, n_points, 2)
 
         if not all_points_wet:
-            blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
+            # blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
+            pass
+            # must be updated for new broadcasting rules
 
-        return vel
+        if time_is_scalar and point_is_scalar: return vel.squeeze() # shape (2,)
+        elif time_is_scalar: return vel[0]                          # shape (n_points, 2)
+        elif point_is_scalar: return vel[:, 0]                      # shape (n_times, 2)
+        
+        return vel # shape (n_times, n_points, 2)
+    
+    def acceleration(self, x: NDArray, z:NDArray, t: NDArray = 0, all_points_wet: bool = False):
+        """
+        Computes the horizontal and vertical fluid acceleration at each position `(x, z)` at each time `t`.
+        Supports scalar and 1D array inputs, and will return the acceleration corresponding to the inputs' shapes.
+        The `x` and `z` inputs are broadcast together into `N` input points. The length of the `t` input specifies `T` unique times.
+
+        Parameters
+        ----------
+        x : float | array
+            Horizontal position(s)
+        z : float | array
+            Vertical position(s) where z = 0 at the sea floor and z = depth at the free surface
+        t : float | array = 0
+            Time(s) at which to compute the acceleration at each (x, z) point
+
+        Returns
+        -------
+        acceleration : ndarray
+            The horizontal and vertical fluid acceleration at each time `t` at each position `(x, z)`. The shape of the output is:
+            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal acceleration and the second element is vertical acceleration)
+            - (N, 2) if `x` or `z` are arrays and `t` is scalar
+            - (T, 2) if `x` and `z` are scalars and `t` is an array
+            - (T, N, 2) if `x` or `z` are arrays and `t` is an array
+        """
+        time_is_scalar = asarray(t).ndim == 0
+        point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
+
+        x = atleast_1d(x)
+        z = atleast_1d(z)
+        t = atleast_1d(t)
+
+        x, z = broadcast_arrays(x, z)
+
+        x = x[newaxis, :] # shape (1, n_points)
+        z = z[newaxis, :] # shape (1, n_points)
+        t = t[:, newaxis] # shape (n_times, 1)
+
+        N = len(self.eta) - 1
+        B = self.data['B']
+        k = self.k
+        c = self.c
+        depth = self.depth
+        J = arange(1, N + 1)
+
+        phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
+        kh = J * k * depth                           # shape (N,)
+
+        acc_x = k * sum(J * B[1:] * J * k * c * sin(phase) * cosh(kz) / cosh(kh), axis=-1)
+        acc_z = k * sum(J * B[1:] * J * k * -c * cos(phase) * sinh(kz) / cosh(kh), axis=-1)
+
+        acc = stack([acc_x, acc_z], axis=-1)  # shape (n_times, n_points, 2)
+
+        if not all_points_wet:
+            # blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
+            pass
+            # must be updated for new broadcasting rules
+
+        if time_is_scalar and point_is_scalar: return acc.squeeze() # shape (2,)
+        elif time_is_scalar: return acc[0]                          # shape (n_points, 2)
+        elif point_is_scalar: return acc[:, 0]                      # shape (n_times, 2)
+        
+        return acc # shape (n_times, n_points, 2)
 
     def stream_function_cpp(self, frame="b"):
         """
@@ -213,7 +304,7 @@ class FentonWave(WaveModel):
         the mean water level.
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
+            raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
         N = len(self.eta) - 1
         J = arange(1, N + 1)
         B = self.data["B"]
@@ -244,7 +335,7 @@ class FentonWave(WaveModel):
         The positive traveling direction is x[0]
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
+            raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
         N = self.E.size - 1
         facs = self.E * 2 / N
         facs[0] *= 0.5
@@ -267,7 +358,7 @@ class FentonWave(WaveModel):
         The positive traveling direction is x[0]
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
+            raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
         N = self.E.size - 1
         facs = self.E * 2 / N * self.k * -1.0
         facs[0] *= 0.5
@@ -293,7 +384,7 @@ class FentonWave(WaveModel):
         which is zero at the bottom and equal to +depth at the mean water level.
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
+            raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
         N = len(self.eta) - 1
         J = arange(1, N + 1)
         B = self.data["B"]

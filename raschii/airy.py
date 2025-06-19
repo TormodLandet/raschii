@@ -3,7 +3,7 @@ from .common import (
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
     np2py,
-    RasciiError,
+    RaschiiError,
     NonConvergenceError,
 )
 from .base_classes import WaveModel
@@ -33,7 +33,7 @@ class AiryWave(WaveModel):
         """
         if length is None:
             if period is None:
-                raise RasciiError("Either length or period must be given, both are None!")
+                raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(depth=depth, period=period, g=g)
 
         self.height: float = height  #: The wave height
@@ -70,7 +70,7 @@ class AiryWave(WaveModel):
 
         if include_depth:
             if self.depth < 0:
-                raise RasciiError("Cannot include depth in elevation for infinite depth")
+                raise RaschiiError("Cannot include depth in elevation for infinite depth")
             offset = self.depth
         else:
             offset = 0.0
@@ -89,7 +89,7 @@ class AiryWave(WaveModel):
         where z is 0 at the bottom and equal to depth at the free surface
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
+            raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         x = asarray(x, dtype=float)

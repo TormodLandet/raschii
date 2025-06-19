@@ -13,7 +13,7 @@ version = __version__
 
 from typing import Union, Tuple, Optional
 
-from .common import check_breaking_criteria, RasciiError, NonConvergenceError  # NOQA
+from .common import check_breaking_criteria, RaschiiError, NonConvergenceError  # NOQA
 from .airy import AiryWave
 from .fenton import FentonWave
 from .stokes import StokesWave
@@ -39,7 +39,7 @@ def get_wave_model(
         model_name, air_model_name = model_name.split("+")
 
     if model_name not in WAVE_MODELS:
-        raise RasciiError(
+        raise RaschiiError(
             "Wave model %r is not supported, supported wave "
             "models are %s" % (model_name, ", ".join(WAVE_MODELS.keys()))
         )
@@ -49,7 +49,7 @@ def get_wave_model(
         return wave, None
 
     if air_model_name not in AIR_MODELS:
-        raise RasciiError(
+        raise RaschiiError(
             "Air model %r is not supported, supported air phase "
             "models are %s" % (air_model_name, ", ".join(AIR_MODELS.keys()))
         )

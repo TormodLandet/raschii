@@ -1,6 +1,6 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy as np
-from .common import blend_air_and_wave_velocities, RasciiError, NonConvergenceError
+from .common import blend_air_and_wave_velocities, RaschiiError, NonConvergenceError
 from .swd_tools import SwdShape1and2
 from .base_classes import WaveModel
 
@@ -32,7 +32,7 @@ class StokesWave(WaveModel):
         """
         if length is None:
             if period is None:
-                raise RasciiError("Either length or period must be given, both are None!")
+                raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(height=height, depth=depth, period=period, N=N, g=g)
 
         self.height: float = height  #: The wave height
@@ -114,7 +114,7 @@ class StokesWave(WaveModel):
 
         if include_depth:
             if self.depth < 0:
-                raise RasciiError("Cannot include depth in elevation for infinite depth")
+                raise RaschiiError("Cannot include depth in elevation for infinite depth")
             offset = self.depth
         else:
             offset = 0.0
@@ -133,7 +133,7 @@ class StokesWave(WaveModel):
         where z is 0 at the bottom and equal to depth at the free surface
         """
         if self.depth < 0:
-            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
+            raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         x = np.asarray(x, dtype=float)
