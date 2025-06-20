@@ -8,11 +8,11 @@ import numpy as np
 AIR_BLENDING_HEIGHT_FACTOR = 2
 
 
-class RasciiError(Exception):
+class RaschiiError(Exception):
     pass
 
 
-class NonConvergenceError(RasciiError):
+class NonConvergenceError(RaschiiError):
     pass
 
 
@@ -33,7 +33,7 @@ def check_breaking_criteria(
     """
     if length is None:
         if period is None:
-            raise RasciiError("Either length or period must be given")
+            raise RaschiiError("Either length or period must be given")
 
         # We do not know the wave model, so we assume it is Airy
         # which should give a ballpark OK-ish answer

@@ -80,6 +80,6 @@ construct consistent initial and boundary conditions.
 Exceptions
 =================
 
-.. autoexception:: raschii.RasciiError
+.. autoexception:: raschii.RaschiiError
 
 .. autoexception:: raschii.NonConvergenceError
