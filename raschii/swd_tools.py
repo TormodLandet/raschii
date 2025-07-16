@@ -80,10 +80,6 @@ class SwdShape1and2:
         assert tmax > dt > 0.0
 
         prog = f"raschii-{raschii_version}"
-        h_swd = np.empty(self.n_swd + 1, complex)
-        ht_swd = np.empty(self.n_swd + 1, complex)
-        c_swd = np.empty(self.n_swd + 1, complex)
-        ct_swd = np.empty(self.n_swd + 1, complex)
         dtime = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
         nsteps = int((tmax + 0.0001 * dt) / dt + 1)
 
@@ -111,24 +107,26 @@ class SwdShape1and2:
             if self.depth >= 0:
                 out.write(pack("<f", self.depth))
 
-            def dump_cofs(vals):
-                for j in range(self.n_swd + 1):
-                    r = vals[j]
-                    out.write(pack("<f", r.real))
-                    out.write(pack("<f", r.imag))
-
+            # Wrte the h, ht, c, and ct coefficient arrays for each time step
+            N2 = self.n_swd + 1
+            fac = np.array([1j * j * self.omega for j in range(N2)], dtype=np.complex64)
+            h_swd = np.empty(N2, np.complex64)
+            ht_swd = np.empty(N2, np.complex64)
+            c_swd = np.empty(N2, np.complex64)
+            ct_swd = np.empty(N2, np.complex64)
             for istep in range(nsteps):
                 t = istep * dt
-                for j in range(self.n_swd + 1):
-                    fac = complex(0.0, j * self.omega)
-                    h_swd[j] = self.h_cofs[j] * np.exp(fac * t)
-                    ht_swd[j] = fac * h_swd[j]
-                    c_swd[j] = self.c_cofs[j] * np.exp(fac * t)
-                    ct_swd[j] = fac * c_swd[j]
-                dump_cofs(h_swd)
-                dump_cofs(ht_swd)
-                dump_cofs(c_swd)
-                dump_cofs(ct_swd)
+                fac2 = np.exp(fac * t)
+
+                h_swd[:] = self.h_cofs * fac2
+                ht_swd[:] = h_swd * fac
+                c_swd[:] = self.c_cofs * fac2
+                ct_swd[:] = c_swd * fac
+                
+                out.write(h_swd.tobytes())
+                out.write(ht_swd.tobytes())
+                out.write(c_swd.tobytes())
+                out.write(ct_swd.tobytes())
 
 
 class SwdReaderForRaschiiTests:
