@@ -7,6 +7,17 @@ import numpy as np
 
 @pyscript.when("click", "#generate_wave")
 def plot_wave():
+    """
+    This is called when the user clicks the "Generate Wave" button.
+
+    - Read the user input
+    - Check the breaking criteria
+    - Generate the wave,  
+    - Plots the wave using SVG
+    - Show the wave properties in output text area
+    - Show warnings and errors in the info area
+
+    """
     page.find("#raschii p.info").textContent = "Generating wave..."
     page.find("#raschii p.warning").textContent = ""
     page.find("#raschii p.error").textContent = ""
@@ -45,30 +56,33 @@ def plot_wave():
     # The wave elevation
     t = 0.0  # Time at which to evaluate the wave
     x = np.linspace(0.0, wave_input.length / 2, 200)
-    eta = wave.surface_elevation(x, t, include_depth=False)
-    Uc = wave.velocity(x[0], eta[0] + wave.depth, all_points_wet=True).flatten()
-    Ut = wave.velocity(x[-1], eta[-1] + wave.depth, all_points_wet=True).flatten()
+    eta = wave.surface_elevation(x, t)
+    Uc = wave.velocity(x[0], eta[0], all_points_wet=True).flatten()
+    Ut = wave.velocity(x[-1], eta[-1], all_points_wet=True).flatten()
 
     outputs = [
         "Summary of results:",
-        f"Surface elevation maximum = {eta.max():.3f}",
-        f"Surface elevation minimum = {eta.min():.3f}",
-        f"Horizontal crest particle speed  = {Uc[0]:.3f}",
-        f"Horizontal trough particle speed = {Ut[0]:.3f}",
-        f"Wave number    = {wave.k:.5f}",
-        f"Wave frequency = {wave.omega:.5f}",
-        f"Wave period    = {wave.T:.2f}",
-        f"Phase speed    = {wave.c:.3f}",
+        f"  Surface elevation maximum = {eta.max():.3f}",
+        f"  Surface elevation minimum = {eta.min():.3f}",
+        f"  Horizontal crest particle speed  = {Uc[0]:.3f}",
+        f"  Horizontal trough particle speed = {Ut[0]:.3f}",
+        f"  Wave number    = {wave.k:.5f}",
+        f"  Wave frequency = {wave.omega:.5f}",
+        f"  Wave period    = {wave.T:.2f}",
+        f"  Phase speed    = {wave.c:.3f}",
         "",
         "Details:",
-        *[f"{key}: {value}" for key, value in wave.data.items()],
+        *[f"  {key}: {value}" for key, value in wave.data.items()],
     ]
     page.find("#raschii_out").textContent = "\n".join(outputs)
-    SvgWavePlot(wave=wave, x=x, eta=eta, depth=wave_input.depth)
+    SvgWavePlot(wave=wave, x=x, eta=eta)
 
 
 @pyscript.when("click", "#raschii_plot")
 def show_info_when_clicking_plot(mouse_event):
+    """
+    This is called when the user clicks on the SVG plot.
+    """
     wave = SvgWavePlot.current_wave
     if wave is None:
         page.find("#raschii p.info").textContent = "No wave data available."
@@ -78,13 +92,13 @@ def show_info_when_clicking_plot(mouse_event):
     x, z = get_physical_coordinates(mouse_event)
 
     # Show the information about the clicked point
-    info = f"You clicked on x = {x:.3f}, z = {z:.3f} ({z + wave.depth:.3f})<br>"
-    eta = wave.surface_elevation(x=[x], t=0.0, include_depth=False)[0]
+    info = f"You clicked on x = {x:.3f} m, z = {z:.3f} m (from the bottom)"
+    eta = wave.surface_elevation(x=[x], t=0.0)[0]
     if z > eta:
-        info += " (Air)"
+        info += "<br>(Air)"
     else:
-        info += " (Water)"
-        vel = wave.velocity(x, z + wave.depth, all_points_wet=True)
+        info += "<br>(Water)"
+        vel = wave.velocity(x, z, all_points_wet=True)
         info += f"<br>Horizontal particle velocity: {vel[0, 0]:.3f}"
         info += f"<br>Vertical particle velocity:   {vel[0, 1]:.3f}"
 
@@ -125,11 +139,21 @@ class WaveInput:
         self.length: float = get_input_value("length", float)
         self.order: float = get_input_value("order", int)
 
+        if self.height < 0:
+            self.is_ok = False
+            self.error_message += "Wave height must be non-negative!\n"
+        if self.depth <= 0:
+            self.is_ok = False
+            self.error_message += "Water depth must be non-negative!\n"
+        if self.length <= 0:
+            self.is_ok = False
+            self.error_message += "Wave length must be positive!\n"
+
 
 class SvgWavePlot:
     current_wave = None
 
-    def __init__(self, wave, x: list[float], eta: list[float], depth: float):
+    def __init__(self, wave, x: list[float], eta: list[float]):
         SvgWavePlot.current_wave = wave
 
         # Plot extents
@@ -137,13 +161,11 @@ class SvgWavePlot:
         self.xmax = max(x)
         eta_min = min(eta)
         eta_max = max(eta)
-        if depth < 0 or depth > eta_max * 3:
-            depth = eta_max * 3
-        self.ymin = max(eta_min - (eta_max - eta_min) * 0.4, -depth)
+        self.ymin = max(eta_min - (eta_max - eta_min) * 0.4, 0.0)
         self.ymax = eta_max + (eta_max - eta_min) * 0.4
 
         self.x = [0.0, *x, x[-1]]
-        self.y = [-depth, *eta, -depth]
+        self.y = [0.0, *eta, 0.0]
         self.eta = eta
         self.create_svg()
 

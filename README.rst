@@ -145,6 +145,12 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
+Version 1.1.1 - Unreleased
+............................
+
+- Use PyScript to run Raschii in the browser (instead of the incomplete Dart port).
+- Increase the speed of the SWD file writer
+
 Version 1.1.0 - Jun 18. 2025
 .............................
 

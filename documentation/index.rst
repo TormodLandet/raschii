@@ -17,7 +17,7 @@
    theory
    usage
    usage_command_line
-   raschii_dart
+   raschii_pyscript
    api_docs
 
 .. ##############################################################

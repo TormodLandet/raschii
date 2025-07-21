@@ -23,62 +23,10 @@ import os
 import sys
 
 
-def import_raschii():
-    here = os.path.abspath(os.path.dirname(__file__))
-    sys.path.insert(0, os.path.join(here, ".."))
+here = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(here, ".."))
 
-    import raschii
-
-    return raschii
-
-
-def get_raschii_version():
-    raschii = import_raschii()
-    return raschii.__version__
-
-
-# -- Build the RaschiiDart online calculator javascript code  -----------------
-#
-import subprocess, json
-
-if not "NO_GEN_JS" in os.environ:
-    # Generate the JS code with dart2js after checking it out from git
-
-    def build_raschii_dart():
-        repo_url = "https://bitbucket.org/trlandet/raschiidart.git"
-        repo_name = "raschii_dart.git"
-        cmds = [
-            (["git", "clone", repo_url, repo_name], "."),
-            (["cp", "raschii_web.html", "../raschii_dart.html.in"], repo_name),
-            (["dart", "compile", "js", "raschii_web.dart", "-o", "raschii.js", "-O2"], repo_name),
-            (["mv", "raschii.js", "../_static/"], repo_name),
-            (["rm", "-rf", repo_name], "."),
-        ]
-        for cmd, workdir in cmds:
-            print("RUNNING:", " ".join(cmd))
-            subprocess.check_call(cmd, cwd=workdir)
-
-    def copy_raschii_dart_html():
-        with open("raschii_dart.html", "wt") as out, open("raschii_dart.html.in", "rt") as inp:
-            transfer = False
-            for line in inp:
-                if "</body>" in line:
-                    transfer = False
-                if transfer:
-                    out.write(line.replace("raschii.js", "_static/raschii.js"))
-                if "<body>" in line:
-                    transfer = True
-
-    try:
-        build_raschii_dart()
-        copy_raschii_dart_html()
-    except Exception as e:
-        error = str(e)
-
-        print(error)
-        with open("_static/raschii.js", "at") as f:
-            f.write('element.innerHTML += "<br><b>Got error:</b><br>" +')
-            f.write('"<pre>" + %s + "</pre>";\n' % json.dumps(error))
+import raschii
 
 
 # -- Project information -----------------------------------------------------
@@ -88,7 +36,7 @@ copyright = "2018-2024, Tormod Landet"
 author = "Tormod Landet"
 
 # The full version, including alpha/beta/rc tags
-release = get_raschii_version()
+release = raschii.__version__
 
 # The short X.Y version
 version = ".".join(release.split(".")[:2])
@@ -106,7 +54,6 @@ version = ".".join(release.split(".")[:2])
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.mathjax",
-    "sphinx.ext.ifconfig",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

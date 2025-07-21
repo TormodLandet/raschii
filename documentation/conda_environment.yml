@@ -2,10 +2,9 @@ name: raschiienv
 channels:
   - conda-forge
 dependencies:
-  - python>3.7
-  - sphinx>=1.5.1
+  - python>3.11
+  - sphinx>=8.0
   - numpy
-  - dart-sdk
   - pip
   - pip:
     - readthedocs-sphinx-ext
