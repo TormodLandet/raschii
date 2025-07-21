@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Recommended meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+    <!-- PyScript CSS -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
+
+    <!-- This script tag bootstraps PyScript -->
+    <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
+
+    <title>Raschii Web editor using PyScript</title>
+</head>
+
+<body>
+    <script type="py-editor" config='{"packages":["raschii"]}'>
+        import raschii
+
+        fwave = raschii.FentonWave(height=0.25, depth=0.5, length=2.0, N=20)
+        print(fwave.surface_elevation(x=0))
+        print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
+        print(fwave.velocity(x=0, z=0.2))
+    </script>
+</body>
+
+</html>
