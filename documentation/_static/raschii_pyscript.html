@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Recommended meta tags -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+    <!-- PyScript CSS -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
+
+    <!-- This script tag bootstraps PyScript -->
+    <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
+
+    <!-- Close the "Loading ..." splashscreen when pyscript has downloaded all packages -->
+    <link rel="stylesheet" href="./raschii_pyscript.css">
+    <script type="module">
+        const loading = document.getElementById('loading');
+        addEventListener('py:ready', function () {
+            loading.close();
+            document.querySelector('#raschii p.info').textContent = "Raschii loaded successfully!";
+            document.querySelector('#raschii p.error').textContent = "";
+            document.querySelector('#raschii p.warning').textContent = "";
+        });
+        loading.showModal();
+    </script>
+
+    <title>Raschii for Web in PyScript</title>
+</head>
+
+<body>
+    <dialog id="loading">
+        <div>
+            <h1>Loading...</h1>
+        </div>
+    </dialog>
+
+    <script type="py" config='{"packages":["raschii"]}' src="raschii_pyscript.py"></script>
+
+    <div id="raschii">
+        <div id="raschii_plot"></div>
+        <p class="info informer"></p>
+        <p class="error informer">
+            Javascript (PyScript) code is not loaded! This calculator will not work!
+        </p>
+        <p class="warning informer">
+            Javascript (PyScript) code is not loaded! This calculator will not work!
+        </p>
+
+        <form>
+            <label for="raschii_wave_model">Wave model</label>
+            <select id="raschii_wave_model">
+                <option value="Stokes" selected>Stokes wave</option>
+                <option value="Fenton">Fenton stream-function wave</option>
+            </select>
+
+            <label for="raschii_height">Wave height [m]</label>
+            <input id="raschii_height" type="number" value="12.0" step="any" min="0">
+
+            <label for="raschii_length">Wave length [m]</label>
+            <input id="raschii_length" type="number" value="100.0" step="any" min="0">
+
+            <label for="raschii_depth">Water depth [m] or -1.0 for infinite depth</label>
+            <input id="raschii_depth" type="number" value="3000.0" step="any" min="-1.0">
+
+            <label for="raschii_order">Model order</label>
+            <input id="raschii_order" type="number" value="5" min="1">
+
+            <button id="generate_wave" type="button">Generate wave</button>
+        </form>
+
+        <output id="raschii_out">Calculation results: NO RESULTS YET</output>
+    </div>
+</body>
+
+</html>

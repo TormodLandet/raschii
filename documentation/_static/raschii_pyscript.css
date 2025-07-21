@@ -1,0 +1,127 @@
+/*
+************************************************************************
+PyScript loading screen styling
+************************************************************************
+*/
+#loading {
+    outline: none;
+    border: none;
+    background: transparent;
+}
+
+#loading div {
+    background: #123;
+    color: #edc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50vh;
+    height: 50vh;
+}
+
+#loading div h1 {
+    font: bold 2vh sans-serif;
+    /* Infinite loop while the loading screen is visible */
+    animation: loading-pulse 1.0s infinite;
+}
+
+/*
+  Animation for the loading screen 
+  By default the 0% and 100% keyframes are equal to the element's 
+  base style without animation, so we only specify the midpoint
+*/
+@keyframes loading-pulse {
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+}
+
+/*
+************************************************************************
+Raschii styling (copied from the raschii-dart repo)
+************************************************************************
+*/
+#raschii {
+    margin: 1em auto;
+    max-width: 40em;
+    display: grid;
+    grid-template-columns: 1fr max-content 1.44fr;
+
+    /* Reset inherited css inside the div */
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 100%;
+    line-height: 1;
+}
+
+#raschii .informer,
+#raschii #raschii_plot,
+#raschii output {
+    grid-column: 1/-1;
+    margin: 2px;
+    margin-bottom: 1em;
+}
+
+#raschii .informer {
+    margin: 2px 1em 1em 1em;
+}
+
+#raschii .informer:empty {
+    display: none;
+}
+
+#raschii .error {
+    color: red;
+}
+
+#raschii .warning {
+    color: orange;
+}
+
+#raschii .info {
+    color: navy;
+}
+
+#raschii #raschii_plot {
+    border: 1px solid black;
+    height: 15em;
+    background-color: lightgray;
+}
+
+#raschii #raschii_plot svg {
+    width: 100%;
+    height: 100%;
+    max-width: 40em;
+    background-color: white;
+}
+
+#raschii form {
+    display: grid;
+    grid-column: 2/3;
+    grid-template-columns: max-content max-content;
+}
+
+#raschii label {
+    grid-column: 1/2;
+    display: flex;
+    align-items: center;
+    justify-content: right;
+}
+
+#raschii input,
+#raschii button,
+#raschii select {
+    grid-column: 2/3;
+    margin: 0.1em 1em 0.1em 1em;
+    width: 15em;
+    box-sizing: border-box;
+    height: 2em;
+}
+
+#raschii output {
+    background-color: #eee;
+    margin: 1em;
+    padding: 1em;
+    font-family: monospace;
+    white-space: pre;
+}

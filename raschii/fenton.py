@@ -72,6 +72,10 @@ class FentonWave(WaveModel):
         self.relax: float = relax  #: The numerical relaxation in the optimization loop
         self.warnings: str = ""  #: Warnings raised when generating this wave
 
+        if N < 1:
+            self.warnings = "Fenton order must be at least 1, using order 1"
+            self.order = 1
+
         # Find the coeffients through optimization
         data = fenton_coefficients(height, depth, length, N, g, relax=relax)
         self.set_data(data)
