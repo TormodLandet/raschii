@@ -60,6 +60,9 @@ Example:
 
     pip install raschii
 
+You can also run Raschii in your web browser using PyScript/Pyodide, see the 
+`online demo <https://raschii.readthedocs.io/en/latest/raschii_pyscript.html>`_!
+
 
 Using Raschii from Python
 .........................

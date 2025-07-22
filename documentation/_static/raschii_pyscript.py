@@ -12,20 +12,23 @@ def plot_wave():
 
     - Read the user input
     - Check the breaking criteria
-    - Generate the wave,  
-    - Plots the wave using SVG
+    - Generate the wave
+    - Show the wave profile using SVG
     - Show the wave properties in output text area
     - Show warnings and errors in the info area
 
     """
+    global current_raschii_wave
+    current_raschii_wave = None
+
     page.find("#raschii p.info").textContent = "Generating wave..."
     page.find("#raschii p.warning").textContent = ""
     page.find("#raschii p.error").textContent = ""
     page.find("#raschii_out").textContent = ""
-    SvgWavePlot.current_wave = None
 
     # Read the user input
     wave_input = WaveInput()
+    wave_input.load_from_page()
     if not wave_input.is_ok:
         page.find("#raschii p.error").textContent = wave_input.error_message
         return
@@ -71,20 +74,25 @@ def plot_wave():
         f"  Wave period    = {wave.T:.2f}",
         f"  Phase speed    = {wave.c:.3f}",
         "",
-        "Details:",
+        "Numerical details:",
         *[f"  {key}: {value}" for key, value in wave.data.items()],
     ]
     page.find("#raschii_out").textContent = "\n".join(outputs)
-    SvgWavePlot(wave=wave, x=x, eta=eta)
+    current_raschii_wave = wave
+    page.find("#raschii_plot").innerHTML = wave_profile_to_svg(x, eta)
 
 
 @pyscript.when("click", "#raschii_plot")
 def show_info_when_clicking_plot(mouse_event):
     """
-    This is called when the user clicks on the SVG plot.
+    This is called when the user clicks on the SVG wave profile.
+
+    - Get the coordinates of the clicked point in the wave coordinate system
+    - Show information about the clicked point, including particle velocities
+
     """
-    wave = SvgWavePlot.current_wave
-    if wave is None:
+    global current_raschii_wave
+    if current_raschii_wave is None:
         page.find("#raschii p.info").textContent = "No wave data available."
         return
 
@@ -93,12 +101,12 @@ def show_info_when_clicking_plot(mouse_event):
 
     # Show the information about the clicked point
     info = f"You clicked on x = {x:.3f} m, z = {z:.3f} m (from the bottom)"
-    eta = wave.surface_elevation(x=[x], t=0.0)[0]
+    eta = current_raschii_wave.surface_elevation(x=[x], t=0.0)[0]
     if z > eta:
         info += "<br>(Air)"
     else:
         info += "<br>(Water)"
-        vel = wave.velocity(x, z, all_points_wet=True)
+        vel = current_raschii_wave.velocity(x, z, all_points_wet=True)
         info += f"<br>Horizontal particle velocity: {vel[0, 0]:.3f}"
         info += f"<br>Vertical particle velocity:   {vel[0, 1]:.3f}"
 
@@ -107,37 +115,25 @@ def show_info_when_clicking_plot(mouse_event):
 
 class WaveInput:
     def __init__(self):
+        self.wave_model_name: str
+        self.height: float
+        self.depth: float
+        self.length: float
+        self.order: float
+
         self.is_ok: bool = True
         self.warning_message: str = ""
         self.error_message: str = ""
 
-        def get_input_value(name: str, converter):
-            try:
-                element = page.find(f"#raschii_{name}")
-            except Exception:
-                self.is_ok = False
-                self.error_message += f"Input element '{name}' not found.\n"
-                return None
-
-            try:
-                value = element[0].value
-            except IndexError:
-                self.is_ok = False
-                self.error_message += f"Input element '{name}' is empty!\n"
-                return None
-
-            try:
-                return converter(value)
-            except ValueError:
-                self.is_ok = False
-                self.error_message += f"Invalid value for '{name}': {value!r} is not a number!\n"
-                return None
-
-        self.wave_model_name: str = get_input_value("wave_model", str)
-        self.height: float = get_input_value("height", float)
-        self.depth: float = get_input_value("depth", float)
-        self.length: float = get_input_value("length", float)
-        self.order: float = get_input_value("order", int)
+    def load_from_page(self):
+        """
+        Load the wave input parameters from the user input on the web page
+        """
+        self.wave_model_name = self._get_page_input_value("wave_model", str)
+        self.height = self._get_page_input_value("height", float)
+        self.depth = self._get_page_input_value("depth", float)
+        self.length = self._get_page_input_value("length", float)
+        self.order = self._get_page_input_value("order", int)
 
         if self.height < 0:
             self.is_ok = False
@@ -149,50 +145,64 @@ class WaveInput:
             self.is_ok = False
             self.error_message += "Wave length must be positive!\n"
 
+    def _get_page_input_value(self, name: str, converter):
+        try:
+            element = page.find(f"#raschii_{name}")
+        except Exception:
+            self.is_ok = False
+            self.error_message += f"Input element '{name}' not found.\n"
+            return None
 
-class SvgWavePlot:
-    current_wave = None
+        try:
+            value = element[0].value
+        except IndexError:
+            self.is_ok = False
+            self.error_message += f"Input element '{name}' is empty!\n"
+            return None
 
-    def __init__(self, wave, x: list[float], eta: list[float]):
-        SvgWavePlot.current_wave = wave
-
-        # Plot extents
-        self.xmin = min(x)
-        self.xmax = max(x)
-        eta_min = min(eta)
-        eta_max = max(eta)
-        self.ymin = max(eta_min - (eta_max - eta_min) * 0.4, 0.0)
-        self.ymax = eta_max + (eta_max - eta_min) * 0.4
-
-        self.x = [0.0, *x, x[-1]]
-        self.y = [0.0, *eta, 0.0]
-        self.eta = eta
-        self.create_svg()
-
-    def create_svg(self):
-        """
-        Create the SVG tags to plot the wave.
-
-        We need to handle the fact that SVG y-coordinates are inverted compared to
-        the wave coordinate system. The SVG origin is at the top-left corner and is
-        positive downwards, while the wave coordinate system has the origin at the
-        still water surface and is positive upwards.
-        """
-        dx = self.xmax - self.xmin
-        dy = self.ymax - self.ymin
-        coords = " ".join(f"{x},{y}" for x, y in zip(self.x, self.y))
-        svg_contents = [
-            '<svg version="1.1" preserveAspectRatio="none"',
-            f'viewBox="{self.xmin} {-self.ymax} {dx} {dy}">',
-            '<g transform="scale(1,-1)">',
-            f'<path d="M{coords} z" fill="#687dc1"></path>',
-            "</g>",
-            "</svg>",
-        ]
-        page.find("#raschii_plot").innerHTML = "\n".join(svg_contents)
+        try:
+            return converter(value)
+        except ValueError:
+            self.is_ok = False
+            self.error_message += f"Invalid value for '{name}': {value!r} is not a number!\n"
+            return None
 
 
-def get_physical_coordinates(mouse_event):
+def wave_profile_to_svg(x: list[float], eta: list[float]) -> str:
+    """
+    Convert the wave profile to SVG format and returns it as string
+
+    We need to handle the fact that SVG y-coordinates are inverted compared to
+    the wave coordinate system. The SVG origin is at the top-left corner and is
+    positive downwards, while the wave coordinate system has the origin at the
+    still water surface and is positive upwards.
+    """
+    # Plot extents
+    xmin = min(x)
+    xmax = max(x)
+    eta_min = min(eta)
+    eta_max = max(eta)
+    ymin = max(eta_min - (eta_max - eta_min) * 0.4, 0.0)
+    ymax = eta_max + (eta_max - eta_min) * 0.4
+
+    x_plot = [0.0, *x, x[-1]]
+    y_plot = [0.0, *eta, 0.0]
+    coords = " ".join(f"{x},{y}" for x, y in zip(x_plot, y_plot))
+
+    dx = xmax - xmin
+    dy = ymax - ymin
+    svg_contents = [
+        '<svg version="1.1" preserveAspectRatio="none"',
+        f'viewBox="{xmin} {-ymax} {dx} {dy}">',
+        '<g transform="scale(1,-1)">',
+        f'<path d="M{coords} z" fill="#687dc1"></path>',
+        "</g>",
+        "</svg>",
+    ]
+    return "\n".join(svg_contents)
+
+
+def get_physical_coordinates(mouse_event) -> tuple[float, float]:
     """
     Convert the mouse click coordinates from the SVG element to the physical
     coordinates used when creating the SVG.

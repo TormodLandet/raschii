@@ -10,20 +10,35 @@
     <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
 
     <!-- This script tag bootstraps PyScript -->
+    <script src="./mini-coi.js"></script>
     <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
 
     <title>Raschii Web editor using PyScript</title>
 </head>
 
 <body>
-    <script type="py-editor" config='{"packages":["raschii"]}'>
+    <script type="py-editor" config='{"packages":["raschii", "matplotlib"]}'>
+        from pyscript import display, web
+        import numpy as np
+        import matplotlib.pyplot as plt
         import raschii
 
-        fwave = raschii.FentonWave(height=0.25, depth=0.5, length=2.0, N=20)
-        print(fwave.surface_elevation(x=0))
-        print(fwave.surface_elevation(x=[0, 0.1, 0.2, 0.3]))
-        print(fwave.velocity(x=0, z=0.2))
+        wave = raschii.FentonWave(height=0.20, depth=0.5, length=2.0, N=10)
+
+        x = np.linspace(-wave.length, wave.length, 101)
+        eta = wave.surface_elevation(x, t=0.0)
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.axhline(wave.depth, c='k', lw=1, ls=':')
+        ax.fill_between(x, eta, eta*0, color='blue', alpha=0.5)
+
+        # Clear any prior output from the web page
+        web.page["#raschii_editor_output"].innerHTML = ""
+
+        # Display the matplotlib figure
+        display(fig, target="#raschii_editor_output")
     </script>
+    <div id="raschii_editor_output"></div>
 </body>
 
 </html>
