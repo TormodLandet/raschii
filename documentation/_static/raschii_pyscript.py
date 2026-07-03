@@ -101,14 +101,14 @@ def show_info_when_clicking_plot(mouse_event):
 
     # Show the information about the clicked point
     info = f"You clicked on x = {x:.3f} m, z = {z:.3f} m (from the bottom)"
-    eta = current_raschii_wave.surface_elevation(x=[x], t=0.0)[0]
+    eta = current_raschii_wave.surface_elevation(x, t=0.0)
     if z > eta:
         info += "<br>(Air)"
     else:
         info += "<br>(Water)"
         vel = current_raschii_wave.velocity(x, z, all_points_wet=True)
-        info += f"<br>Horizontal particle velocity: {vel[0, 0]:.3f}"
-        info += f"<br>Vertical particle velocity:   {vel[0, 1]:.3f}"
+        info += f"<br>Horizontal particle velocity: {vel[0]:.3f}"
+        info += f"<br>Vertical particle velocity:   {vel[1]:.3f}"
 
     page.find("#raschii p.info").innerHTML = info
 

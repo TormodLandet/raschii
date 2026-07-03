@@ -15,9 +15,7 @@ from .base_classes import WaveModel
 from .common import (
     NonConvergenceError,
     RaschiiError,
-    blend_air_and_wave_velocity_cpp,
     cosh_ratio,
-    np2py,
 )
 
 

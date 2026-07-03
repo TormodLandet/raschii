@@ -132,7 +132,7 @@ def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
     cache_dir = tmpdir.ensure("jit_cache", dir=True)
 
     # Check that the wave model produces the same results in C++ and Python
-    cppx, cppz = fwave.velocity_cpp()
+    cppx, cppz = fwave.cpp.velocity()
 
     cpp = (
         cpp_wrapper.replace("CODE_X_GOES_HERE", cppx)

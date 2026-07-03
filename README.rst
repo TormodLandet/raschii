@@ -83,9 +83,9 @@ This will output:
 
 .. code:: output
 
-    [0.67352456]
+    0.67352456
     [0.67352456 0.61795882 0.57230232 0.53352878]
-    [[0.27263788 0.        ]]
+    [0.27263788 0.        ]
 
 See the `documentation <https://raschii.readthedocs.io/en/latest/usage.html>`_ for more
 information on the available parameters, methods and attributes of the wave classes.
@@ -147,6 +147,27 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 
 Releases
 --------
+
+Version 2.0.0 - July 3. 2026
+............................
+
+New features:
+
+- More vectorization of inputs are now possible. Thanks to jasperpato in `pull request #7
+  <https://github.com/TormodLandet/raschii/pull/7>`_! In addition TormodLandet has added a few more
+  vectorized methods and changed the output shape of some methods for consistency (see below).
+
+A few **backwards incompatible** changes were made in this release:
+
+- Rename class ``RasciiError`` to ``RaschiiError``
+- Return scalar surface elevation (and velocity potential) when the input are all scalar.
+  If you give ``(x=1.0, t=0.0)``, the return value will be a scalar, but if you give
+  ``(x=[1.0], t=0.0)`` the return value will be a 1D array with one element. This is the same
+  as, e.g., numpy and scipy do for their functions, and is hence a bit more consistent.
+- Move the ``*_cpp`` methods to a separate ``raschii.cpp`` module. If you are one of the extremely
+  few users of the C++ code generator you must replace, e.g., ``wave.velocity_cpp`` with the new
+  ``wave.cpp.velocity``. This reduces the size of the main wave classes and keeps little-used
+  functionality separate from the main code
 
 Version 1.2.0 - July 3. 2026
 ............................

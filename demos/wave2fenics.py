@@ -111,7 +111,7 @@ def make_vel_div(wave, mesh, t):
     vel = dolfin.as_vector([u0, u1])
 
     # Get C++ expressions and convert to x-y plane from x-z plane
-    cpp_x, cpp_y = wave.velocity_cpp()
+    cpp_x, cpp_y = wave.cpp.velocity()
     cpp_x = cpp_x.replace("x[2]", "x[1]")
     cpp_y = cpp_y.replace("x[2]", "x[1]")
 
@@ -144,7 +144,7 @@ def make_colour_function(wave, mesh, t):
     element = dolfin.FiniteElement(
         "Quadrature", mesh.ufl_cell(), quad_degree, quad_scheme="default"
     )
-    ec = dolfin.Expression("x[1] < (%s) ? 1.0 : 0.0" % wave.elevation_cpp(), element=element, t=t)
+    ec = dolfin.Expression("x[1] < (%s) ? 1.0 : 0.0" % wave.cpp.elevation(), element=element, t=t)
     u0, v0 = dolfin.TrialFunction(V0), dolfin.TestFunction(V0)
     c = dolfin.Function(V0)
     A0 = dolfin.assemble(u0 * v0 * dolfin.dx)
