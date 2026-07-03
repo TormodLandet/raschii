@@ -63,7 +63,7 @@ class SwdShape1and2:
         self.lscale = 1.0
         self.input_data = str(input_data).encode("utf-8")
 
-    def write(self, path, dt, tmax=None, nperiods=None):
+    def write(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
         Write the actual SWD file
 
@@ -71,6 +71,10 @@ class SwdShape1and2:
         * dt: Sampling spacing of time in SWD file
         * tmax: Approximate length of time series to be stored in the SWD file
         * nperiods: Alternative specification of tmax in terms of number of oscillation periods.
+        * amp: SWD amp flag. Should be 1, 2, or 3.
+               1: store h, ht, c, ct (potential evaluated at z=0, default)
+               2: store h, ht, c, ct (potential evaluated at the free surface)
+               3: store h, ht only (no potential, elevation queries only)
 
         See: https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
         """
@@ -90,7 +94,7 @@ class SwdShape1and2:
                 out.write(pack("<i", 1))  # shp for long-crested infinite depth
             else:
                 out.write(pack("<i", 2))  # shp for long-crested constant finite depth
-            out.write(pack("<i", 1))  # amp (both elevation and field data)
+            out.write(pack("<i", amp))  # amp flag
             out.write(pack("<30s", prog.ljust(30).encode("utf-8")))  # prog name
             out.write(pack("<20s", dtime.ljust(20).encode("utf-8")))  # date
             nid = len(self.input_data)
@@ -107,26 +111,28 @@ class SwdShape1and2:
             if self.depth >= 0:
                 out.write(pack("<f", self.depth))
 
-            # Wrte the h, ht, c, and ct coefficient arrays for each time step
+            # Write the h, ht, and (when amp < 3) c, ct coefficient arrays for each time step
             N2 = self.n_swd + 1
             fac = np.array([1j * j * self.omega for j in range(N2)], dtype=np.complex64)
             h_swd = np.empty(N2, np.complex64)
             ht_swd = np.empty(N2, np.complex64)
-            c_swd = np.empty(N2, np.complex64)
-            ct_swd = np.empty(N2, np.complex64)
+            if amp < 3:
+                c_swd = np.empty(N2, np.complex64)
+                ct_swd = np.empty(N2, np.complex64)
             for istep in range(nsteps):
                 t = istep * dt
                 fac2 = np.exp(fac * t)
 
                 h_swd[:] = self.h_cofs * fac2
                 ht_swd[:] = h_swd * fac
-                c_swd[:] = self.c_cofs * fac2
-                ct_swd[:] = c_swd * fac
-                
                 out.write(h_swd.tobytes())
                 out.write(ht_swd.tobytes())
-                out.write(c_swd.tobytes())
-                out.write(ct_swd.tobytes())
+
+                if amp < 3:
+                    c_swd[:] = self.c_cofs * fac2
+                    ct_swd[:] = c_swd * fac
+                    out.write(c_swd.tobytes())
+                    out.write(ct_swd.tobytes())
 
 
 class SwdReaderForRaschiiTests:
@@ -177,21 +183,20 @@ class SwdReaderForRaschiiTests:
             nsig = self.nx + 1
             self.k_vector = np.arange(nsig) * self.dk
 
-            # Read the h(t, k) array by looping through the time steps
+            # Read h(t, k) and, when amp < 3, c(t, k) for each time step
             self.h_vectors = np.empty((self.nsteps, nsig), dtype=np.complex64)
+            if self.amp < 3:
+                self.c_vectors = np.empty((self.nsteps, nsig), dtype=np.complex64)
             for it in range(self.nsteps):
                 self.h_vectors[it, :] = np.fromfile(f, dtype=np.complex64, count=nsig)
-                pos = f.tell()
-                spool = 8 * nsig  # spool past ht(t,k)
+                np.fromfile(f, dtype=np.complex64, count=nsig)  # ht — read past
                 if self.amp < 3:
-                    spool += 8 * nsig  # spool past c(t,k)
-                    spool += 8 * nsig  # spool past ct(t,k)
-                f.seek(pos + spool)
+                    self.c_vectors[it, :] = np.fromfile(f, dtype=np.complex64, count=nsig)
+                    np.fromfile(f, dtype=np.complex64, count=nsig)  # ct — read past
 
     def surface_elevation(self, x: float = 0.0) -> np.ndarray:
         """
-        Compute the SWD surface elevation at position (x, y) and time t.
-        For more details see the documentation at
+        Compute the SWD surface elevation at position x for all time steps.
 
         Shape 1:
             https://spectral-wave-data.readthedocs.io/en/latest/shape_1.html
@@ -202,3 +207,26 @@ class SwdReaderForRaschiiTests:
         X = np.exp(-1j * self.k_vector[1:] * x)
         h = self.h_vectors[:, 1:]
         return np.real(h @ X)
+
+    def surface_potential(self, x: float = 0.0) -> np.ndarray:
+        """
+        Reconstruct the velocity potential on the (wave-model) free surface at
+        position x for all time steps.  Only available when ``amp < 3``.
+
+        For ``amp=1`` the stored ``c`` coefficients encode the potential at z=0
+        (the calm water level), so this method returns the potential at the calm
+        surface, not on the actual wavy surface.  For ``amp=2`` it returns the
+        potential on the actual free surface as written by the wave generator.
+
+        The reconstruction follows:
+            phi(x, t) = sum_j Re{ c_j(t) * exp(-i * k_j * x) }
+        which, for purely imaginary c_j = i*p_j, reduces to
+            phi(x, t) = sum_j p_j * sin(k_j * x - j*omega*t)
+
+        See: https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
+        """
+        if self.amp >= 3:
+            raise ValueError("surface_potential is not available for amp=3 SWD files")
+        X = np.exp(-1j * self.k_vector[1:] * x)
+        c = self.c_vectors[:, 1:]
+        return np.real(c @ X)

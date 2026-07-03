@@ -32,3 +32,23 @@ class WaveModel:
         where z is 0 at the bottom and equal to depth at the free surface
         """
         raise NotImplementedError("This method should be implemented in subclasses.")
+
+    def velocity_potential(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+    ):
+        """
+        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
+
+        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
+        The gradient of φ equals the oscillatory fluid velocity as returned by
+        :meth:`velocity`; the mean-flow current term is excluded.
+
+        Works for both finite and infinite depth.  For infinite-depth waves
+        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
+        z should be supplied in the same coordinate system (z=0 at the effective
+        sea floor).
+        """
+        raise NotImplementedError("This method should be implemented in subclasses.")

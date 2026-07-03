@@ -1,7 +1,6 @@
 from math import pi, sinh, tanh, exp, sqrt, pow
 import numpy as np
 from .common import blend_air_and_wave_velocities, RasciiError, NonConvergenceError
-from .swd_tools import SwdShape1and2
 from .base_classes import WaveModel
 
 
@@ -199,104 +198,85 @@ class StokesWave(WaveModel):
 
         return vel
 
-    def write_swd(self, path, dt, tmax=None, nperiods=None):
+    def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
-        Write a SWD-file of the wave field according to the file
-        specification in the Github repository spectral-wave-data ....
+        Write a SWD-file of the wave field.
 
         * path:     Full path of the new SWD file
         * dt:       The temporal sampling spacing in the SWD file
         * tmax:     The temporal sampling range in the SWD file is [0, tmax]
         * nperiods: Alternative specification: tmax = nperiods * wave_period
-        """
-        if tmax is None:
-            assert nperiods is not None
-            tmax = nperiods * self.T
-        assert tmax > dt > 0.0
+        * amp:      SWD amp flag (1, 2, or 3).  Default is 1.
 
-        # Apply consistent water depth limitation with 'stokes_coefficients': kd <= 50 * pi
+                    - 1: store potential coefficients at z=0 (calm surface)
+                    - 2: store potential coefficients on the actual wavy free surface
+                    - 3: store elevation only (no potential data)
+
+        See the SWD documentation for the details:
+
+        * https://spectral-wave-data.readthedocs.io/en/latest/shape_2.html
+        * https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
+        """
+        from .swd import SwdWriterStokes
+
+        SwdWriterStokes(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
+
+    def velocity_potential(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+    ):
+        """
+        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
+
+        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
+        The gradient ∇φ equals the oscillatory fluid velocity as returned by
+        :meth:`velocity`; the constant phase-speed term is excluded.
+
+        Works for both finite and infinite depth.  For infinite-depth waves
+        (``depth=-1``) an effective depth of 50π/k is used internally; z should
+        be supplied in the same coordinate system (z=0 at the effective sea floor).
+        """
+        if isinstance(x, (float, int)):
+            x, z = [x], [z]
+        x = np.asarray(x, dtype=float)
+        z = np.asarray(z, dtype=float)
+
         if self.depth < 0:
             depth = 50 * pi / self.k
         else:
             depth = min(self.depth, 50 * pi / self.k)
 
-        kd = self.k * depth
-        eps = self.k * self.height / 2
+        k = self.k
+        eps = k * self.height / 2
         D = self.data
+        x2 = x - self.c * t
+        scale = D["C0"] * sqrt(self.g / k**3)
 
-        # The swd coordinate system is earth fixed with zswd=0 in the calm
-        # surface. Hence:
-        #   xswd = x + t * self.c    and    zswd = z - depth
+        phi = np.zeros(x.size, float)
 
-        # zeta(x) = sum[ecs[j] * cos(j * self.k * x) for j in range(nc)]
+        def add_term(i, j):
+            Aij = D.get("A%d%d" % (i, j), 0.0)
+            if Aij == 0.0:
+                return
+            # Stokes A_ij contains 1/sinh(j k d) factors that prevent overflow
+            # of cosh(j k z) for normal finite depths (kd <= 50 pi). The
+            # zero-check avoids 0 * inf = nan for deep-water high harmonics.
+            phi[:] += pow(eps, i) * Aij * np.cosh(j * k * z) * np.sin(j * k * x2)
 
-        # Note that ecs[j] * cos(j * self.k * x) == Re{h[j, t] * exp(-I * j * self.k * xswd)}
-        # where h[j, t] = ecs[j] * exp(-I * j * self.k * (-self.c * t)),   j>=0, I=sqrt(-1)
-        # Hence dh[j, t]/dt = I * j * self.k * self.c * h[j, t]
+        add_term(1, 1)
+        add_term(2, 2)
+        add_term(3, 1)
+        add_term(3, 3)
+        add_term(4, 2)
+        add_term(4, 4)
+        add_term(5, 1)
+        add_term(5, 3)
+        add_term(5, 5)
 
-        nc = self.order + 1  # Include Bias term
-        ecs = np.empty(nc, complex)
-        ecs[0] = 0.0  # zero at calm water line
-        ecs[1] = eps + eps**3 * D["B31"] - eps**5 * (D["B53"] + D["B55"])
-        if self.order > 1:
-            ecs[2] = eps**2 * D["B22"] + eps**4 * D["B42"]
-        if self.order > 2:
-            ecs[3] = -(eps**3) * D["B31"] + eps**5 * D["B53"]
-        if self.order > 3:
-            ecs[4] = eps**4 * D["B44"]
-        if self.order > 4:
-            ecs[5] = eps**5 * D["B55"]
-        ecs /= self.k
-
-        # From particle velocities we construct the SWD velocity potential...
-
-        # Note:  vcs[j] * cos(j * self.k * x) == Im{c[j, t] * exp(-I * j * self.k * xswd)}
-        # where c[j, t] = I * vcs[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
-        # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
-
-        vcs = np.zeros(nc, complex)
-        vcs[0] = 0.0
-        vcs[1] = (eps * D["A11"] + eps**3 * D["A31"] + eps**5 * D["A51"]) * np.cosh(kd)
-
-        if self.order > 1:
-            multiplier = eps**2 * D["A22"] + eps**4 * D["A42"]
-            if multiplier != 0.0:
-                vcs[2] = multiplier * np.cosh(2 * kd)
-
-        if self.order > 2:
-            multiplier = eps**3 * D["A33"] + eps**5 * D["A53"]
-            if multiplier != 0.0:
-                vcs[3] = multiplier * np.cosh(3 * kd)
-
-        if self.order > 3:
-            multiplier = eps**4 * D["A44"]
-            if multiplier != 0.0:
-                vcs[4] = multiplier * np.cosh(4 * kd)
-
-        if self.order > 4:
-            multiplier = eps**5 * D["A55"]
-            if multiplier != 0.0:
-                vcs[5] = multiplier * np.cosh(5 * kd)
-
-        vcs *= 1.0j * D["C0"] * sqrt(self.g / self.k**3)
-
-        input_data = {
-            "model": "Stokes",
-            "T": self.T,
-            "length": self.length,
-            "height": self.height,
-            "depth": self.depth,
-            "depth_actual": depth,
-            "N": self.order,
-            "air": self.air.__class__.__name__,
-            "g": self.g,
-            "c": self.c,
-        }
-
-        swd = SwdShape1and2(
-            self.T, self.length, self.depth, vcs, ecs, input_data, self.g, order_zpos=self.order
-        )
-        swd.write(path, dt, tmax=tmax)
+        phi *= scale
+        return phi
 
 
 def sech(x):

@@ -107,6 +107,22 @@ def cosh_by_cosh(a, b):
     return ans
 
 
+def cosh_ratio(a, b):
+    """
+    Compute cosh(a)/cosh(b) stably for numpy arrays of any shape.
+
+    When cosh(b) overflows (large |b|) the result is approximated by
+    exp(a - |b|), which has relative error 2*exp(-2*|b|) < 1e-26 for |b| > 30.
+    Intended for 0 <= a <= b so that the ratio is always in (0, 1].
+    """
+    with np.errstate(over="ignore", invalid="ignore"):
+        result = np.cosh(a) / np.cosh(b)
+    bad = ~np.isfinite(result)
+    if np.any(bad):
+        result = np.where(bad, np.exp(a - np.abs(b)), result)
+    return result
+
+
 def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
     """
     Compute velocities in the air phase and blend the water and air velocities

@@ -12,21 +12,19 @@ from numpy import (
     cosh,
     sinh,
     array,
-    empty,
 )
 from numpy.linalg import solve
-from numpy.fft import irfft
 from .common import (
     NonConvergenceError,
     sinh_by_cosh,
     cosh_by_cosh,
+    cosh_ratio,
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
     trapezoid_integration,
     np2py,
     RasciiError,
 )
-from .swd_tools import SwdShape1and2
 from .base_classes import WaveModel
 
 
@@ -344,87 +342,71 @@ class FentonWave(WaveModel):
 
         return cpp_x, cpp_z
 
-    def write_swd(self, path, dt, tmax=None, nperiods=None):
+    def velocity_potential(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+    ):
         """
-        Write a SWD-file of the wave field according to the file
-        specification in the Github repository spectral-wave-data ....
+        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
+
+        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
+        The gradient ∇φ equals the oscillatory fluid velocity as returned by
+        :meth:`velocity`; the mean-flow current term (B₀·x) is excluded.
+
+        Works for both finite and infinite depth.  For infinite-depth waves
+        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
+        z should be supplied in the same coordinate system.
+        """
+        if self.depth < 0:
+            depth = 25.0 * self.length
+        else:
+            depth = self.depth
+
+        if isinstance(x, (float, int)):
+            x, z = [x], [z]
+        x = asarray(x, dtype=float)
+        z = asarray(z, dtype=float)
+
+        N = len(self.eta) - 1
+        B = self.data["B"]
+        k = self.k
+        c = self.c
+        J = arange(1, N + 1)
+
+        # phi = sum_{j=1}^{N} B_j * cosh(j k z) / cosh(j k depth) * sin(j k (x - c t))
+        # cosh_ratio is used for numerical stability in deep water.
+        x2 = x[:, newaxis] - c * t  # (M, 1) for broadcasting with J
+        phi = (
+            B[1:]
+            * sin(J * k * x2)                                           # (M, N)
+            * cosh_ratio(J * k * z[:, newaxis], J * k * depth)          # (M, N)
+        ).sum(axis=1)
+        return phi
+
+    def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
+        """
+        Write a SWD-file of the wave field.
 
         * path:     Full path of the new SWD file
         * dt:       The temporal sampling spacing in the SWD file
         * tmax:     The temporal sampling range in the SWD file is [0, tmax]
         * nperiods: Alternative specification: tmax = nperiods * wave_period
+        * amp:      SWD amp flag (1, 2, or 3).  Default is 1.
+
+                    - 1: store potential coefficients at z=0 (calm surface)
+                    - 2: store potential coefficients on the actual wavy free surface
+                    - 3: store elevation only (no potential data)
+
+        See the SWD documentation for the details:
+
+        * https://spectral-wave-data.readthedocs.io/en/latest/shape_2.html
+        * https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
         """
-        if tmax is None:
-            assert nperiods is not None
-            tmax = nperiods * self.T
-        assert tmax > dt > 0.0
+        from .swd import SwdWriterFenton
 
-        # Apply consistent water depth limitation with 'fenton_coefficients'
-        if self.depth < 0:
-            depth = 25 * self.length
-        else:
-            depth = self.depth
-
-        # The swd coordinate system is earth fixed with zswd=0 in the calm
-        # surface. Hence:
-        #   xswd = x + t * self.c    and    zswd = z - self.depth
-
-        # In SWD we apply summation and not trapezoidal integration of surface
-        # Fourier coefficients. We apply exact Discrete Fourier Transformations
-        # assuming constant spaced collocation points...
-        nc = len(self.eta)
-        dx0 = abs(self.x[1] - self.x[0])
-        assert [
-            abs(abs(self.x[i + 2] - self.x[i + 1]) - abs(self.x[i + 1] - self.x[i])) < 1.0e-4 * dx0
-            for i in range(nc - 2)
-        ]
-        # elevation on complete wave length...
-        nc2 = 2 * nc - 1
-        etas = array([self.eta[i] if i < nc else self.eta[nc2 - i - 1] for i in range(nc2)])
-        res = irfft(etas)
-        # zeta(x) = sum[ecs[j] * cos(j * self.k * x) for j in range(nc)]
-        # res[:] other than Bias and Nyquist must be doubled. Skip zero sinusoidal coefficients...
-        ecs = empty(nc)
-        ecs[0] = (
-            res[0].real - depth
-        )  # Also shift zero to free surface. (Should be very close to zero)
-        for j in range(1, nc - 1):
-            ecs[j] = 2.0 * res[2 * j].real
-        ecs[-1] = res[nc2 - 1].real
-
-        # Note that ecs[j] * cos(j * self.k * x) == Re{h[j, t] * exp(-I * j * self.k * xswd)}
-        # where h[j, t] = ecs[j] * exp(-I * j * self.k * (-self.c * t)),   j>=0, I=sqrt(-1)
-        # Hence dh[j, t]/dt = I * j * self.k * self.c * h[j, t]
-
-        # From particle velocities we construct the SWD velocity potential...
-
-        # Note:  B[j] * cos(j * self.k * x) == Im{c[j, t] * exp(-I * j * self.k * xswd)}
-        # where c[j, t] = I * B[j] * exp(-I * j * self.k * (-self.c * t)),     j>0
-        # Hence dc[j, t]/dt = I * j * self.k * self.c * c[j, t]
-
-        B = self.data["B"]
-        vcs = empty(nc, complex)
-        vcs[0] = 0.0
-        for j in range(1, nc):
-            vcs[j] = 1.0j * B[j]
-
-        input_data = {
-            "model": "Fenton",
-            "T": self.T,
-            "height": self.height,
-            "depth": self.depth,
-            "depth_actual": depth,
-            "N": self.order,
-            "air": self.air.__class__.__name__,
-            "g": self.g,
-            "c": self.c,
-            "relax": self.relax,
-        }
-
-        swd = SwdShape1and2(
-            self.T, self.length, self.depth, vcs, ecs, input_data, self.g, order_zpos=-1
-        )
-        swd.write(path, dt, tmax=tmax)
+        SwdWriterFenton(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
 
 
 def fenton_coefficients(

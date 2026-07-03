@@ -38,3 +38,22 @@ def test_user_doc():
 
     vel = wave.velocity(0.0, 208.0)
     print(vel)
+
+
+def test_user_doc_velpot():
+    import raschii
+
+    WaveModel, _ = raschii.get_wave_model('Fenton')
+    wave = WaveModel(height=12, depth=200, length=100, N=5)
+
+    # Potential at a single point below the calm surface
+    phi = wave.velocity_potential(x=10.0, z=150.0, t=0.0)
+    print(phi)
+
+    # Potential on the wavy free surface at several x positions
+    import numpy as np
+    xs = np.linspace(0, wave.length, 40, endpoint=False)
+    z_surf = wave.surface_elevation(xs, include_depth=True)  # z from sea floor
+    print(z_surf)
+    phi_surf = wave.velocity_potential(xs, z_surf)
+    print(phi_surf)

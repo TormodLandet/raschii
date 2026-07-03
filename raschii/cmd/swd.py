@@ -1,7 +1,7 @@
 from raschii import get_wave_model, check_breaking_criteria
 
 
-def write_swd(swd_file_name, model_name, height, depth, length, N, dt, tmax):
+def write_swd(swd_file_name, model_name, height, depth, length, N, dt, tmax, amp=1):
     """
     Write an SWD file for the wave with the given parameters
     """
@@ -13,9 +13,8 @@ def write_swd(swd_file_name, model_name, height, depth, length, N, dt, tmax):
     if wave.warnings:
         print("WARNINGS for %s:\n%s" % (model_name, wave.warnings))
 
-    status = wave.write_swd(swd_file_name, dt=dt, tmax=tmax)
-    if status is not NotImplemented:
-        print("WRITE SWD DONE\nWrote", swd_file_name)
+    wave.write_swd(swd_file_name, dt=dt, tmax=tmax, amp=amp)
+    print("WRITE SWD DONE\nWrote", swd_file_name)
 
 
 def main():
@@ -34,6 +33,7 @@ def main():
     parser.add_argument("-N", type=int, default=10, help="Approximation order")
     parser.add_argument("--dt", type=float, default=0.01, help="Timestep")
     parser.add_argument("--tmax", type=float, default=10.0, help="Duration")
+    parser.add_argument("--swd-amp", type=int, default=1, help="SWD amp flag. Should be 1, 2, or 3")
     parser.add_argument(
         "-f",
         "--force",
@@ -60,6 +60,7 @@ def main():
         N=args.N,
         dt=args.dt,
         tmax=args.tmax,
+        amp=args.swd_amp,
     )
 
 

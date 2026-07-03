@@ -26,25 +26,29 @@ to see the options. At the time of writing, the output is
 
 .. code:: text
 
-  usage: raschii.cmd.swd [-h] [-N N] [--dt DT] [--tmax TMAX] [-f]
+  usage: raschii.cmd.swd [-h] [-N N] [--dt DT] [--tmax TMAX] [--swd-amp {1,2,3}] [-f]
                          swd_file     wave_type
                          wave_height  water_depth  wave_length
 
   Write a Raschii wave to file (SWD format)
 
   positional arguments:
-    swd_file     Name of the SWD file to write.
-    wave_type    Name of the wave model.
-    wave_height  Wave height
-    water_depth  The still water depth
-    wave_length  Distance between peaks
+    swd_file           Name of the SWD file to write.
+    wave_type          Name of the wave model.
+    wave_height        Wave height
+    water_depth        The still water depth
+    wave_length        Distance between peaks
 
   options:
-    -h, --help   show this help message and exit
-    -N N         Approximation order
-    --dt DT      Timestep
-    --tmax TMAX  Duration
-    -f, --force  Allow exceeding breaking criteria
+    -h, --help         show this help message and exit
+    -N N               Approximation order
+    --dt DT            Timestep
+    --tmax TMAX        Duration
+    --swd-amp {1,2,3}  SWD amp flag.
+                       1 (default): store potential at z=0 (calm surface);
+                       2: store potential on the wavy free surface;
+                       3: store elevation only (no potential).
+    -f, --force        Allow exceeding breaking criteria
 
 
 Basic plots

@@ -2,6 +2,7 @@ from numpy import pi, cos, sin, zeros, array, asarray, sinh, cosh, tanh
 from .common import (
     blend_air_and_wave_velocities,
     blend_air_and_wave_velocity_cpp,
+    cosh_ratio,
     np2py,
     RasciiError,
     NonConvergenceError,
@@ -163,22 +164,69 @@ class AiryWave(WaveModel):
 
         return cpp_x, cpp_z
 
-    def write_swd(self, path, dt, tmax=None, nperiods=None):
+    def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
-        NOT IMPLEMENTED FOR AIRY!
-
-        Write a SWD-file of the wave field according to the file
-        specification in the Github repository spectral-wave-data ....
+        Write a SWD-file of the wave field.
 
         * path:     Full path of the new SWD file
         * dt:       The temporal sampling spacing in the SWD file
         * tmax:     The temporal sampling range in the SWD file is [0, tmax]
         * nperiods: Alternative specification: tmax = nperiods * wave_period
-        """
+        * amp:      SWD amp flag (1, 2, or 3).  Default is 1.
 
-        print("Airy does not currently support writing SWD files.")
-        print("Please use the Stokes wave model with order N=1")
-        return NotImplemented
+                    - 1: store potential coefficients at z=0 (calm surface)
+                    - 2: store potential coefficients on the actual wavy free surface
+                    - 3: store elevation only (no potential data)
+
+        Implemented via a Stokes N=1 wave (analytically identical to Airy theory).
+
+        See the SWD documentation for the details:
+
+        * https://spectral-wave-data.readthedocs.io/en/latest/shape_2.html
+        * https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
+        """
+        from .swd import SwdWriterAiry
+
+        SwdWriterAiry(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
+
+    def velocity_potential(
+        self,
+        x: float | list[float],
+        z: float | list[float],
+        t: float = 0,
+    ):
+        """
+        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
+
+        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
+        The gradient ∇φ equals the oscillatory fluid velocity as returned by
+        :meth:`velocity`; the formula is
+
+        .. math::
+
+           \\phi(x, z, t) = \\frac{\\omega H}{2k}
+               \\frac{\\cosh(kz)}{\\sinh(kd)}\\sin(kx - \\omega t)
+
+        Works for both finite and infinite depth.  For infinite-depth waves
+        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
+        z should be supplied in the same coordinate system (z=0 at the effective
+        sea floor).
+        """
+        if isinstance(x, (float, int)):
+            x, z = [x], [z]
+        x = asarray(x, dtype=float)
+        z = asarray(z, dtype=float)
+
+        H = self.height
+        k = self.k
+        w = self.omega
+
+        d = 25.0 * self.length if self.depth < 0 else self.depth
+
+        # phi = (w H) / (2 k) * cosh(kz) / sinh(kd) * sin(kx - wt)
+        #     = (w H) / (2 k) * cosh_ratio(kz, kd) / tanh(kd) * sin(kx - wt)
+        # tanh(kd) -> 1 for deep water and never overflows.
+        return (w * H) / (2 * k) * cosh_ratio(k * z, k * d) / tanh(k * d) * sin(k * x - w * t)
 
 
 def compute_length_from_period(depth: float, period: float, g: float = 9.81) -> float:

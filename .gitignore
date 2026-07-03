@@ -11,6 +11,7 @@ syntax: glob
 build/
 dist/
 *egg-info*
+*.whl
 *.swd
 .venv
 uv.lock

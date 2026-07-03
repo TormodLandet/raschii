@@ -95,7 +95,7 @@ SWD: Spectral Wave Data format
 
 To write the wave elevation and kinematics to the SWD (Spectral Wave Data) file
 format, e.g. for use as an incident wave field in a CFD or potential flow simulation,
-use the `write_swd` method on the wave class
+use the ``write_swd`` method on the wave class
 
 .. code-block:: python
 
@@ -114,6 +114,32 @@ underlying SWD wave description is also described. Raschii waves are stored as S
 shape-class 2 (long-crested waves in constant water depth with constant spacing
 :math:`\Delta k`)
 
+The ``amp`` flag controls what kinematics are stored in the file:
+
+* **amp=1** *(default)*: The velocity-potential Fourier coefficients :math:`c_j` are
+  evaluated at the calm free surface (z=0 in SWD convention). Full kinematics at
+  arbitrary depth are reconstructed by the SWD library using the vertical shape
+  functions :math:`Z_j(z)`.
+
+* **amp=2**: The coefficients :math:`c_j` encode the velocity potential sampled
+  directly on the *wavy* free surface, :math:`\psi(x) = \phi(x, \eta(x))`. This
+  is intended for nonlinear wave generators (e.g. HOSM) that provide the free-surface
+  potential as their primary output. Reconstructing kinematics at depth requires more
+  advanced methods such as the H2-operator or a Laplace solver. Current versions of
+  the SWD library do not support calculation of kinematics for ``amp=2``.
+
+* **amp=3**: Only the surface-elevation coefficients :math:`h_j` are stored, the
+  velocity potential is omitted. This is useful when only wave-surface queries
+  (elevation, slope) are needed by the application (smaller files).
+
+.. code-block:: python
+
+    # Write an elevation-only SWD file (smallest file size)
+    wave.write_swd("my_wave_elev_only.swd", tmax=200.0, dt=0.01, amp=3)
+
+    # Write a free-surface-potential SWD file (amp=2)
+    wave.write_swd("my_wave_surface_phi.swd", tmax=200.0, dt=0.01, amp=2)
+
 The air model is not a part of the SWD file format and the kinematics above the free
 surface are hence decided by the SWD library you use and how your program chooses to
 use the SWD data. Some versions of OpenFOAM will query the wave model to get the
@@ -123,6 +149,35 @@ other wave-simulation programs exist, but currently none that are open source as
 as we know. Writing a custom adapter is relatively straightforward since the SWD
 library itself is open source. Interfacing with Raschii waves using the SWD file
 format is a recommended way to integrate other programs with Raschii.
+
+
+Velocity potential
+==================
+
+The velocity potential :math:`\phi(x, z, t)` (earth-frame, mean-flow excluded) is
+available for all wave models via the ``velocity_potential`` method, using the same
+coordinate convention as ``velocity``:
+
+.. code-block:: python
+
+    import raschii
+
+    WaveModel, _ = raschii.get_wave_model('Fenton')
+    wave = WaveModel(height=12, depth=200, length=100, N=5)
+
+    # Potential at a single point below the calm surface
+    phi = wave.velocity_potential(x=10.0, z=150.0, t=0.0)
+
+    # Potential on the wavy free surface at several x positions
+    import numpy as np
+    xs = np.linspace(0, wave.length, 40, endpoint=False)
+    z_surf = wave.surface_elevation(xs, include_depth=True)  # z from sea floor
+    phi_surf = wave.velocity_potential(xs, z_surf)
+
+The gradient :math:`\nabla\phi` equals the oscillatory fluid velocity returned by
+``velocity()``.  For infinite-depth waves (``depth=-1``), the method uses an internal
+effective depth (25 x wave_length for Fenton/Airy, 50π/k for Stokes) so that
+:math:`z=0` corresponds to the effective sea floor.
 
 
 Air-phase model
