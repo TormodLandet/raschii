@@ -13,7 +13,7 @@ version = __version__
 
 from typing import Union, Tuple, Optional
 
-from .common import check_breaking_criteria, RasciiError, NonConvergenceError  # NOQA
+from .common import check_breaking_criteria, RaschiiError, NonConvergenceError  # NOQA
 from .airy import AiryWave
 from .fenton import FentonWave
 from .stokes import StokesWave
@@ -27,6 +27,9 @@ WAVE_MODELS = {"Airy": AiryWave, "Fenton": FentonWave, "Stokes": StokesWave}
 #: The available air-phase models. A dictionary mapping model name (str) to model class.
 AIR_MODELS = {"FentonAir": FentonAirPhase, "ConstantAir": ConstantAirPhase}
 
+# For backwards compatibility with old, misspelled version of the RaschiiError class name
+RasciiError = RaschiiError
+
 
 def get_wave_model(
     model_name: str, air_model_name: Optional[str] = None
@@ -39,7 +42,7 @@ def get_wave_model(
         model_name, air_model_name = model_name.split("+")
 
     if model_name not in WAVE_MODELS:
-        raise RasciiError(
+        raise RaschiiError(
             "Wave model %r is not supported, supported wave "
             "models are %s" % (model_name, ", ".join(WAVE_MODELS.keys()))
         )
@@ -49,7 +52,7 @@ def get_wave_model(
         return wave, None
 
     if air_model_name not in AIR_MODELS:
-        raise RasciiError(
+        raise RaschiiError(
             "Air model %r is not supported, supported air phase "
             "models are %s" % (air_model_name, ", ".join(AIR_MODELS.keys()))
         )

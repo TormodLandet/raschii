@@ -1,7 +1,7 @@
 import numpy as np
 
 from .swd_file import SwdShape1and2
-from raschii.common import RasciiError
+from raschii.common import RaschiiError
 
 
 class SwdWriter:
@@ -38,15 +38,15 @@ class SwdWriter:
                queries are possible with the resulting file.
         """
         if amp not in (1, 2, 3):
-            raise RasciiError(f"SWD amp must be 1, 2, or 3, got {amp!r}")
+            raise RaschiiError(f"SWD amp must be 1, 2, or 3, got {amp!r}")
 
         wave = self.wave
         if tmax is None:
             if nperiods is None:
-                raise RasciiError("Either tmax or nperiods must be given")
+                raise RaschiiError("Either tmax or nperiods must be given")
             tmax = nperiods * wave.T
         if not (tmax > dt > 0.0):
-            raise RasciiError(f"Must have tmax > dt > 0, got tmax={tmax!r}, dt={dt!r}")
+            raise RaschiiError(f"Must have tmax > dt > 0, got tmax={tmax!r}, dt={dt!r}")
 
         depth = self._effective_depth()
         ecs = self._elevation_coefficients(depth)
