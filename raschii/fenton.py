@@ -1,32 +1,37 @@
 import math
+
 from numpy import (
-    pi,
-    cos,
-    sin,
-    zeros,
     arange,
-    isfinite,
-    newaxis,
-    asarray,
-    linspace,
-    cosh,
-    sinh,
     array,
+    asarray,
+    atleast_1d,
+    broadcast_arrays,
+    cos,
+    cosh,
+    isfinite,
+    linspace,
+    newaxis,
+    pi,
+    sin,
+    sinh,
+    stack,
+    sum,
+    zeros,
 )
-from numpy.typing import NDArray
 from numpy.linalg import solve
+from numpy.typing import NDArray
+
+from .base_classes import WaveModel
 from .common import (
     NonConvergenceError,
-    sinh_by_cosh,
+    RaschiiError,
+    blend_air_and_wave_velocity_cpp,
     cosh_by_cosh,
     cosh_ratio,
-    blend_air_and_wave_velocities,
-    blend_air_and_wave_velocity_cpp,
-    trapezoid_integration,
     np2py,
-    RaschiiError,
+    sinh_by_cosh,
+    trapezoid_integration,
 )
-from .base_classes import WaveModel
 
 
 class FentonWave(WaveModel):
@@ -44,7 +49,7 @@ class FentonWave(WaveModel):
         g: float = 9.81,
         relax: float = 0.5,
         maxiter: int = 500,
-        num_steps: int = None
+        num_steps: int | None = None,
     ):
         """
         Implement stream function waves based on the paper by Rienecker and
@@ -78,7 +83,9 @@ class FentonWave(WaveModel):
             self.order = 1
 
         # Find the coeffients through optimization
-        data = fenton_coefficients(height, depth, length, N, g, relax=relax, maxiter=maxiter, num_steps=num_steps)
+        data = fenton_coefficients(
+            height, depth, length, N, g, relax=relax, maxiter=maxiter, num_steps=num_steps
+        )
         self.set_data(data)
 
         # For evaluating velocities close to the free surface
@@ -129,19 +136,33 @@ class FentonWave(WaveModel):
         elif frame == "c":
             return psi
 
-    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
+    def surface_elevation(
+        self,
+        x: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
+        include_depth: bool = True,
+    ):
         """
         Compute the surface elevation at time t for position(s) x
         """
-        if isinstance(x, (float, int)):
-            x = array([x], float)
-        x = asarray(x)
+        x_was_scalar = isinstance(x, (float, int))
+        t_was_scalar = isinstance(t, (float, int))
+
+        x = atleast_1d(asarray(x, dtype=float))  # (n_x,)
+        t = atleast_1d(asarray(t, dtype=float))  # (T,)
 
         # Cosine transformation of the elevation
         N = len(self.eta) - 1
-        J = arange(0, N + 1)
+        J = arange(0, N + 1)  # (N+1,)
         k, c = self.k, self.c
-        eta = 2 * trapezoid_integration(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
+
+        # Reshape for (T, n_x, N+1) broadcasting
+        x_r = x[newaxis, :, newaxis]   # (1, n_x, 1)
+        t_r = t[:, newaxis, newaxis]   # (T, 1, 1)
+        J_r = J[newaxis, newaxis, :]   # (1, 1, N+1)
+
+        eta = 2 * trapezoid_integration(self.E * cos(J_r * k * (x_r - c * t_r)), axis=-1) / N
+        # eta shape: (T, n_x)
 
         if include_depth:
             if self.depth < 0:
@@ -151,7 +172,13 @@ class FentonWave(WaveModel):
             # Apply consistent water depth limitation with 'fenton_coefficients'
             subtract = 25 * self.length if self.depth < 0 else self.depth
 
-        return eta - subtract
+        result = eta - subtract
+
+        if t_was_scalar:
+            return result[0]   # (n_x,)
+        elif x_was_scalar:
+            return result[:, 0]  # (T,)
+        return result  # (T, n_x)
 
     def surface_slope(self, x, t=0):
         """
@@ -167,9 +194,15 @@ class FentonWave(WaveModel):
         k, c = self.k, self.c
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
-    def velocity(self, x: NDArray, z: NDArray, t: NDArray = 0, all_points_wet: bool = False):
+    def velocity(
+        self,
+        x: float | list[float] | NDArray,
+        z: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
+        all_points_wet: bool = False,
+    ):
         """
-        Computes the horizontal and vertical fluid velocity at each position `(x, z)` at each time `t`. 
+        Computes the horizontal and vertical fluid velocity at each position `(x, z)` at each time `t`.
         Supports scalar and 1D array inputs, and will return the velocity corresponding to the inputs' shapes.
         The `x` and `z` inputs are broadcast together into `N` input points. The length of the `t` input specifies `T` unique times.
 
@@ -185,8 +218,10 @@ class FentonWave(WaveModel):
         Returns
         -------
         velocity : ndarray
-            The horizontal and vertical fluid velocity at each time `t` at each position `(x, z)`. The shape of the output is:
-            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal velocity and the second element is vertical velocity)
+            The horizontal and vertical fluid velocity at each time `t` at each position `(x, z)`.
+            The shape of the output is:
+            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal velocity
+              and the second element is vertical velocity)
             - (N, 2) if `x` or `z` are arrays and `t` is scalar
             - (T, 2) if `x` and `z` are scalars and `t` is an array
             - (T, N, 2) if `x` or `z` are arrays and `t` is an array
@@ -200,9 +235,9 @@ class FentonWave(WaveModel):
 
         x, z = broadcast_arrays(x, z)
 
-        x = x[newaxis, :] # shape (1, n_points)
-        z = z[newaxis, :] # shape (1, n_points)
-        t = t[:, newaxis] # shape (n_times, 1)
+        x = x[newaxis, :]  # shape (1, n_points)
+        z = z[newaxis, :]  # shape (1, n_points)
+        t = t[:, newaxis]  # shape (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
@@ -211,9 +246,9 @@ class FentonWave(WaveModel):
         depth = self.depth
         J = arange(1, N + 1)
 
-        phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
-        kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
-        kh = J * k * depth                        # shape (N,)
+        phase = J * k * (x - c * t)[..., newaxis]  # shape (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]  # shape (1, n_points, N)
+        kh = J * k * depth  # shape (N,)
 
         vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
         vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
@@ -225,13 +260,16 @@ class FentonWave(WaveModel):
             pass
             # must be updated for new broadcasting rules
 
-        if time_is_scalar and point_is_scalar: return vel.squeeze() # shape (2,)
-        elif time_is_scalar: return vel[0]                          # shape (n_points, 2)
-        elif point_is_scalar: return vel[:, 0]                      # shape (n_times, 2)
-        
-        return vel # shape (n_times, n_points, 2)
-    
-    def acceleration(self, x: NDArray, z:NDArray, t: NDArray = 0, all_points_wet: bool = False):
+        if time_is_scalar and point_is_scalar:
+            return vel.squeeze()  # shape (2,)
+        elif time_is_scalar:
+            return vel[0]  # shape (n_points, 2)
+        elif point_is_scalar:
+            return vel[:, 0]  # shape (n_times, 2)
+
+        return vel  # shape (n_times, n_points, 2)
+
+    def acceleration(self, x: NDArray, z: NDArray, t: NDArray = 0, all_points_wet: bool = False):
         """
         Computes the horizontal and vertical fluid acceleration at each position `(x, z)` at each time `t`.
         Supports scalar and 1D array inputs, and will return the acceleration corresponding to the inputs' shapes.
@@ -264,9 +302,9 @@ class FentonWave(WaveModel):
 
         x, z = broadcast_arrays(x, z)
 
-        x = x[newaxis, :] # shape (1, n_points)
-        z = z[newaxis, :] # shape (1, n_points)
-        t = t[:, newaxis] # shape (n_times, 1)
+        x = x[newaxis, :]  # shape (1, n_points)
+        z = z[newaxis, :]  # shape (1, n_points)
+        t = t[:, newaxis]  # shape (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
@@ -275,9 +313,9 @@ class FentonWave(WaveModel):
         depth = self.depth
         J = arange(1, N + 1)
 
-        phase = J * k * (x - c * t)[..., newaxis] # shape (n_times, n_points, N)
-        kz = J * k * z[..., newaxis]              # shape (1, n_points, N)
-        kh = J * k * depth                        # shape (N,)
+        phase = J * k * (x - c * t)[..., newaxis]  # shape (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]  # shape (1, n_points, N)
+        kh = J * k * depth  # shape (N,)
 
         acc_x = k * sum(J * B[1:] * J * k * c * sin(phase) * cosh(kz) / cosh(kh), axis=-1)
         acc_z = k * sum(J * B[1:] * J * k * -c * cos(phase) * sinh(kz) / cosh(kh), axis=-1)
@@ -289,11 +327,14 @@ class FentonWave(WaveModel):
             pass
             # must be updated for new broadcasting rules
 
-        if time_is_scalar and point_is_scalar: return acc.squeeze() # shape (2,)
-        elif time_is_scalar: return acc[0]                          # shape (n_points, 2)
-        elif point_is_scalar: return acc[:, 0]                      # shape (n_times, 2)
-        
-        return acc # shape (n_times, n_points, 2)
+        if time_is_scalar and point_is_scalar:
+            return acc.squeeze()  # shape (2,)
+        elif time_is_scalar:
+            return acc[0]  # shape (n_points, 2)
+        elif point_is_scalar:
+            return acc[:, 0]  # shape (n_times, 2)
+
+        return acc  # shape (n_times, n_points, 2)
 
     def stream_function_cpp(self, frame="b"):
         """
@@ -432,9 +473,9 @@ class FentonWave(WaveModel):
 
     def velocity_potential(
         self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
+        x: float | list[float] | NDArray,
+        z: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
     ):
         """
         Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
@@ -447,15 +488,16 @@ class FentonWave(WaveModel):
         (``depth=-1``) an effective depth of 25 × wave_length is used internally;
         z should be supplied in the same coordinate system.
         """
-        if self.depth < 0:
-            depth = 25.0 * self.length
-        else:
-            depth = self.depth
+        x_was_scalar = isinstance(x, (float, int))
+        t_was_scalar = isinstance(t, (float, int))
 
-        if isinstance(x, (float, int)):
+        if x_was_scalar:
             x, z = [x], [z]
-        x = asarray(x, dtype=float)
-        z = asarray(z, dtype=float)
+        x = atleast_1d(asarray(x, dtype=float))  # (M,)
+        z = atleast_1d(asarray(z, dtype=float))  # (M,)
+        t = atleast_1d(asarray(t, dtype=float))  # (T,)
+
+        depth = 25.0 * self.length if self.depth < 0 else self.depth
 
         N = len(self.eta) - 1
         B = self.data["B"]
@@ -463,15 +505,23 @@ class FentonWave(WaveModel):
         c = self.c
         J = arange(1, N + 1)
 
-        # phi = sum_{j=1}^{N} B_j * cosh(j k z) / cosh(j k depth) * sin(j k (x - c t))
-        # cosh_ratio is used for numerical stability in deep water.
-        x2 = x[:, newaxis] - c * t  # (M, 1) for broadcasting with J
+        # Reshape for (T, M, N) broadcasting
+        x_r = x[newaxis, :, newaxis]   # (1, M, 1)
+        t_r = t[:, newaxis, newaxis]   # (T, 1, 1)
+        z_r = z[newaxis, :, newaxis]   # (1, M, 1)
+        J_r = J[newaxis, newaxis, :]   # (1, 1, N)
+
         phi = (
             B[1:]
-            * sin(J * k * x2)                                           # (M, N)
-            * cosh_ratio(J * k * z[:, newaxis], J * k * depth)          # (M, N)
-        ).sum(axis=1)
-        return phi
+            * sin(J_r * k * (x_r - c * t_r))           # (T, M, N)
+            * cosh_ratio(J_r * k * z_r, J_r * k * depth)  # (1, M, N)
+        ).sum(axis=-1)  # (T, M)
+
+        if t_was_scalar:
+            return phi[0]  # (M,)
+        elif x_was_scalar:
+            return phi[:, 0]  # (T,)
+        return phi  # (T, M)
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """

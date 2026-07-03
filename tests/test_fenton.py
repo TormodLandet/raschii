@@ -244,12 +244,12 @@ def test_fenton_stream_function_and_slope():
         sf0 = fwave.stream_function(x, z, frame="c")
         sfX = fwave.stream_function(x + eps, z, frame="c")
         sfZ = fwave.stream_function(x, z + eps, frame="c")
-        assert vel.shape == (1, 2) and sf0.shape == (1,) and sfX.shape == (1,)
+        assert vel.shape == (2,) and sf0.shape == (1,) and sfX.shape == (1,)
         sfvel_x = (sfZ[0] - sf0) / eps
         sfvel_z = -(sfX[0] - sf0) / eps
         print("x: %r, z: %r, vel: %r, vel_num: %r" % (x, z, vel, (sfvel_x, sfvel_z)))
-        assert abs(vel[0, 0] - sfvel_x) < 1e-5
-        assert abs(vel[0, 1] - sfvel_z) < 1e-5
+        assert abs(vel[0] - sfvel_x) < 1e-5
+        assert abs(vel[1] - sfvel_z) < 1e-5
 
     # Compare slope with numerical differentiation of the elevation
     for x in numpy.linspace(0, length, 21):

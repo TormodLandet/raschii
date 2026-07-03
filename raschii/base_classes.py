@@ -1,3 +1,6 @@
+from numpy.typing import NDArray
+
+
 class WaveModel:
     """
     Base class for Raschii wave models.
@@ -14,17 +17,22 @@ class WaveModel:
         self.k: float  #: The wave number [1/m], to be defined in subclasses
         self.c: float  #: The wave celery [m/s], to be defined in subclasses
 
-    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
+    def surface_elevation(
+        self,
+        x: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
+        include_depth: bool = True,
+    ):
         """
-        Compute the surface elavation at time t for position(s) x
+        Compute the surface elevation at time t for position(s) x
         """
         raise NotImplementedError("This method should be implemented in subclasses.")
 
     def velocity(
         self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
+        x: float | list[float] | NDArray,
+        z: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
         all_points_wet: bool = False,
     ):
         """
@@ -35,9 +43,9 @@ class WaveModel:
 
     def velocity_potential(
         self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
+        x: float | list[float] | NDArray,
+        z: float | list[float] | NDArray,
+        t: float | list[float] | NDArray = 0.0,
     ):
         """
         Compute the earth-frame velocity potential φ at time t for position(s) (x, z).

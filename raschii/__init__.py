@@ -11,9 +11,8 @@ SPDX-License-Identifier: Apache-2.0
 __version__ = "1.2.0"
 version = __version__
 
-from typing import Union, Tuple, Optional
-
-from .common import check_breaking_criteria, RaschiiError, NonConvergenceError  # NOQA
+from .common import check_breaking_criteria, RaschiiError, NonConvergenceError
+from .base_classes import WaveModel
 from .airy import AiryWave
 from .fenton import FentonWave
 from .stokes import StokesWave
@@ -32,10 +31,13 @@ RasciiError = RaschiiError
 
 
 def get_wave_model(
-    model_name: str, air_model_name: Optional[str] = None
-) -> Tuple[Union[AiryWave, StokesWave, FentonWave], Union[FentonAirPhase, ConstantAirPhase]]:
+    model_name: str, air_model_name: str | None = None
+) -> tuple[
+    type[AiryWave] | type[StokesWave] | type[FentonWave],
+    type[FentonAirPhase] | type[ConstantAirPhase] | None,
+]:
     """
-    Get a Raschii wave model by name
+    Get a Raschii wave model by name (returns the class, not an instance)
     """
     if "+" in model_name:
         assert air_model_name is None
