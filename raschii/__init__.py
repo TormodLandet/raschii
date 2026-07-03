@@ -26,9 +26,6 @@ WAVE_MODELS = {"Airy": AiryWave, "Fenton": FentonWave, "Stokes": StokesWave}
 #: The available air-phase models. A dictionary mapping model name (str) to model class.
 AIR_MODELS = {"FentonAir": FentonAirPhase, "ConstantAir": ConstantAirPhase}
 
-# For backwards compatibility with old, misspelled version of the RaschiiError class name
-RasciiError = RaschiiError
-
 
 def get_wave_model(
     model_name: str, air_model_name: str | None = None
