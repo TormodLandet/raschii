@@ -148,6 +148,16 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
+Version 1.2.0 - July 3. 2026
+............................
+
+This is likely the last release of Raschii 1.x. The next release will be Raschii 2.0, which will
+include some breaking changes to the API and will require Python 3.12 or newer.
+
+- Support for writing ``amp=2`` and ``amp=3`` SWD files.
+- Support for calculating the velocity potential.
+- Refactored SWD writer and tests. 
+
 Version 1.1.1 - Unreleased
 ............................
 
