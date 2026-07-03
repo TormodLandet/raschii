@@ -25,9 +25,9 @@ from .base_classes import WaveModel
 from .common import (
     NonConvergenceError,
     RaschiiError,
+    blend_air_and_wave_velocities,
     cosh_by_cosh,
     cosh_ratio,
-    np2py,
     sinh_by_cosh,
     trapezoid_integration,
 )
@@ -170,6 +170,7 @@ class FentonWave(WaveModel):
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
     def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
+        x_1d, z_1d, t_1d = x, z, t  # save (N,), (N,), (T,) before reshaping
         x = x[newaxis, :]  # (1, n_points)
         z = z[newaxis, :]  # (1, n_points)
         t = t[:, newaxis]  # (n_times, 1)
@@ -190,8 +191,10 @@ class FentonWave(WaveModel):
         vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
 
         if not all_points_wet:
-            # blend_air_and_wave_velocities needs updating for new shape convention
-            pass
+            for i, ti in enumerate(t_1d):
+                blend_air_and_wave_velocities(
+                    x_1d, z_1d, float(ti), self, self.air, vel[i], self.eta_eps
+                )
 
         return vel
 

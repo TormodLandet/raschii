@@ -9,14 +9,15 @@ from numpy import (
     tanh,
 )
 from numpy.typing import NDArray
-from .cpp import AiryCppGenerator
 
 from .base_classes import WaveModel
 from .common import (
     NonConvergenceError,
     RaschiiError,
+    blend_air_and_wave_velocities,
     cosh_ratio,
 )
+from .cpp import AiryCppGenerator
 
 
 class AiryWave(WaveModel):
@@ -84,6 +85,7 @@ class AiryWave(WaveModel):
     def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
         if self.depth < 0:
             raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
+        x_1d, z_1d, t_1d = x, z, t  # save (N,), (N,), (T,) before reshaping
         H = self.height
         k = self.k
         d = self.depth
@@ -93,8 +95,10 @@ class AiryWave(WaveModel):
         vel_z = w * H / 2 * sinh(k * z[newaxis, :]) / sinh(k * d) * sin(phase)
         vel = stack([vel_x, vel_z], axis=-1)  # (T, N, 2)
         if not all_points_wet:
-            # blend_air_and_wave_velocities needs updating for new shape convention
-            pass
+            for i, ti in enumerate(t_1d):
+                blend_air_and_wave_velocities(
+                    x_1d, z_1d, float(ti), self, self.air, vel[i], self.eta_eps
+                )
         return vel
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):

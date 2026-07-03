@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .base_classes import WaveModel
-from .common import NonConvergenceError, RaschiiError
+from .common import NonConvergenceError, RaschiiError, blend_air_and_wave_velocities
 
 
 class StokesWave(WaveModel):
@@ -65,6 +65,7 @@ class StokesWave(WaveModel):
             self.air.set_wave(self)
 
         from .cpp import StokesCppGenerator
+
         self.cpp = StokesCppGenerator(self)
 
     def set_data(self, data):
@@ -120,6 +121,7 @@ class StokesWave(WaveModel):
     def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
         if self.depth < 0:
             raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
+        x_1d, z_1d, t_1d = x, z, t  # save (N,), (N,), (T,) before reshaping
         x = x[np.newaxis, :]  # (1, N)
         z = z[np.newaxis, :]  # (1, N)
         t = t[:, np.newaxis]  # (T, 1)
@@ -179,8 +181,10 @@ class StokesWave(WaveModel):
         scale = self.data["C0"] * sqrt(self.g / self.k**3)
         vel = np.stack([vel_x * scale, vel_z * scale], axis=-1)  # (T, N, 2)
         if not all_points_wet:
-            # blend_air_and_wave_velocities needs updating for new shape convention
-            pass
+            for i, ti in enumerate(t_1d):
+                blend_air_and_wave_velocities(
+                    x_1d, z_1d, float(ti), self, self.air, vel[i], self.eta_eps
+                )
         return vel
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
