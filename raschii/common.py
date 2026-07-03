@@ -116,8 +116,13 @@ def cosh_ratio(a, b):
     Intended for 0 <= a <= b so that the ratio is always in (0, 1].
     """
     with np.errstate(over="ignore", invalid="ignore"):
-        result = np.cosh(a) / np.cosh(b)
-    bad = ~np.isfinite(result)
+        cosh_b = np.cosh(b)
+        result = np.cosh(a) / cosh_b
+    # Two cases need the stable fallback:
+    #   1. cosh(b) overflows to inf and cosh(a) is finite  → result = 0 (not nan/inf)
+    #   2. Both overflow → result = nan
+    # The first case is NOT caught by ~isfinite(result), so we also check isinf(cosh_b).
+    bad = np.isinf(cosh_b) | ~np.isfinite(result)
     if np.any(bad):
         result = np.where(bad, np.exp(a - np.abs(b)), result)
     return result
