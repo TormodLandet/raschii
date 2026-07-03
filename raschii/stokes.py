@@ -64,6 +64,9 @@ class StokesWave(WaveModel):
         if self.air is not None:
             self.air.set_wave(self)
 
+        from .cpp import StokesCppGenerator
+        self.cpp = StokesCppGenerator(self)
+
     def set_data(self, data):
         """
         Update the coefficients defining this Stokes wave

@@ -30,6 +30,9 @@ class FentonAirPhase:
         if self.blending_height is None:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
 
+        from .cpp import FentonAirCppGenerator
+        self.cpp = FentonAirCppGenerator(self)
+
     def stream_function(self, x, z, t=0, frame="b"):
         """
         Compute the stream function at time t for position(s) x
@@ -79,73 +82,6 @@ class FentonAirPhase:
         vel[:, 1] = (k * B * sin(J * k * x2) * sinh(J * k * z2) / cosh(J * k * D)).dot(J)
 
         return vel
-
-    def stream_function_cpp(self, frame="b"):
-        """
-        Return C++ code for evaluating the stream function of this specific
-        wave. The positive traveling direction is x[0] and the vertical
-        coordinate is x[2] which is zero at the bottom and equal to +depth at
-        the mean water level.
-        """
-        N = len(self.eta) - 1
-        J = arange(1, N + 1)
-        k = self.k
-        c = self.c
-
-        Jk = J * k
-        facs = self.B / cosh(Jk * self.height)
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        z2 = np2py(self.depth_water + self.height)
-        c = np2py(self.c)
-        Jk  = np2py(Jk)
-        facs  = np2py(facs)
-
-        z2_cpp = f"({z2!r} - x[2])"
-        cpp = " + ".join(
-            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * {z2_cpp})"
-            for i in range(N)
-        )
-
-        if frame == "b":
-            B0 = np2py(self.c)
-            return f"{B0!r} * x[2] + {cpp}"
-        elif frame == "c":
-            return cpp
-
-    def velocity_cpp(self):
-        """
-        Return C++ code for evaluating the particle velocities of this specific
-        wave. Returns the x and z components only with z positive upwards. The
-        positive traveling direction is x[0] and the vertical coordinate is x[2]
-        which is zero at the bottom and equal to +depth at the mean water level.
-        """
-        N = len(self.eta) - 1
-        J = arange(1, N + 1)
-        k = self.k
-        c = self.c
-
-        Jk = J * k
-        facs = J * self.B * k / cosh(Jk * self.height)
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        z2 = np2py(self.depth_water + self.height)
-        c = np2py(self.c)
-        Jk  = np2py(Jk)
-        facs  = np2py(facs)
-
-        z2_cpp = f"({z2!r} - x[2])"
-        cpp_x = " + ".join(
-            f"{-facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * {z2_cpp})"
-            for i in range(N)
-        )
-        cpp_z = " + ".join(
-            f"{facs[i]!r} * sin({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * {z2_cpp})"
-            for i in range(N)
-        )
-        return (cpp_x, cpp_z)
 
     def __repr__(self):
         return ("FentonAirPhase(height={s.height}, blending_height=" "{s.blending_height})").format(

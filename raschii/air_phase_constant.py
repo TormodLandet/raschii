@@ -20,6 +20,9 @@ class ConstantAirPhase:
         if self.blending_height is None:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
 
+        from .cpp import ConstantAirCppGenerator
+        self.cpp = ConstantAirCppGenerator(self)
+
     def stream_function(self, x, z, t=0, frame="b"):
         """
         Compute the stream function at time t for position(s) x
@@ -46,29 +49,6 @@ class ConstantAirPhase:
         z = np.asarray(z, dtype=float)
 
         return np.zeros((x.size, 2), float)
-
-    def stream_function_cpp(self, frame="b"):
-        """
-        Return C++ code for evaluating the stream function of this specific
-        wave. The positive traveling direction is x[0] and the vertical
-        coordinate is x[2] which is zero at the bottom and equal to +depth at
-        the mean water level.
-        """
-        if frame == "b":
-            return f"{np2py(self.c)!r} * x[2]"
-        elif frame == "c":
-            return "0.0"
-
-    def velocity_cpp(self):
-        """
-        Return C++ code for evaluating the particle velocities of this specific
-        wave. Returns the x and z components only with z positive upwards. The
-        positive traveling direction is x[0] and the vertical coordinate is x[2]
-        which is zero at the bottom and equal to +depth at the mean water level.
-        """
-        cpp_x = "0.0"
-        cpp_z = "0.0"
-        return (cpp_x, cpp_z)
 
     def __repr__(self):
         return f"ConstantAirPhase(height={self.height}, blending_height={self.blending_height})"
