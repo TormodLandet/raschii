@@ -1,8 +1,4 @@
 from numpy import (
-    array,
-    asarray,
-    atleast_1d,
-    broadcast_arrays,
     cos,
     cosh,
     newaxis,
@@ -75,85 +71,30 @@ class AiryWave(WaveModel):
         if self.air is not None:
             self.air.set_wave(self)
 
-    def surface_elevation(
-        self,
-        x: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        include_depth: bool = True,
-    ):
-        """
-        Compute the surface elavation at time t for position(s) x
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        x = atleast_1d(asarray(x, dtype=float))  # (N,)
-        t = atleast_1d(asarray(t, dtype=float))  # (T,)
-
+    def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         if include_depth:
             if self.depth < 0:
                 raise RaschiiError("Cannot include depth in elevation for infinite depth")
             offset = self.depth
         else:
             offset = 0.0
+        return offset + self.height / 2 * cos(self.k * x[newaxis, :] - self.omega * t[:, newaxis])
 
-        # result shape: (T, N)
-        result = offset + self.height / 2 * cos(self.k * x[newaxis, :] - self.omega * t[:, newaxis])
-
-        if t_was_scalar:
-            return result[0]  # (N,)
-        elif x_was_scalar:
-            return result[:, 0]  # (T,)
-        return result  # (T, N)
-
-    def velocity(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        all_points_wet: bool = False,
-    ):
-        """
-        Compute the fluid velocity at time t for position(s) (x, z)
-        where z is 0 at the bottom and equal to depth at the free surface
-        """
+    def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
         if self.depth < 0:
             raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
-
-        time_is_scalar = asarray(t).ndim == 0
-        point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
-
-        x = atleast_1d(asarray(x, dtype=float))
-        z = atleast_1d(asarray(z, dtype=float))
-        t = atleast_1d(asarray(t, dtype=float))
-
-        x, z = broadcast_arrays(x, z)
-
-        x = x[newaxis, :]  # (1, n_points)
-        z = z[newaxis, :]  # (1, n_points)
-        t = t[:, newaxis]  # (n_times, 1)
-
         H = self.height
         k = self.k
         d = self.depth
         w = self.omega
-
-        phase = k * x - w * t  # (n_times, n_points)
-        vel_x = w * H / 2 * cosh(k * z) / sinh(k * d) * cos(phase)
-        vel_z = w * H / 2 * sinh(k * z) / sinh(k * d) * sin(phase)
-        vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
-
+        phase = k * x[newaxis, :] - w * t[:, newaxis]  # (T, N)
+        vel_x = w * H / 2 * cosh(k * z[newaxis, :]) / sinh(k * d) * cos(phase)
+        vel_z = w * H / 2 * sinh(k * z[newaxis, :]) / sinh(k * d) * sin(phase)
+        vel = stack([vel_x, vel_z], axis=-1)  # (T, N, 2)
         if not all_points_wet:
             # blend_air_and_wave_velocities needs updating for new shape convention
             pass
-
-        if time_is_scalar and point_is_scalar:
-            return vel.squeeze()  # (2,)
-        elif time_is_scalar:
-            return vel[0]  # (n_points, 2)
-        elif point_is_scalar:
-            return vel[:, 0]  # (n_times, 2)
-        return vel  # (n_times, n_points, 2)
+        return vel
 
     def elevation_cpp(self):
         """
@@ -234,56 +175,18 @@ class AiryWave(WaveModel):
 
         SwdWriterAiry(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
 
-    def velocity_potential(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-    ):
-        """
-        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
-
-        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
-        The gradient ∇φ equals the oscillatory fluid velocity as returned by
-        :meth:`velocity`; the formula is
-
-        .. math::
-
-           \\phi(x, z, t) = \\frac{\\omega H}{2k}
-               \\frac{\\cosh(kz)}{\\sinh(kd)}\\sin(kx - \\omega t)
-
-        Works for both finite and infinite depth.  For infinite-depth waves
-        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
-        z should be supplied in the same coordinate system (z=0 at the effective
-        sea floor).
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        if x_was_scalar:
-            x, z = [x], [z]
-        x = atleast_1d(asarray(x, dtype=float))  # (N,)
-        z = atleast_1d(asarray(z, dtype=float))  # (N,)
-        t = atleast_1d(asarray(t, dtype=float))  # (T,)
-
+    def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
         H = self.height
         k = self.k
         w = self.omega
         d = 25.0 * self.length if self.depth < 0 else self.depth
-
-        # result shape: (T, N)
-        result = (
-            (w * H) / (2 * k)
+        return (
+            (w * H)
+            / (2 * k)
             * cosh_ratio(k * z[newaxis, :], k * d)
             / tanh(k * d)
             * sin(k * x[newaxis, :] - w * t[:, newaxis])
         )
-
-        if t_was_scalar:
-            return result[0]  # (N,)
-        elif x_was_scalar:
-            return result[:, 0]  # (T,)
-        return result  # (T, N)
 
 
 def compute_length_from_period(depth: float, period: float, g: float = 9.81) -> float:

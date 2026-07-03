@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from raschii import WAVE_MODELS, WaveModel, get_wave_model
@@ -18,8 +19,11 @@ def test_elevation_shape(model: str):
     wave = make_example_wave(model)
 
     x = wave.length / 10
-    elev = wave.surface_elevation(x)
-    assert elev.shape == (1,)
+    elev0 = wave.surface_elevation(x)
+    assert np.ndim(elev0) == 0  # scalar in means scalar out
+
+    elev1 = wave.surface_elevation([x])
+    assert elev1.shape == (1,)  # array in means array out
 
     x2 = [x, x + 1, x + 2, x + 3]
     elev2 = wave.surface_elevation(x2)
@@ -59,8 +63,15 @@ def test_velocity_potential_shape(model: str):
 
     x = wave.length / 10
     z = wave.depth - 1
-    vp = wave.velocity_potential(x, z)
-    assert vp.shape == (1,)
+    vp0 = wave.velocity_potential(x, z)
+    assert np.ndim(vp0) == 0  # scalars in means scalar out
+
+    vp1a = wave.velocity_potential([x], z)
+    vp1b = wave.velocity_potential(x, [z])
+    vp1c = wave.velocity_potential([x], [z])
+    assert vp1a.shape == (1,)  # arrays in means array out 
+    assert vp1b.shape == (1,)  # arrays in means array out 
+    assert vp1c.shape == (1,)  # arrays in means array out 
 
     x2 = [x, x + 1, x + 2, x + 3]
     z2 = [z, z, z, z]

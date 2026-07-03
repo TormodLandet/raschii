@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .base_classes import WaveModel
-from .common import NonConvergenceError, RaschiiError, blend_air_and_wave_velocities
+from .common import NonConvergenceError, RaschiiError
 
 
 class StokesWave(WaveModel):
@@ -88,24 +88,8 @@ class StokesWave(WaveModel):
         self.T = self.length / self.c  # Wave period
         self.omega = self.c * self.k  # Wave frequency
 
-    def surface_elevation(
-        self,
-        x: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        include_depth: bool = True,
-    ):
-        """
-        Compute the surface elavation at time t for position(s) x
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        x = np.atleast_1d(np.asarray(x, dtype=float))  # (N,)
-        t = np.atleast_1d(np.asarray(t, dtype=float))  # (T,)
-
-        # x2 shape: (T, N) — broadcast for all (t, x) combinations
-        x2 = x[np.newaxis, :] - self.c * t[:, np.newaxis]
-
+    def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
+        x2 = x[np.newaxis, :] - self.c * t[:, np.newaxis]  # (T, N)
         k = self.k
         eps = k * self.height / 2
         D = self.data
@@ -122,51 +106,21 @@ class StokesWave(WaveModel):
                 + D["B55"] * cos(5 * k * x2)
             )
         ) / k
-        # eta shape: (T, N)
-
         if include_depth:
             if self.depth < 0:
                 raise RaschiiError("Cannot include depth in elevation for infinite depth")
             offset = self.depth
         else:
             offset = 0.0
+        return offset + eta
 
-        result = offset + eta
-
-        if t_was_scalar:
-            return result[0]   # (N,)
-        elif x_was_scalar:
-            return result[:, 0]  # (T,)
-        return result  # (T, N)
-
-    def velocity(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        all_points_wet: bool = False,
-    ):
-        """
-        Compute the fluid velocity at time t for position(s) (x, z)
-        where z is 0 at the bottom and equal to depth at the free surface
-        """
+    def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
         if self.depth < 0:
             raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
-
-        time_is_scalar = np.asarray(t).ndim == 0
-        point_is_scalar = np.asarray(x).ndim == 0 and np.asarray(z).ndim == 0
-
-        x = np.atleast_1d(np.asarray(x, dtype=float))
-        z = np.atleast_1d(np.asarray(z, dtype=float))
-        t = np.atleast_1d(np.asarray(t, dtype=float))
-
-        x, z = np.broadcast_arrays(x, z)
-
-        x = x[np.newaxis, :]  # (1, n_points)
-        z = z[np.newaxis, :]  # (1, n_points)
-        t = t[:, np.newaxis]  # (n_times, 1)
-
-        x2 = x - self.c * t  # (n_times, n_points)
+        x = x[np.newaxis, :]  # (1, N)
+        z = z[np.newaxis, :]  # (1, N)
+        t = t[:, np.newaxis]  # (T, 1)
+        x2 = x - self.c * t  # (T, N)
 
         def my_cosh_cos(i, j):
             n = "A%d%d" % (i, j)
@@ -220,19 +174,11 @@ class StokesWave(WaveModel):
             + my_sinh_sin(5, 5)
         )
         scale = self.data["C0"] * sqrt(self.g / self.k**3)
-        vel = np.stack([vel_x * scale, vel_z * scale], axis=-1)  # (n_times, n_points, 2)
-
+        vel = np.stack([vel_x * scale, vel_z * scale], axis=-1)  # (T, N, 2)
         if not all_points_wet:
             # blend_air_and_wave_velocities needs updating for new shape convention
             pass
-
-        if time_is_scalar and point_is_scalar:
-            return vel.squeeze()  # (2,)
-        elif time_is_scalar:
-            return vel[0]  # (n_points, 2)
-        elif point_is_scalar:
-            return vel[:, 0]  # (n_times, 2)
-        return vel  # (n_times, n_points, 2)
+        return vel
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
@@ -257,58 +203,24 @@ class StokesWave(WaveModel):
 
         SwdWriterStokes(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
 
-    def velocity_potential(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-    ):
-        """
-        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
-
-        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
-        The gradient ∇φ equals the oscillatory fluid velocity as returned by
-        :meth:`velocity`; the constant phase-speed term is excluded.
-
-        Works for both finite and infinite depth.  For infinite-depth waves
-        (``depth=-1``) an effective depth of 50π/k is used internally; z should
-        be supplied in the same coordinate system (z=0 at the effective sea floor).
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        if x_was_scalar:
-            x, z = [x], [z]
-        x = np.atleast_1d(np.asarray(x, dtype=float))  # (M,)
-        z = np.atleast_1d(np.asarray(z, dtype=float))  # (M,)
-        t = np.atleast_1d(np.asarray(t, dtype=float))  # (T,)
-
+    def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
         if self.depth < 0:
             depth = 50 * pi / self.k
         else:
             depth = min(self.depth, 50 * pi / self.k)
-
         k = self.k
         eps = k * self.height / 2
         D = self.data
         c = self.c
         scale = D["C0"] * sqrt(self.g / k**3)
-
-        # x2 shape: (T, M) — broadcast for all (t, x) combinations
-        x2 = x[np.newaxis, :] - c * t[:, np.newaxis]
-
+        x2 = x[np.newaxis, :] - c * t[:, np.newaxis]  # (T, M)
         phi = np.zeros((t.size, x.size), float)
 
         def add_term(i, j):
             Aij = D.get("A%d%d" % (i, j), 0.0)
             if Aij == 0.0:
                 return
-            phi[:] += (
-                pow(eps, i)
-                * Aij
-                * np.cosh(j * k * z[np.newaxis, :])  # (1, M)
-                * np.sin(j * k * x2)                  # (T, M)
-            )
+            phi[:] += pow(eps, i) * Aij * np.cosh(j * k * z[np.newaxis, :]) * np.sin(j * k * x2)
 
         add_term(1, 1)
         add_term(2, 2)
@@ -319,14 +231,7 @@ class StokesWave(WaveModel):
         add_term(5, 1)
         add_term(5, 3)
         add_term(5, 5)
-
-        phi *= scale  # (T, M)
-
-        if t_was_scalar:
-            return phi[0]  # (M,)
-        elif x_was_scalar:
-            return phi[:, 0]  # (T,)
-        return phi  # (T, M)
+        return phi * scale  # (T, M)
 
 
 def sech(x):

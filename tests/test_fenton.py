@@ -255,7 +255,7 @@ def test_fenton_stream_function_and_slope():
     for x in numpy.linspace(0, length, 21):
         e0 = fwave.surface_elevation(x)
         slope = fwave.surface_slope(x)
-        assert e0.shape == (1,) and slope.shape == (1,)
+        assert numpy.ndim(e0) == 0 and slope.shape == (1,)
 
         e1 = fwave.surface_elevation(x + eps)
         slope_num = (e1 - e0) / eps

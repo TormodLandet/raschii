@@ -136,49 +136,22 @@ class FentonWave(WaveModel):
         elif frame == "c":
             return psi
 
-    def surface_elevation(
-        self,
-        x: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        include_depth: bool = True,
-    ):
-        """
-        Compute the surface elevation at time t for position(s) x
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        x = atleast_1d(asarray(x, dtype=float))  # (n_x,)
-        t = atleast_1d(asarray(t, dtype=float))  # (T,)
-
-        # Cosine transformation of the elevation
+    def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         N = len(self.eta) - 1
-        J = arange(0, N + 1)  # (N+1,)
+        J = arange(0, N + 1)
         k, c = self.k, self.c
-
-        # Reshape for (T, n_x, N+1) broadcasting
-        x_r = x[newaxis, :, newaxis]   # (1, n_x, 1)
-        t_r = t[:, newaxis, newaxis]   # (T, 1, 1)
-        J_r = J[newaxis, newaxis, :]   # (1, 1, N+1)
-
+        x_r = x[newaxis, :, newaxis]  # (1, n_x, 1)
+        t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
+        J_r = J[newaxis, newaxis, :]  # (1, 1, N+1)
         eta = 2 * trapezoid_integration(self.E * cos(J_r * k * (x_r - c * t_r)), axis=-1) / N
         # eta shape: (T, n_x)
-
         if include_depth:
             if self.depth < 0:
                 raise RaschiiError("Cannot include depth in elevation for infinite depth")
             subtract = 0.0
         else:
-            # Apply consistent water depth limitation with 'fenton_coefficients'
             subtract = 25 * self.length if self.depth < 0 else self.depth
-
-        result = eta - subtract
-
-        if t_was_scalar:
-            return result[0]   # (n_x,)
-        elif x_was_scalar:
-            return result[:, 0]  # (T,)
-        return result  # (T, n_x)
+        return eta - subtract
 
     def surface_slope(self, x, t=0):
         """
@@ -194,50 +167,10 @@ class FentonWave(WaveModel):
         k, c = self.k, self.c
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
-    def velocity(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-        all_points_wet: bool = False,
-    ):
-        """
-        Computes the horizontal and vertical fluid velocity at each position `(x, z)` at each time `t`.
-        Supports scalar and 1D array inputs, and will return the velocity corresponding to the inputs' shapes.
-        The `x` and `z` inputs are broadcast together into `N` input points. The length of the `t` input specifies `T` unique times.
-
-        Parameters
-        ----------
-        x : float | array
-            Horizontal position(s)
-        z : float | array
-            Vertical position(s) where z = 0 at the sea floor and z = depth at the free surface
-        t : float | array = 0
-            Time(s) at which to compute the velocity at each (x, z) point
-
-        Returns
-        -------
-        velocity : ndarray
-            The horizontal and vertical fluid velocity at each time `t` at each position `(x, z)`.
-            The shape of the output is:
-            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal velocity
-              and the second element is vertical velocity)
-            - (N, 2) if `x` or `z` are arrays and `t` is scalar
-            - (T, 2) if `x` and `z` are scalars and `t` is an array
-            - (T, N, 2) if `x` or `z` are arrays and `t` is an array
-        """
-        time_is_scalar = asarray(t).ndim == 0
-        point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
-
-        x = atleast_1d(x)
-        z = atleast_1d(z)
-        t = atleast_1d(t)
-
-        x, z = broadcast_arrays(x, z)
-
-        x = x[newaxis, :]  # shape (1, n_points)
-        z = z[newaxis, :]  # shape (1, n_points)
-        t = t[:, newaxis]  # shape (n_times, 1)
+    def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
+        x = x[newaxis, :]  # (1, n_points)
+        z = z[newaxis, :]  # (1, n_points)
+        t = t[:, newaxis]  # (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
@@ -246,28 +179,19 @@ class FentonWave(WaveModel):
         depth = self.depth
         J = arange(1, N + 1)
 
-        phase = J * k * (x - c * t)[..., newaxis]  # shape (n_times, n_points, N)
-        kz = J * k * z[..., newaxis]  # shape (1, n_points, N)
-        kh = J * k * depth  # shape (N,)
+        phase = J * k * (x - c * t)[..., newaxis]  # (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]  # (1, n_points, N)
+        kh = J * k * depth  # (N,)
 
         vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
         vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
-
-        vel = stack([vel_x, vel_z], axis=-1)  # shape (n_times, n_points, 2)
+        vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
 
         if not all_points_wet:
-            # blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
+            # blend_air_and_wave_velocities needs updating for new shape convention
             pass
-            # must be updated for new broadcasting rules
 
-        if time_is_scalar and point_is_scalar:
-            return vel.squeeze()  # shape (2,)
-        elif time_is_scalar:
-            return vel[0]  # shape (n_points, 2)
-        elif point_is_scalar:
-            return vel[:, 0]  # shape (n_times, 2)
-
-        return vel  # shape (n_times, n_points, 2)
+        return vel
 
     def acceleration(self, x: NDArray, z: NDArray, t: NDArray = 0, all_points_wet: bool = False):
         """
@@ -471,57 +395,20 @@ class FentonWave(WaveModel):
 
         return cpp_x, cpp_z
 
-    def velocity_potential(
-        self,
-        x: float | list[float] | NDArray,
-        z: float | list[float] | NDArray,
-        t: float | list[float] | NDArray = 0.0,
-    ):
-        """
-        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
-
-        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
-        The gradient ∇φ equals the oscillatory fluid velocity as returned by
-        :meth:`velocity`; the mean-flow current term (B₀·x) is excluded.
-
-        Works for both finite and infinite depth.  For infinite-depth waves
-        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
-        z should be supplied in the same coordinate system.
-        """
-        x_was_scalar = isinstance(x, (float, int))
-        t_was_scalar = isinstance(t, (float, int))
-
-        if x_was_scalar:
-            x, z = [x], [z]
-        x = atleast_1d(asarray(x, dtype=float))  # (M,)
-        z = atleast_1d(asarray(z, dtype=float))  # (M,)
-        t = atleast_1d(asarray(t, dtype=float))  # (T,)
-
+    def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
         depth = 25.0 * self.length if self.depth < 0 else self.depth
-
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
         c = self.c
         J = arange(1, N + 1)
-
-        # Reshape for (T, M, N) broadcasting
-        x_r = x[newaxis, :, newaxis]   # (1, M, 1)
-        t_r = t[:, newaxis, newaxis]   # (T, 1, 1)
-        z_r = z[newaxis, :, newaxis]   # (1, M, 1)
-        J_r = J[newaxis, newaxis, :]   # (1, 1, N)
-
-        phi = (
-            B[1:]
-            * sin(J_r * k * (x_r - c * t_r))           # (T, M, N)
-            * cosh_ratio(J_r * k * z_r, J_r * k * depth)  # (1, M, N)
+        x_r = x[newaxis, :, newaxis]  # (1, M, 1)
+        t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
+        z_r = z[newaxis, :, newaxis]  # (1, M, 1)
+        J_r = J[newaxis, newaxis, :]  # (1, 1, N)
+        return (
+            B[1:] * sin(J_r * k * (x_r - c * t_r)) * cosh_ratio(J_r * k * z_r, J_r * k * depth)
         ).sum(axis=-1)  # (T, M)
-
-        if t_was_scalar:
-            return phi[0]  # (M,)
-        elif x_was_scalar:
-            return phi[:, 0]  # (T,)
-        return phi  # (T, M)
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
