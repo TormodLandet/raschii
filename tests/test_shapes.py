@@ -10,8 +10,10 @@ def make_example_wave(model: str) -> WaveModel:
     height = 10.0
     depth = 200.0
     length = 100.0
-    N = 5 if model in ["Fenton", "Stokes"] else 1
-    return wave_model(height, depth, length, N)
+    kwargs: dict = {}
+    if model in ["Fenton", "Stokes"]:
+        kwargs["N"] = 5
+    return wave_model(height, depth, length, **kwargs)
 
 
 @pytest.mark.parametrize("model", WAVE_MODELS.keys())

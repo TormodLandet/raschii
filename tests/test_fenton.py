@@ -76,7 +76,7 @@ def test_compare_fenton_m_01():
     length = 2
     N = 30
     print(*check_breaking_criteria(height, depth, length))
-    fwave = FentonWave(height, depth, length, N)
+    fwave = FentonWave(height, depth, length, N=N)
     py_res = fwave.data
 
     ml_eta = array(

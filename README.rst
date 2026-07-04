@@ -153,24 +153,38 @@ Version 2.0.0 - July 3. 2026
 
 New features:
 
-- More vectorization of inputs are now possible. Thanks to jasperpato in `pull request #7
-  <https://github.com/TormodLandet/raschii/pull/7>`_! In addition TormodLandet has added a few more
-  vectorized methods and changed the output shape of some methods for consistency (see below).
+- More vectorization of inputs is now implemented, you can compute elevations and velocities for
+  multiple positions and multiple time steps at the same time. Thanks to jasperpato in
+  `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_!
+  
+  In addition TormodLandet has added a few more vectorized methods and changed the output shape of
+  some methods for consistency (see below).
 
 A few **backwards incompatible** changes were made in this release:
 
-- Rename class ``RasciiError`` to ``RaschiiError``
+- Rename class ``RasciiError`` to ``RaschiiError``. Also thanks to jasperpato for spotting the
+  typo in the class name in `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_.
+
 - Return scalar surface elevation (and velocity potential) when the input are all scalar.
-  If you give ``(x=1.0, t=0.0)``, the return value will be a scalar, but if you give
-  ``(x=[1.0], t=0.0)`` the return value will be a 1D array with one element. This is the same
-  as, e.g., numpy and scipy do for their functions, and is hence a bit more consistent.
+  If you give arguments ``(x=1.0, t=0.0)``, the return value will be a scalar, but if you give
+  arguments ``(x=[1.0], t=0.0)`` the return value will be a 1D array with one element.
+  
+  This is the same convention as used by numpy, and is a bit more consistent now that we support
+  more vectorized operations.
+
+- Wave-model-class constructors arguments: only height, depth, and length are allowed to be
+  positional, all other arguments (N, period etc) must be keyword arguments.
+
 - Move the ``*_cpp`` methods to a separate ``raschii.cpp`` module. If you are one of the extremely
   few users of the C++ code generator you must replace, e.g., ``wave.velocity_cpp`` with the new
   ``wave.cpp.velocity``. This reduces the size of the main wave classes and keeps little-used
-  functionality separate from the main code
+  functionality separate from the main code base.
 
 Version 1.2.0 - July 3. 2026
 ............................
+
+This is likely the last release of Raschii 1.x. The next release will be Raschii 2.0, which will
+include some breaking changes to the API and will require Python 3.12 or newer.
 
 - Support for writing ``amp=2`` and ``amp=3`` SWD files.
 - Support for calculating the velocity potential.

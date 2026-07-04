@@ -16,6 +16,7 @@ class StokesWave(WaveModel):
         height: float,
         depth: float,
         length: float | None = None,
+        *,
         N: int = 5,
         period: float | None = None,
         air=None,

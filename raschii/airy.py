@@ -21,7 +21,7 @@ from .cpp import AiryCppGenerator
 
 
 class AiryWave(WaveModel):
-    required_input = ("height", "depth", "length")
+    required_input = {"height", "depth", "length"}
     optional_input = {"air": None, "g": 9.81}
 
     def __init__(
@@ -29,6 +29,7 @@ class AiryWave(WaveModel):
         height: float,
         depth: float,
         length: float | None = None,
+        *,
         period: float | None = None,
         air=None,
         g: float = 9.81,

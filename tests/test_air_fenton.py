@@ -26,7 +26,7 @@ def wave_with_air_model(request):
     from raschii import FentonAirPhase, FentonWave
 
     air = FentonAirPhase(height_air, blending_height)
-    fwave = FentonWave(height, depth, length, N, air=air)
+    fwave = FentonWave(height, depth, length, N=N, air=air)
     return fwave, air, time, plot
 
 
