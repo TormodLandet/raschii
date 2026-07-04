@@ -114,8 +114,11 @@ An example of using Raschii from the command line:
   # Some information about the wave is also shown
   python -m raschii.cmd.plot -N 5 Fenton 0.2 1.5 2
 
+  # The same, specified by wave period instead of wave length
+  python -m raschii.cmd.plot -N 5 --period 1.2 Fenton 0.2 1.5
+
   # Save the same stream function wave to a SWD file
-  python -m raschii.cmd.swd -N 5 fenton.swd Fenton 0.2 1.5 2  
+  python -m raschii.cmd.swd -N 5 fenton.swd Fenton 0.2 1.5 2
 
 The plot tool allows comparing multiple waves, the SWD file writer only
 supports a single wave at a time and does currently not support Airy waves.
@@ -148,7 +151,7 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
-Version 2.0.0 - July 3. 2026
+Version 2.0.0 - July ?. 2026
 ............................
 
 New features:

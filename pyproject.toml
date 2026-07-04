@@ -33,6 +33,11 @@ Homepage = "https://github.com/TormodLandet/raschii"
 Source = "https://github.com/TormodLandet/raschii"
 Documentation = "https://raschii.readthedocs.io/"
 
+[project.optional-dependencies]
+plot = [
+    "matplotlib >= 3.9",
+]
+
 [dependency-groups]
 test = [
     "pytest >= 8.0",

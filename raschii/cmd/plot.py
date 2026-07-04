@@ -21,14 +21,25 @@ def plot_wave(
     plot_quiver=False,
     ymin=None,
     ymax=None,
+    output_prefix=None,
 ) -> int:
     """
-    Plot waves with the given parameters
+    Plot waves with the given parameters.
+
+    If *output_prefix* is given the two figures are saved as
+    ``{output_prefix}_elevation.png`` and ``{output_prefix}_velocities.png``
+    and no interactive window is opened.  This is useful for headless
+    environments (CI, servers, etc.).
     """
     try:
+        import matplotlib
+
+        if output_prefix is not None:
+            # Non-interactive backend — must be set before pyplot is imported.
+            matplotlib.use("Agg")
         from matplotlib import pyplot
     except ImportError:
-        print("You need to install matplotlib to plot waves")
+        print("You need to install matplotlib to plot waves (pip install raschii[plot])")
         return 10
 
     # Figure for plot of wave with quiver
@@ -51,6 +62,7 @@ def plot_wave(
         if period is None:
             raise ValueError("Either length or period must be given")
         from math import pi as _pi
+
         _length_est = 9.81 * period**2 / (2 * _pi)
     else:
         _length_est = length
@@ -230,7 +242,15 @@ def plot_wave(
 
     fig1.tight_layout()
     fig2.tight_layout(rect=[0, 0.0, 1, 0.95])
-    pyplot.show()
+    if output_prefix is not None:
+        elev_path = f"{output_prefix}_elevation.png"
+        vel_path = f"{output_prefix}_velocities.png"
+        fig1.savefig(elev_path, dpi=150, bbox_inches="tight")
+        fig2.savefig(vel_path, dpi=150, bbox_inches="tight")
+        pyplot.close("all")
+        print(f"Saved {elev_path} and {vel_path}")
+    else:
+        pyplot.show()
     return 0
 
 
@@ -303,6 +323,16 @@ def main() -> int:
     parser.add_argument("-t", "--time", default=0.0, type=float, help="The time instance to plot")
     parser.add_argument("--ymin", default=None, type=float, help="Lower vertical axis limit")
     parser.add_argument("--ymax", default=None, type=float, help="Upper vertical axis limit")
+    parser.add_argument(
+        "-o",
+        "--output-prefix",
+        default=None,
+        metavar="PREFIX",
+        help=(
+            "Save figures to PNG files instead of opening an interactive window. "
+            "Two files are written: PREFIX_elevation.png and PREFIX_velocities.png."
+        ),
+    )
     args = parser.parse_args()
 
     if args.wave_length is None and args.period is None:
@@ -334,6 +364,7 @@ def main() -> int:
         plot_quiver=args.velocities,
         ymin=args.ymin,
         ymax=args.ymax,
+        output_prefix=args.output_prefix,
     )
 
 
