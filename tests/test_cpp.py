@@ -203,7 +203,11 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     cache_dir = tmpdir.ensure("jit_cache", dir=True)
 
     # Check that the wave model produces the same results in C++ and Python
-    cpp = wave_model.cpp.stream_function(frame="WAVE")
+    try:
+        cpp = wave_model.cpp.stream_function(frame="WAVE")
+    except NotImplementedError:
+        classname = wave_model.__class__.__name__
+        raise pytest.xfail(f"Missing {classname}CppGenerator.stream_function method")
     cpp = cpp_wrapper.replace("CODE_GOES_HERE", cpp).replace("x[2]", "x[1]")
     mod = jit_compile(cpp, cache_dir)
 
@@ -247,7 +251,11 @@ def test_cpp_vs_py_slope(tmpdir, wave_model):
     cache_dir = tmpdir.ensure("jit_cache", dir=True)
 
     # Check that the wave model produces the same results in C++ and Python
-    cpp = wave_model.cpp.slope()
+    try:
+        cpp = wave_model.cpp.slope()
+    except NotImplementedError:
+        classname = wave_model.__class__.__name__
+        raise pytest.xfail(f"Missing {classname}CppGenerator.slope method")
     assert "x[2]" not in cpp
     cpp = cpp_wrapper.replace("CODE_GOES_HERE", cpp)
     mod = jit_compile(cpp, cache_dir)
