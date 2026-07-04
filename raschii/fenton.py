@@ -222,42 +222,56 @@ class FentonWave(WaveModel):
 
         return vel
 
-    def acceleration(self, x: NDArray, z: NDArray, t: NDArray = 0, all_points_wet: bool = False):
+    def acceleration(
+        self,
+        x: float | NDArray,
+        z: float | NDArray,
+        t: float | NDArray = 0.0,
+        all_points_wet: bool = False,
+    ):
         """
-        Computes the horizontal and vertical fluid acceleration at each position `(x, z)` at each time `t`.
-        Supports scalar and 1D array inputs, and will return the acceleration corresponding to the inputs' shapes.
-        The `x` and `z` inputs are broadcast together into `N` input points. The length of the `t` input specifies `T` unique times.
+        Compute the horizontal and vertical fluid acceleration at each position
+        ``(x, z)`` at each time ``t``.
+
+        .. note::
+
+           This method is **water-phase only**.  Acceleration above the free
+           surface is set to zero when ``all_points_wet=False`` (the default).
+           Air-phase blending for accelerations is not yet implemented.  If an
+           air model is attached and you query points above the free surface with
+           ``all_points_wet=False``, a :exc:`~raschii.RaschiiError` is raised.
 
         Parameters
         ----------
         x : float | array
-            Horizontal position(s)
+            Horizontal position(s).
         z : float | array
-            Vertical position(s) where z = 0 at the sea floor and z = depth at the free surface
-        t : float | array = 0
-            Time(s) at which to compute the acceleration at each (x, z) point
+            Vertical position(s) where z = 0 at the sea floor and
+            z = depth at the free surface.
+        t : float | array, optional
+            Time(s) at which to compute the acceleration (default 0).
+        all_points_wet : bool, optional
+            If ``True``, evaluate the wave formula at all points regardless of
+            whether they are above the free surface.  Useful for testing.
 
         Returns
         -------
-        acceleration : ndarray
-            The horizontal and vertical fluid acceleration at each time `t` at each position `(x, z)`. The shape of the output is:
-            - (2,) if `x`, `z`, and `t` are scalars (where the first element is horizontal acceleration and the second element is vertical acceleration)
-            - (N, 2) if `x` or `z` are arrays and `t` is scalar
-            - (T, 2) if `x` and `z` are scalars and `t` is an array
-            - (T, N, 2) if `x` or `z` are arrays and `t` is an array
+        ndarray
+            Shape ``(2,)`` for scalar inputs, ``(N, 2)`` for array points and
+            scalar time, ``(T, 2)`` for scalar point and array time,
+            ``(T, N, 2)`` for array points and array time.
         """
         time_is_scalar = asarray(t).ndim == 0
         point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
 
-        x = atleast_1d(x)
-        z = atleast_1d(z)
-        t = atleast_1d(t)
+        x_1d = atleast_1d(asarray(x, dtype=float))
+        z_1d = atleast_1d(asarray(z, dtype=float))
+        t_1d = atleast_1d(asarray(t, dtype=float))
+        x_1d, z_1d = broadcast_arrays(x_1d, z_1d)
 
-        x, z = broadcast_arrays(x, z)
-
-        x = x[newaxis, :]  # shape (1, n_points)
-        z = z[newaxis, :]  # shape (1, n_points)
-        t = t[:, newaxis]  # shape (n_times, 1)
+        x = x_1d[newaxis, :]  # shape (1, n_points)
+        z = z_1d[newaxis, :]  # shape (1, n_points)
+        t = t_1d[:, newaxis]  # shape (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
@@ -276,9 +290,25 @@ class FentonWave(WaveModel):
         acc = stack([acc_x, acc_z], axis=-1)  # shape (n_times, n_points, 2)
 
         if not all_points_wet:
-            # blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
-            pass
-            # must be updated for new broadcasting rules
+            if self.air is not None:
+                eta = asarray(
+                    [self.surface_elevation(x_1d, float(ti)) for ti in t_1d], dtype=float
+                )  # (n_times, n_points)
+                above = z_1d[newaxis, :] > eta + self.eta_eps  # (n_times, n_points)
+                if above.any():
+                    raise RaschiiError(
+                        "acceleration() does not support air-phase blending. "
+                        "Points above the free surface were detected. "
+                        "Use all_points_wet=True to evaluate the raw wave formula, "
+                        "or only query points below the free surface."
+                    )
+            else:
+                # Zero out accelerations above the free surface (no air model)
+                for i, ti in enumerate(t_1d):
+                    eta_i = asarray(self.surface_elevation(x_1d, float(ti)), dtype=float)
+                    above_i = z_1d > eta_i + self.eta_eps
+                    if above_i.any():
+                        acc[i, above_i] = 0.0
 
         if time_is_scalar and point_is_scalar:
             return acc.squeeze()  # shape (2,)
