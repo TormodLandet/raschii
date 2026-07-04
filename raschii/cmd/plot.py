@@ -10,11 +10,12 @@ def plot_wave(
     model_names,
     height,
     depth,
-    length,
-    N,
-    depth_air,
-    blend_height,
-    t,
+    length=None,
+    period=None,
+    N=10,
+    depth_air=0.0,
+    blend_height=-1,
+    t=0.0,
     Nx=21,
     Ny=21,
     plot_quiver=False,
@@ -44,8 +45,17 @@ def plot_wave(
 
     # Vertical axis limits
     ymin_user, ymax_user = ymin, ymax
+    # Use an Airy deep-water estimate when only the period is known so we can
+    # set reasonable plot limits before the wave objects are constructed.
+    if length is None:
+        if period is None:
+            raise ValueError("Either length or period must be given")
+        from math import pi as _pi
+        _length_est = 9.81 * period**2 / (2 * _pi)
+    else:
+        _length_est = length
     ymax = depth + height * 1.5
-    ymin = max(depth - length * 2, 0)  # Include only 2 wave lengths dept,
+    ymin = max(depth - _length_est * 2, 0)  # Include only 2 wave lengths depth,
     ymin = max(depth - height * 10, ymin)  # but no more than 10 wave heights
 
     # Horizontal velocity axis limits
@@ -54,7 +64,7 @@ def plot_wave(
 
     # Increase upper vertical limit if plotting the air phase
     if depth_air > 0:
-        ymax = min(depth + length * 2, depth + depth_air)
+        ymax = min(depth + _length_est * 2, depth + depth_air)
         ymax = min(depth + height * 10, ymax)
 
     # Let the user override the axis limits
@@ -65,7 +75,11 @@ def plot_wave(
     warnings = ""
     for model_name in model_names:
         WaveClass, AirClass = get_wave_model(model_name)
-        args = dict(height=height, depth=depth, length=length)
+        args: dict = dict(height=height, depth=depth)
+        if length is not None:
+            args["length"] = length
+        else:
+            args["period"] = period
         if "N" in WaveClass.required_input:
             args["N"] = N
 
@@ -74,12 +88,12 @@ def plot_wave(
             args["air"] = AirClass(depth_air, blend_height)
 
         wave = WaveClass(**args)
+        length = wave.length  # update from actual wave (important when period was given)
         plot_air = wave.air is not None
         if wave.warnings:
             warnings += "WARNINGS for %s:\n%s" % (model_name, wave.warnings)
 
         # Get elevation
-        assert length > 0
         x = numpy.linspace(-length / 2, length / 2, 200)
         eta = wave.surface_elevation(x, t)
 
@@ -145,7 +159,7 @@ def plot_wave(
         # Plot the velocities in vertical slices
         for i, ax in enumerate(ax2s):
             xi = length / 2 * i / 4
-            e = wave.surface_elevation(xi, t)[0]
+            e = wave.surface_elevation(xi, t)
             y = numpy.linspace(ymin, e, 1000)
             v = wave.velocity(y * 0 + xi, y, t)
             if i < 5:
@@ -167,8 +181,8 @@ def plot_wave(
 
         # Crest and trough velocities
         eta0 = wave.surface_elevation([0.0, length / 2], t=0)
-        u_crest = wave.velocity(0.0, eta0[0], t=0)[0, 0]
-        u_trough = wave.velocity(length / 2, eta0[1], t=0)[0, 0]
+        u_crest = wave.velocity(0.0, eta0[0], t=0)[0]
+        u_trough = wave.velocity(length / 2, eta0[1], t=0)[0]
 
         # Print some info
         print(
@@ -245,7 +259,20 @@ def main() -> int:
     )
     parser.add_argument("wave_height", help="Wave height", type=float)
     parser.add_argument("water_depth", help="The still water depth", type=float)
-    parser.add_argument("wave_length", help="Distance between peaks", type=float)
+    parser.add_argument(
+        "wave_length",
+        nargs="?",
+        default=None,
+        type=float,
+        help="Distance between wave crests. Mutually exclusive with --period / -T.",
+    )
+    parser.add_argument(
+        "-T",
+        "--period",
+        type=float,
+        default=None,
+        help="Wave period in seconds (alternative to the positional wave_length argument).",
+    )
     parser.add_argument("-N", type=int, default=10, help="Approximation order")
     parser.add_argument(
         "-f",
@@ -278,7 +305,14 @@ def main() -> int:
     parser.add_argument("--ymax", default=None, type=float, help="Upper vertical axis limit")
     args = parser.parse_args()
 
-    err, warn = check_breaking_criteria(args.wave_height, args.water_depth, args.wave_length)
+    if args.wave_length is None and args.period is None:
+        parser.error("Either the positional wave_length or --period / -T must be given.")
+    if args.wave_length is not None and args.period is not None:
+        parser.error("wave_length and --period are mutually exclusive.")
+
+    err, warn = check_breaking_criteria(
+        args.wave_height, args.water_depth, length=args.wave_length, period=args.period
+    )
     if err:
         print(err)
     if warn:
@@ -292,6 +326,7 @@ def main() -> int:
         height=args.wave_height,
         depth=args.water_depth,
         length=args.wave_length,
+        period=args.period,
         N=args.N,
         depth_air=args.depth_air,
         blend_height=args.blend_height,
