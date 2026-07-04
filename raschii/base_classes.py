@@ -1,5 +1,10 @@
+from __future__ import annotations
+
 import numpy as np
 from numpy.typing import NDArray
+
+from .common import Frame
+from .cpp import WaveModelCppGenerator
 
 
 class WaveModel:
@@ -8,15 +13,35 @@ class WaveModel:
     """
 
     def __init__(self, height: float, depth: float, length: float, g: float = 9.81):
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.g: float = g  #: The acceleration of gravity
+        """
+        The Raschii base wave model.
+        """
+        #: The wave height
+        self.height: float = height
 
-        self.T: float  #: The wave period [t], to be defined in subclasses
-        self.omega: float  #: The wave angular frequency [rad/s], to be defined in subclasses
-        self.k: float  #: The wave number [1/m], to be defined in subclasses
-        self.c: float  #: The wave celerity [m/s], to be defined in subclasses
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The acceleration of gravity
+        self.g: float = g
+
+        #: The wave period [t], to be defined in subclasses
+        self.T: float
+
+        #: The wave angular frequency [rad/s], to be defined in subclasses
+        self.omega: float
+
+        #: The wave number [1/m], to be defined in subclasses
+        self.k: float
+
+        #: The wave celerity [m/s], to be defined in subclasses
+        self.c: float
+
+        #: The C++ code generator for this wave model, to be defined in subclasses
+        self.cpp: WaveModelCppGenerator | None = None
 
     def surface_elevation(
         self,
@@ -127,4 +152,45 @@ class WaveModel:
 
     def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
         """Compute velocity potential. x, z: (N,), t: (T,) → returns (T, N)."""
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+
+class AirPhaseModel:
+    def __init__(self, height: float, blending_height: float | None = None):
+        """
+        The Raschii base air-phase model.
+
+        Divergence free kinematics also above the free surface
+        """
+        self.height: float = height
+        self.blending_height: float | None = blending_height
+
+        from .cpp import AirPhaseModelCppGenerator
+
+        self.cpp: AirPhaseModelCppGenerator
+
+    def set_wave(self, wave: WaveModel):
+        """
+        Connect this air phase with the wave in the water phase
+        """
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+    def stream_function(self, x, z, t=0, frame=Frame.EARTH):
+        """
+        Compute the stream function at time t for position(s) x.
+
+        * frame: :class:`~raschii.Frame` – ``Frame.EARTH`` (default) returns
+          zero (still air in the earth frame); ``Frame.WAVE`` returns ``-c*z``
+          (air appears to move backward at the wave phase speed in the
+          co-moving frame).
+        """
+        raise NotImplementedError("This method should be implemented in subclasses.")
+
+    def velocity(self, x, z, t=0):
+        """
+        Compute the air phase particle velocity at time t for position(s) (x, z)
+        where z is 0 at the bottom and equal to depth_water at the free surface
+        and equal to depth_water + depth air at the top free slip lid above the
+        air phase
+        """
         raise NotImplementedError("This method should be implemented in subclasses.")

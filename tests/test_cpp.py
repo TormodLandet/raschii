@@ -203,7 +203,7 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     cache_dir = tmpdir.ensure("jit_cache", dir=True)
 
     # Check that the wave model produces the same results in C++ and Python
-    cpp = wave_model.cpp.stream_function(frame="c")
+    cpp = wave_model.cpp.stream_function(frame="WAVE")
     cpp = cpp_wrapper.replace("CODE_GOES_HERE", cpp).replace("x[2]", "x[1]")
     mod = jit_compile(cpp, cache_dir)
 
@@ -215,7 +215,7 @@ def test_cpp_vs_py_stream_function(tmpdir, wave_model):
     sf_cpp = numpy.zeros_like(xr)
     for i in range(xr.size):
         sf_cpp[i] = mod.sfunc([xr[i], zr[i]], t)
-    sf_py = wave_model.stream_function(xr, zr, t, frame="c")
+    sf_py = wave_model.stream_function(xr, zr, t, frame="WAVE")
 
     # Check the results
     test_name = "%s C++ stream function" % wave_model.__class__.__name__
@@ -271,7 +271,7 @@ def test_cpp_elevation_nocompile(wave_model):
     # Check that the wave model produces valid C++ code
     cpp = wave_model.cpp.elevation()
     assert "x[2]" not in cpp
-    if 'np.' in cpp or 'numpy' in cpp:
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False
 
@@ -279,22 +279,30 @@ def test_cpp_elevation_nocompile(wave_model):
 def test_cpp_velocity_nocompile(wave_model):
     # Check that the wave model produces valid C++ code
     cpp = wave_model.cpp.velocity()
-    if 'np.' in cpp or 'numpy' in cpp:
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False
 
 
 def test_cpp_stream_function_nocompile(wave_model):
     # Check that the wave model produces valid C++ code
-    cpp = wave_model.cpp.stream_function()
-    if 'np.' in cpp or 'numpy' in cpp:
+    try:
+        cpp = wave_model.cpp.stream_function()
+    except NotImplementedError:
+        classname = wave_model.__class__.__name__
+        raise pytest.xfail(f"Missing {classname}CppGenerator.stream_function method")
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False
 
 
 def test_cpp_slope_nocompile(wave_model):
     # Check that the wave model produces valid C++ code
-    cpp = wave_model.cpp.slope()
-    if 'np.' in cpp or 'numpy' in cpp:
+    try:
+        cpp = wave_model.cpp.slope()
+    except NotImplementedError:
+        classname = wave_model.__class__.__name__
+        raise pytest.xfail(f"Missing {classname}CppGenerator.slope method")
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False

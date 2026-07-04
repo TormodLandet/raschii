@@ -1,15 +1,22 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from numpy import arange, cosh
 
-from ..common import RaschiiError, blend_air_and_wave_velocity_cpp, np2py
+from ..common import Frame, RaschiiError, blend_air_and_wave_velocity_cpp, np2py
+
+if TYPE_CHECKING:
+    from ..fenton import FentonWave
 
 
 class FentonCppGenerator:
     """C++ code generator for FentonWave."""
 
-    def __init__(self, wave):
-        self.wave = wave
+    def __init__(self, wave: FentonWave):
+        self.wave: FentonWave = wave
 
-    def stream_function(self, frame="b"):
+    def stream_function(self, frame: Frame = Frame.EARTH):
         """
         Return C++ code for evaluating the stream function of this specific
         wave. The positive traveling direction is x[0] and the vertical
@@ -38,9 +45,9 @@ class FentonCppGenerator:
             for i in range(N)
         )
 
-        if frame == "b":
+        if frame == Frame.EARTH:
             return f"{np2py(B[0])!r} * x[2] + {cpp}"
-        elif frame == "c":
+        elif frame == Frame.WAVE:
             return cpp
 
     def elevation(self):
@@ -134,8 +141,8 @@ class FentonCppGenerator:
         cpp_psiw = cpp_psia = cpp_slope = None
         if wave.air is not None:
             cpp_ax, cpp_az = wave.air.cpp.velocity()
-            cpp_psiw = self.stream_function(frame="c")
-            cpp_psia = wave.air.cpp.stream_function(frame="c")
+            cpp_psiw = self.stream_function(frame=Frame.WAVE)
+            cpp_psia = wave.air.cpp.stream_function(frame=Frame.WAVE)
             cpp_slope = self.slope()
 
         cpp_x = blend_air_and_wave_velocity_cpp(

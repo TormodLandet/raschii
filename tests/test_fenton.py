@@ -234,16 +234,16 @@ def test_fenton_stream_function_and_slope():
     depth = 200.0
     length = 100.0
     N = 5
-    fwave = FentonWave(height, depth, length, N)
+    fwave = FentonWave(height, depth, length, N=N)
 
     # Compare velocities with numerical differentiation of the stream function
     eps = 1e-7
     for x in numpy.linspace(0, length, 21):
         z = depth + height / 2
         vel = fwave.velocity(x, z, all_points_wet=True)
-        sf0 = fwave.stream_function(x, z, frame="c")
-        sfX = fwave.stream_function(x + eps, z, frame="c")
-        sfZ = fwave.stream_function(x, z + eps, frame="c")
+        sf0 = fwave.stream_function(x, z, frame="WAVE")
+        sfX = fwave.stream_function(x + eps, z, frame="WAVE")
+        sfZ = fwave.stream_function(x, z + eps, frame="WAVE")
         assert vel.shape == (2,) and sf0.shape == (1,) and sfX.shape == (1,)
         sfvel_x = (sfZ[0] - sf0) / eps
         sfvel_z = -(sfX[0] - sf0) / eps

@@ -1,9 +1,11 @@
-from numpy import zeros, asarray, arange, sin, cos, sinh, cosh, newaxis
+from numpy import arange, asarray, cos, cosh, newaxis, sin, sinh, zeros
 from numpy.linalg import solve
-from .common import sinh_by_cosh, AIR_BLENDING_HEIGHT_FACTOR, np2py
+
+from .base_classes import AirPhaseModel
+from .common import AIR_BLENDING_HEIGHT_FACTOR, Frame, sinh_by_cosh
 
 
-class FentonAirPhase:
+class FentonAirPhase(AirPhaseModel):
     def __init__(self, height, blending_height=None):
         """
         Given a set of colocation points with precomputed surface elevations
@@ -31,11 +33,16 @@ class FentonAirPhase:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
 
         from .cpp import FentonAirCppGenerator
+
         self.cpp = FentonAirCppGenerator(self)
 
-    def stream_function(self, x, z, t=0, frame="b"):
+    def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
-        Compute the stream function at time t for position(s) x
+        Compute the stream function at time t for position(s) x.
+
+        * frame: :class:`~raschii.Frame` – ``Frame.EARTH`` (default) includes
+          the constant base-flow term; ``Frame.WAVE`` returns only the
+          oscillatory part.
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
@@ -51,10 +58,12 @@ class FentonAirPhase:
 
         psi = (sinh(J * k * z2) / cosh(J * k * self.height) * cos(J * k * x2)).dot(B)
 
-        if frame == "e":
+        if frame == Frame.EARTH:
             return B0 * z + psi
-        elif frame == "c":
+        elif frame == Frame.WAVE:
             return psi
+        else:
+            raise ValueError(f"Unknown frame {frame!r}; use Frame.EARTH or Frame.WAVE")
 
     def velocity(self, x, z, t=0):
         """
@@ -84,9 +93,7 @@ class FentonAirPhase:
         return vel
 
     def __repr__(self):
-        return ("FentonAirPhase(height={s.height}, blending_height=" "{s.blending_height})").format(
-            s=self
-        )
+        return f"FentonAirPhase(height={self.height}, blending_height={self.blending_height})"
 
 
 def air_velocity_coefficients(x, eta, c, k, depth_water, height_air):

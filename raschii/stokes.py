@@ -3,7 +3,7 @@ from math import exp, pi, pow, sinh, sqrt, tanh
 import numpy as np
 from numpy.typing import NDArray
 
-from .base_classes import WaveModel
+from .base_classes import WaveModel, AirPhaseModel
 from .common import NonConvergenceError, RaschiiError, blend_air_and_wave_velocities
 
 
@@ -19,7 +19,7 @@ class StokesWave(WaveModel):
         *,
         N: int = 5,
         period: float | None = None,
-        air=None,
+        air: AirPhaseModel | None = None,
         g: float = 9.81,
     ):
         """
@@ -38,13 +38,26 @@ class StokesWave(WaveModel):
                 raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(height=height, depth=depth, period=period, N=N, g=g)
 
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.order: int = N  #: The approximation order
-        self.air = air  #: The optional air-phase model
-        self.g: float = g  #: The acceleration of gravity
-        self.warnings: str = ""  #: Warnings raised when generating this wave
+        #: The wave height
+        self.height: float = height
+
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The approximation order
+        self.order: int = N
+
+        #: The optional air-phase model
+        self.air: AirPhaseModel | None = air
+
+        #: The acceleration of gravity
+        self.g: float = g
+
+        #: Warnings raised when generating this wave
+        self.warnings: str = ""
 
         if N < 1:
             self.warnings = "Stokes order must be at least 1, using order 1"
@@ -54,6 +67,7 @@ class StokesWave(WaveModel):
             self.order = 5
 
         # Find the coeffients through explicit formulas
+        #: The wave number
         self.k = 2 * pi / length  # The wave number
         data = stokes_coefficients(self.k * depth, self.order)
         self.set_data(data)
@@ -67,6 +81,7 @@ class StokesWave(WaveModel):
 
         from .cpp import StokesCppGenerator
 
+        # Niche use use case: Provide a C++ code generator for this wave model
         self.cpp = StokesCppGenerator(self)
 
     def set_data(self, data):

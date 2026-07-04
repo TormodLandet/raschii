@@ -1,6 +1,6 @@
 from math import sinh
 
-from ..common import RaschiiError, blend_air_and_wave_velocity_cpp, np2py
+from ..common import Frame, blend_air_and_wave_velocity_cpp, np2py
 
 
 class AiryCppGenerator:
@@ -52,9 +52,9 @@ class AiryCppGenerator:
         cpp_psiw = cpp_psia = cpp_slope = None
         if wave.air is not None:
             cpp_ax, cpp_az = wave.air.cpp.velocity()
-            cpp_psiw = self.stream_function(frame="c")   # not implemented for Airy
-            cpp_psia = wave.air.cpp.stream_function(frame="c")
-            cpp_slope = self.slope()                      # not implemented for Airy
+            cpp_psiw = self.stream_function(frame=Frame.WAVE)  # not implemented for Airy
+            cpp_psia = wave.air.cpp.stream_function(frame=Frame.WAVE)
+            cpp_slope = self.slope()  # not implemented for Airy
 
         cpp_x = blend_air_and_wave_velocity_cpp(
             cpp_x, cpp_ax, e_cpp, "x", wave.eta_eps, wave.air, cpp_psiw, cpp_psia, cpp_slope
@@ -64,3 +64,11 @@ class AiryCppGenerator:
         )
 
         return cpp_x, cpp_z
+
+    def stream_function(self, frame: Frame = Frame.EARTH):
+        raise NotImplementedError(
+            "C++ code generation for stream function is not implemented for Airy waves"
+        )
+
+    def slope(self):
+        raise NotImplementedError("C++ code generation for slope is not implemented for Airy waves")

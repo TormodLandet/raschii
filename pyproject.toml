@@ -4,8 +4,16 @@ description = "A Python implementation of nonlinear regular wave theories (Stoke
 readme = "README.rst"
 authors = [{name = "Tormod Landet", email = "tormod@landet.net"}]
 license = "apache-2.0"
-requires-python = ">=3.10"  # numpy 2.1 dropped 3.9 and below
-dependencies = ["numpy"]
+
+# Python version 3.11 is needed for StrEnum.
+# Python version 3.10 is end-of-life in October 2026 anyways (change made in July 2026).
+requires-python = ">=3.11"
+
+# We keep dependencies to a minimum. Doing this also allows us easy use on the web.
+# See the PyScript version of Raschii in documentation/_static/raschii_pyscript (html and py files)
+dependencies = [
+    "numpy >= 2.2",  # Numpy 2.2 is supported until December 2026 (version bump made in July 2026).
+]
 
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -52,4 +60,4 @@ line-length = 100
 
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = ['py312']

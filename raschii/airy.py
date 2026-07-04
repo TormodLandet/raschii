@@ -10,7 +10,7 @@ from numpy import (
 )
 from numpy.typing import NDArray
 
-from .base_classes import WaveModel
+from .base_classes import WaveModel, AirPhaseModel
 from .common import (
     NonConvergenceError,
     RaschiiError,
@@ -31,7 +31,7 @@ class AiryWave(WaveModel):
         length: float | None = None,
         *,
         period: float | None = None,
-        air=None,
+        air: AirPhaseModel | None = None,
         g: float = 9.81,
     ):
         """
@@ -48,11 +48,21 @@ class AiryWave(WaveModel):
                 raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(depth=depth, period=period, g=g)
 
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.air = air  #: The optional air-phase model
-        self.g: float = g  #: The acceleration of gravity
+        #: The wave height
+        self.height: float = height
+
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The optional air-phase model
+        self.air: AirPhaseModel | None = air
+
+        #: The acceleration of gravity
+        self.g: float = g
+
         self.warnings: str = ""  #: Warnings raised when generating this wave
 
         self.k = 2 * pi / length

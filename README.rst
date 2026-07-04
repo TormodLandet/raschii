@@ -180,6 +180,9 @@ A few **backwards incompatible** changes were made in this release:
   ``wave.cpp.velocity``. This reduces the size of the main wave classes and keeps little-used
   functionality separate from the main code base.
 
+- Bumped minimum version of Python to 3.11 (first release in 2022) and the minimum version of our
+  only dependency, numpy, to 2.2 (first release in 2024).
+
 Version 1.2.0 - July 3. 2026
 ............................
 

@@ -21,8 +21,9 @@ from numpy import (
 from numpy.linalg import solve
 from numpy.typing import NDArray
 
-from .base_classes import WaveModel
+from .base_classes import AirPhaseModel, WaveModel
 from .common import (
+    Frame,
     NonConvergenceError,
     RaschiiError,
     blend_air_and_wave_velocities,
@@ -46,7 +47,7 @@ class FentonWave(WaveModel):
         *,
         N: int = 5,
         period: float | None = None,
-        air=None,
+        air: AirPhaseModel | None = None,
         g: float = 9.81,
         relax: float = 0.5,
         maxiter: int = 500,
@@ -70,14 +71,29 @@ class FentonWave(WaveModel):
                 height=height, depth=depth, period=period, N=N, g=g, relax=relax
             )
 
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.order: int = N  #: The approximation order
-        self.air = air  #: The optional air-phase model
-        self.g: float = g  #: The acceleration of gravity
-        self.relax: float = relax  #: The numerical relaxation in the optimization loop
-        self.warnings: str = ""  #: Warnings raised when generating this wave
+        #: The wave height
+        self.height: float = height
+
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The approximation order
+        self.order: int = N
+
+        #: The optional air-phase model
+        self.air: AirPhaseModel | None = air
+
+        #: The acceleration of gravity
+        self.g: float = g
+
+        #: The numerical relaxation in the optimization loop
+        self.relax: float = relax
+
+        #: Warnings raised when generating this wave
+        self.warnings: str = ""
 
         if N < 1:
             self.warnings = "Fenton order must be at least 1, using order 1"
@@ -96,6 +112,7 @@ class FentonWave(WaveModel):
         if self.air is not None:
             self.air.set_wave(self)
 
+        # Niche use use case: Provide a C++ code generator for this wave model
         self.cpp = FentonCppGenerator(self)
 
     def set_data(self, data):
@@ -117,9 +134,13 @@ class FentonWave(WaveModel):
         J = arange(0, N + 1)
         self.E = trapezoid_integration(self.eta * cos(J * J[:, newaxis] * pi / N))
 
-    def stream_function(self, x, z, t=0, frame="b"):
+    def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
-        Compute the stream function at time t for position(s) x
+        Compute the stream function at time t for position(s) x.
+
+        * frame: :class:`~raschii.Frame` – ``Frame.EARTH`` (default) includes
+          the constant base-flow term; ``Frame.WAVE`` returns only the
+          oscillatory part.
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
@@ -134,10 +155,12 @@ class FentonWave(WaveModel):
 
         psi = (sinh(J * k * z2) / cosh(J * k * self.depth) * cos(J * k * x2)).dot(B[1:])
 
-        if frame == "b":
+        if frame == Frame.EARTH:
             return B[0] * z + psi
-        elif frame == "c":
+        elif frame == Frame.WAVE:
             return psi
+        else:
+            raise ValueError(f"Unknown frame {frame!r}; use Frame.EARTH or Frame.WAVE")
 
     def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         N = len(self.eta) - 1

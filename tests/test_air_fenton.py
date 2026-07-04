@@ -48,9 +48,9 @@ def test_fenton_air_with_fenton(wave_with_air_model):
 
     # Compare velocities with numerical differentiation of the stream function
     avel = air.velocity(xr, zr, time)
-    sf0 = air.stream_function(xr, zr, time, frame="c")
-    sfX = air.stream_function(xr + eps, zr, time, frame="c")
-    sfZ = air.stream_function(xr, zr + eps, time, frame="c")
+    sf0 = air.stream_function(xr, zr, time, frame="WAVE")
+    sfX = air.stream_function(xr + eps, zr, time, frame="WAVE")
+    sfZ = air.stream_function(xr, zr + eps, time, frame="WAVE")
     sfvel_x = (sfZ - sf0) / eps
     sfvel_z = -(sfX - sf0) / eps
     err = abs(avel[:, 0] - sfvel_x) + abs(avel[:, 1] - sfvel_z)

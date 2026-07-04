@@ -7,12 +7,14 @@ raschii, the Arctic Krill.
 SPDX-License-Identifier: Apache-2.0
 """
 
+from typing import overload
+
 #: The three-digit version number of Raschii
 __version__ = "1.2.0"
 version = __version__
 
 from .common import check_breaking_criteria, RaschiiError, NonConvergenceError
-from .base_classes import WaveModel
+from .base_classes import Frame, WaveModel, AirPhaseModel
 from .airy import AiryWave
 from .fenton import FentonWave
 from .stokes import StokesWave
@@ -21,17 +23,34 @@ from .air_phase_constant import ConstantAirPhase
 
 
 #: The available wave models. A dictionary mapping model name (str) to model class.
-WAVE_MODELS = {"Airy": AiryWave, "Fenton": FentonWave, "Stokes": StokesWave}
+WAVE_MODELS: dict[str, type[WaveModel]] = {
+    "Airy": AiryWave,
+    "Fenton": FentonWave,
+    "Stokes": StokesWave,
+}
 
 #: The available air-phase models. A dictionary mapping model name (str) to model class.
-AIR_MODELS = {"FentonAir": FentonAirPhase, "ConstantAir": ConstantAirPhase}
+AIR_MODELS: dict[str, type[AirPhaseModel]] = {
+    "FentonAir": FentonAirPhase,
+    "ConstantAir": ConstantAirPhase,
+}
+
+
+@overload
+def get_wave_model(
+    model_name: str, air_model_name: str
+) -> tuple[type[WaveModel], type[AirPhaseModel]]: ...
+
+
+@overload
+def get_wave_model(model_name: str, air_model_name: None) -> tuple[type[WaveModel], None]: ...
 
 
 def get_wave_model(
     model_name: str, air_model_name: str | None = None
 ) -> tuple[
-    type[AiryWave] | type[StokesWave] | type[FentonWave],
-    type[FentonAirPhase] | type[ConstantAirPhase] | None,
+    type[WaveModel],
+    type[AirPhaseModel] | None,
 ]:
     """
     Get a Raschii wave model by name (returns the class, not an instance)

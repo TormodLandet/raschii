@@ -1,6 +1,6 @@
 from numpy import arange, cosh
 
-from ..common import np2py
+from ..common import Frame, np2py
 
 
 class ConstantAirCppGenerator:
@@ -9,15 +9,16 @@ class ConstantAirCppGenerator:
     def __init__(self, air):
         self.air = air
 
-    def stream_function(self, frame="b"):
+    def stream_function(self, frame=Frame.EARTH):
         """
         Return C++ code for evaluating the stream function of this specific
         air phase model.
         """
-        if frame == "b":
-            return f"{np2py(self.air.c)!r} * x[2]"
-        elif frame == "c":
+        c = np2py(self.air.c)
+        if frame == Frame.EARTH:
             return "0.0"
+        elif frame == Frame.WAVE:
+            return f"-{c!r} * x[2]"
 
     def velocity(self):
         """
@@ -33,7 +34,7 @@ class FentonAirCppGenerator:
     def __init__(self, air):
         self.air = air
 
-    def stream_function(self, frame="b"):
+    def stream_function(self, frame=Frame.EARTH):
         """
         Return C++ code for evaluating the stream function of this specific
         air phase model. The positive traveling direction is x[0] and the
@@ -61,10 +62,10 @@ class FentonAirCppGenerator:
             for i in range(N)
         )
 
-        if frame == "b":
+        if frame == Frame.EARTH:
             B0 = np2py(air.c)
             return f"{B0!r} * x[2] + {cpp}"
-        elif frame == "c":
+        elif frame == Frame.WAVE:
             return cpp
 
     def velocity(self):
