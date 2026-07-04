@@ -51,7 +51,7 @@ class StokesWave(WaveModel):
             self.order = 1
         elif N > 5:
             self.warnings = "Stokes order is maximum 5, using order 5"
-            self.order = 4
+            self.order = 5
 
         # Find the coeffients through explicit formulas
         self.k = 2 * pi / length  # The wave number
