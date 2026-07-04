@@ -32,7 +32,7 @@ import raschii
 # -- Project information -----------------------------------------------------
 
 project = "raschii"
-copyright = "2018-2024, Tormod Landet"
+copyright = "2018-2026, Tormod Landet"
 author = "Tormod Landet"
 
 # The full version, including alpha/beta/rc tags

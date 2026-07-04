@@ -22,6 +22,71 @@ Main functions
 .. .. autodata:: raschii.__version__
 
 
+Wave model API summary
+======================
+
+All three wave model classes (:class:`~raschii.AiryWave`,
+:class:`~raschii.StokesWave`, and :class:`~raschii.FentonWave`) share the
+following attributes and methods.
+
+.. list-table:: Attributes and methods available on all wave models
+   :widths: 45 55
+   :header-rows: 1
+
+   * - Attribute / Method
+     - Description
+   * - ``height``, ``depth``, ``length``, ``g``
+     - Input parameters, stored as instance attributes.
+   * - ``T``
+     - Wave period [s].
+   * - ``omega``
+     - Angular frequency [rad/s].
+   * - ``k``
+     - Wave number [1/m].
+   * - ``c``
+     - Phase speed [m/s].
+   * - ``warnings``
+     - String with any warnings raised during construction (empty if none).
+   * - ``surface_elevation(x, t=0, include_depth=True)``
+     - Free-surface elevation.  Returns a scalar when both *x* and *t* are
+       scalar, an ndarray otherwise (NumPy scalar-in / scalar-out convention).
+   * - ``velocity(x, z, t=0, all_points_wet=False)``
+     - Fluid velocity at each *(x, z)* point.  Shape ``(2,)`` for scalar inputs,
+       ``(N, 2)`` or ``(T, N, 2)`` for array inputs.
+   * - ``velocity_potential(x, z, t=0)``
+     - Earth-frame velocity potential φ (mean flow excluded).  Same scalar/array
+       convention as ``surface_elevation``.
+   * - ``write_swd(path, dt, tmax=None, nperiods=None, amp=1)``
+     - Write the wave field to a file in the
+       `SWD format <https://spectral-wave-data.readthedocs.io/>`_.
+   * - ``cpp``
+     - C++ code generator (experimental — see :ref:`cpp-code-generation`).
+
+The following methods are only available on specific wave model classes.
+
+.. list-table:: Methods available on specific wave models only
+   :widths: 38 42 20
+   :header-rows: 1
+
+   * - Method
+     - Description
+     - Available on
+   * - ``stream_function(x, z, t=0, frame=Frame.EARTH)``
+     - Stream function ψ.  Use :class:`~raschii.Frame` to choose the reference
+       frame (``Frame.EARTH`` or ``Frame.WAVE``).
+     - :class:`~raschii.FentonWave`
+   * - ``surface_slope(x, t=0)``
+     - Horizontal derivative dη/dx of the free-surface elevation.
+     - :class:`~raschii.FentonWave`
+   * - ``acceleration(x, z, t=0, all_points_wet=False)``
+     - Fluid acceleration.  Water-phase only; returns zero above the free
+       surface (air blending is not yet implemented for accelerations).
+     - :class:`~raschii.FentonWave`
+   * - ``cs``
+     - Mean Stokes drift speed [m/s].
+     - :class:`~raschii.FentonWave`, :class:`~raschii.StokesWave`
+
+
 Wave model classes
 ==================
 
@@ -78,8 +143,38 @@ construct consistent initial and boundary conditions.
 
 
 Exceptions
-=================
+==========
 
 .. autoexception:: raschii.RaschiiError
 
 .. autoexception:: raschii.NonConvergenceError
+
+
+Enumerations
+============
+
+.. autoclass:: raschii.Frame
+    :members:
+
+
+Other
+=====
+
+
+.. _cpp-code-generation:
+
+C++ code generators
+-------------------
+
+Each wave model exposes a ``wave.cpp`` attribute that can generate C++ code
+strings for use in e.g. FEniCS boundary conditions.  The available methods are
+``wave.cpp.elevation()``, ``wave.cpp.velocity()``, ``wave.cpp.stream_function()``,
+and ``wave.cpp.slope()`` (the last two are implemented only for
+:class:`~raschii.FentonWave`).
+
+.. warning::
+
+   The C++ code generation interface (``wave.cpp.*``) is **experimental**.
+   Its API may change or be removed in a future release without following the
+   normal deprecation cycle. It is currently not used by anyone as far as the
+   author of Raschii is aware.
