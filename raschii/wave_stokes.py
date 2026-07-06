@@ -3,7 +3,7 @@ from math import exp, pi, pow, sinh, sqrt, tanh
 import numpy as np
 from numpy.typing import NDArray
 
-from .base_classes import WaveModel, AirPhaseModel
+from .base_classes import AirPhaseModel, WaveModel
 from .common import NonConvergenceError, RaschiiError, blend_air_and_wave_velocities
 
 
@@ -103,10 +103,17 @@ class StokesWave(WaveModel):
             self.g / k**3
         )
 
-        self.c = c  # Phase speed
-        self.cs = c - Q  # Mean Stokes drift speed (TODO: verify this!)
-        self.T = self.length / self.c  # Wave period
-        self.omega = self.c * self.k  # Wave frequency
+        #: Wave celerity (phase speed) in [m/s]
+        self.c = c
+
+        # Mean Stokes drift speed in [m/s]. TODO: verify this ...
+        self.cs = c - Q
+
+        #: Wave period in [s]
+        self.period = self.length / self.c
+
+        #: Wave frequency in [rad/s]
+        self.omega = self.c * self.k
 
     def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         x2 = x[np.newaxis, :] - self.c * t[:, np.newaxis]  # (T, N)
@@ -443,7 +450,7 @@ def compute_length_from_period(
     This would be much faster if we had an implementation of the Stokes wave
     theory dispersion relation, which should be not too hard to implement ...
     """
-    from .airy import compute_length_from_period as airy_compute_length_from_period
+    from .wave_airy import compute_length_from_period as airy_compute_length_from_period
 
     # Initial guess is based on the linear dispersion relation for deep water waves
     length = airy_compute_length_from_period(depth=depth, period=period, g=g)
@@ -459,14 +466,14 @@ def compute_length_from_period(
         length = length_N
 
         # New guess for the wave length by interpolation
-        f = (period - wave1.T) / (wave2.T - wave1.T)
+        f = (period - wave1.period) / (wave2.period - wave1.period)
         length_N = wave1.length + (wave2.length - wave1.length) * f
 
         # Resulting wave period for the new length from the dispersion relation
         waveN = StokesWave(height=height, depth=depth, length=length_N, N=N, g=g)
 
         # Update the two points used for the interpolation in the next iteration
-        if waveN.T < period:
+        if waveN.period < period:
             wave1 = waveN
         else:
             wave2 = waveN

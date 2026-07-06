@@ -2,11 +2,15 @@ import numpy as np
 from numpy import array, empty
 from numpy.fft import irfft
 
+from ..wave_fenton import FentonWave
 from .base import SwdWriter
 
 
 class SwdWriterFenton(SwdWriter):
     """SWD writer for Fenton stream-function waves."""
+
+    # The wave model set in the base-class constructor must be a FentonWave
+    wave: FentonWave
 
     def _effective_depth(self) -> float:
         wave = self.wave
@@ -51,7 +55,7 @@ class SwdWriterFenton(SwdWriter):
         wave = self.wave
         return {
             "model": "Fenton",
-            "T": wave.T,
+            "T": wave.period,
             "height": wave.height,
             "depth": wave.depth,
             "depth_actual": depth,

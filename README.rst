@@ -168,6 +168,11 @@ A few **backwards incompatible** changes were made in this release:
 - Rename class ``RasciiError`` to ``RaschiiError``. Also thanks to jasperpato for spotting the
   typo in the class name in `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_.
 
+- Rename attribute ``T`` to ``period`` for the wave classes. The classes allready have attrubutes
+  named the same as the constructor inputs: ``height``, ``depth``, and ``length``. The attribute was
+  the odd one out that did not match the constructor input name. Other short-name attributes like
+  the celerity attribute ``c`` are not renamed since they are not constructor inputs.
+
 - Return scalar surface elevation (and velocity potential) when the input are all scalar.
   If you give arguments ``(x=1.0, t=0.0)``, the return value will be a scalar, but if you give
   arguments ``(x=[1.0], t=0.0)`` the return value will be a 1D array with one element.
@@ -182,6 +187,10 @@ A few **backwards incompatible** changes were made in this release:
   few users of the C++ code generator you must replace, e.g., ``wave.velocity_cpp`` with the new
   ``wave.cpp.velocity``. This reduces the size of the main wave classes and keeps little-used
   functionality separate from the main code base.
+
+- Other internal API renames and moves. The wave classes are moved to different module names which
+  is not considered a breaking change since the wave classes should be imported directly from the
+  ``raschii`` module, e.g. ``from raschii import FentonWave``.
 
 - Bumped minimum version of Python to 3.11 (first release in 2022) and the minimum version of our
   only dependency, numpy, to 2.2 (first release in 2024).

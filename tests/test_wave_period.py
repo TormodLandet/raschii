@@ -41,11 +41,11 @@ def test_wave_period(wave_model_name):
     # Find the average wave period and check that it is accurate
     period = np.mean(periods)
     stdev_pst = np.std(periods) / period * 100
-    print(wave_model_name, wave_model.T, period, stdev_pst)
+    print(wave_model_name, wave_model.period, period, stdev_pst)
     assert stdev_pst < 0.6, "The standard dev should small compared to the mean"
 
     # Check period of eta vs analytical period
-    error_pst = abs(period - wave_model.T) / wave_model.T * 100
+    error_pst = abs(period - wave_model.period) / wave_model.period * 100
     print(error_pst)
     assert error_pst < 0.05, "The period should be close to the analytical"
 

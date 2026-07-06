@@ -7,7 +7,7 @@ from numpy import arange, cosh
 from ..common import Frame, RaschiiError, blend_air_and_wave_velocity_cpp, np2py
 
 if TYPE_CHECKING:
-    from ..fenton import FentonWave
+    from ..wave_fenton import FentonWave
 
 
 class FentonCppGenerator:

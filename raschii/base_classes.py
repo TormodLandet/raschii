@@ -28,8 +28,8 @@ class WaveModel:
         #: The acceleration of gravity
         self.g: float = g
 
-        #: The wave period [t], to be defined in subclasses
-        self.T: float
+        #: The wave period [s], to be defined in subclasses
+        self.period: float
 
         #: The wave angular frequency [rad/s], to be defined in subclasses
         self.omega: float

@@ -36,7 +36,7 @@ def test_fenton_jacobian():
     M = array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
     # Compute the jacobian using the two methods
-    from raschii.fenton import fprime, fprime_num
+    from raschii.wave_fenton import fprime, fprime_num
 
     jacA = fprime(coeffs, H, k, D, J, M)
     jacN = fprime_num(coeffs, H, k, D, J, M)

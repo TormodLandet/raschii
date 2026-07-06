@@ -1,12 +1,11 @@
-from raschii import stokes
-
-
 def test_coefficients():
+    from raschii.wave_stokes import stokes_coefficients
+
     kd = 0.753982
 
     # First check that the higher order coefficients are zero for lower order
     for N in range(1, 6):
-        data = stokes.stokes_coefficients(kd, N)
+        data = stokes_coefficients(kd, N)
         for k, v in data.items():
             if int(k[1]) > N:
                 assert v == 0.0
@@ -48,4 +47,4 @@ def test_coefficients():
 
     # Check for overflow prevention
     for kd in range(1, 1000):
-        stokes.stokes_coefficients(kd, N)
+        stokes_coefficients(kd, N)

@@ -71,7 +71,7 @@ def plot_wave():
         f"  Horizontal trough particle speed = {Ut[0]:.3f}",
         f"  Wave number    = {wave.k:.5f}",
         f"  Wave frequency = {wave.omega:.5f}",
-        f"  Wave period    = {wave.T:.2f}",
+        f"  Wave period    = {wave.period:.2f}",
         f"  Phase speed    = {wave.c:.3f}",
         "",
         "Numerical details:",

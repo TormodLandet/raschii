@@ -2,11 +2,15 @@ from math import pi, sqrt
 
 import numpy as np
 
+from ..wave_stokes import StokesWave
 from .base import SwdWriter
 
 
 class SwdWriterStokes(SwdWriter):
     """SWD writer for Stokes waves."""
+
+    # The wave model set in the base-class constructor must be a StokesWave
+    wave: StokesWave
 
     def _effective_depth(self) -> float:
         wave = self.wave
@@ -66,7 +70,7 @@ class SwdWriterStokes(SwdWriter):
         wave = self.wave
         return {
             "model": "Stokes",
-            "T": wave.T,
+            "T": wave.period,
             "length": wave.length,
             "height": wave.height,
             "depth": wave.depth,

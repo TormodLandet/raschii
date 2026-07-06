@@ -19,7 +19,7 @@ def test_infinite_depth_airy(give_period: bool):
     wave2 = WaveModel(depth=-1, **inp)
 
     assert abs(wave1.length - wave2.length) < 1e-4
-    assert abs(wave1.T - wave2.T) < 1e-4
+    assert abs(wave1.period - wave2.period) < 1e-4
     assert abs(wave1.c - wave2.c) < 1e-4
 
 
@@ -44,7 +44,7 @@ def test_infinite_depth_stokes(order: int, give_period: bool):
     wave2 = WaveModel(depth=-1, **inp)
 
     assert abs(wave1.length - wave2.length) < 1e-4
-    assert abs(wave1.T - wave2.T) < 1e-4
+    assert abs(wave1.period - wave2.period) < 1e-4
     assert abs(wave1.c - wave2.c) < 1e-4
 
 
@@ -69,5 +69,5 @@ def test_infinite_depth_fenton(order: int, give_period: bool):
     wave2 = WaveModel(depth=-1, **inp)
 
     assert abs(wave1.length - wave2.length) < 1e-4
-    assert abs(wave1.T - wave2.T) < 1e-4
+    assert abs(wave1.period - wave2.period) < 1e-4
     assert abs(wave1.c - wave2.c) < 1e-4

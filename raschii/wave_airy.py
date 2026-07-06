@@ -72,8 +72,12 @@ class AiryWave(WaveModel):
         else:
             # Finite depth
             self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
+        
+        #: Wave celerity (phase speed)
         self.c = self.omega / self.k
-        self.T = self.length / self.c  # Wave period
+
+        #: Wave period
+        self.period = self.length / self.c
 
         # For evaluating velocities close to the free surface
         self.eta_eps = self.height / 1e5

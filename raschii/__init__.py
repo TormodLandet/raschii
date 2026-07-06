@@ -10,14 +10,14 @@ SPDX-License-Identifier: Apache-2.0
 from typing import overload
 
 #: The three-digit version number of Raschii
-__version__ = "1.2.0"
+__version__ = "2.0.0rc1"
 version = __version__
 
 from .common import check_breaking_criteria, RaschiiError, NonConvergenceError
 from .base_classes import Frame, WaveModel, AirPhaseModel
-from .airy import AiryWave
-from .fenton import FentonWave
-from .stokes import StokesWave
+from .wave_airy import AiryWave
+from .wave_fenton import FentonWave
+from .wave_stokes import StokesWave
 from .air_phase_fenton import FentonAirPhase
 from .air_phase_constant import ConstantAirPhase
 

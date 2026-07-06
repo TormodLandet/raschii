@@ -120,13 +120,27 @@ class FentonWave(WaveModel):
         Update the coefficients defining this stream-function wave
         """
         self.data = data
-        self.eta = data["eta"]  # Wave elevation at colocation points
-        self.x = data["x"]  # Positions of colocation points
-        self.k = data["k"]  # Wave number
-        self.c = data["c"]  # Phase speed
-        self.cs = self.c - data["Q"]  # Mean Stokes drift speed
-        self.T = self.length / self.c  # Wave period
-        self.omega = self.c * self.k  # Wave frequency
+
+        #: Wave elevation at colocation points
+        self.eta = data["eta"]
+
+        #: Positions of colocation points
+        self.x = data["x"]
+
+        #: Wave number (2 pi / wavelength) in [1/m]
+        self.k = data["k"]
+
+        #: Wave celerity (phase speed) in [m/s]
+        self.c = data["c"]
+
+        # Mean Stokes drift speed in [m/s]. TODO: verify this ...
+        self.cs = self.c - data["Q"]
+
+        #: Wave period in [s]
+        self.period = self.length / self.c
+
+        #: Wave frequency in [rad/s]
+        self.omega = self.c * self.k
 
         # Cosine series coefficients for the elevation
         N = len(self.eta) - 1
@@ -612,7 +626,7 @@ def compute_length_from_period(
     This would be much faster if we had an implementation of the Fenton wave
     theory dispersion relation for arbitrary order N
     """
-    from .airy import compute_length_from_period as airy_compute_length_from_period
+    from .wave_airy import compute_length_from_period as airy_compute_length_from_period
 
     # Initial guess is based on the linear dispersion relation for deep water waves
     length = airy_compute_length_from_period(depth=depth, period=period, g=g)
@@ -628,14 +642,14 @@ def compute_length_from_period(
         length = length_N
 
         # New guess for the wave length by interpolation
-        f = (period - wave1.T) / (wave2.T - wave1.T)
+        f = (period - wave1.period) / (wave2.period - wave1.period)
         length_N = wave1.length + (wave2.length - wave1.length) * f
 
         # Resulting wave period for the new length from the dispersion relation
         waveN = FentonWave(height=height, depth=depth, length=length_N, N=N, g=g, relax=relax)
 
         # Update the two points used for the interpolation in the next iteration
-        if waveN.T < period:
+        if waveN.period < period:
             wave1 = waveN
         else:
             wave2 = waveN

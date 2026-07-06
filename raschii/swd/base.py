@@ -1,7 +1,8 @@
 import numpy as np
 
+from raschii import RaschiiError, WaveModel
+
 from .swd_file import SwdShape1and2
-from raschii.common import RaschiiError
 
 
 class SwdWriter:
@@ -14,8 +15,8 @@ class SwdWriter:
     ``surface_elevation``.
     """
 
-    def __init__(self, wave):
-        self.wave = wave
+    def __init__(self, wave: WaveModel):
+        self.wave: WaveModel = wave
 
     def write(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
@@ -44,7 +45,7 @@ class SwdWriter:
         if tmax is None:
             if nperiods is None:
                 raise RaschiiError("Either tmax or nperiods must be given")
-            tmax = nperiods * wave.T
+            tmax = nperiods * wave.period
         if not (tmax > dt > 0.0):
             raise RaschiiError(f"Must have tmax > dt > 0, got tmax={tmax!r}, dt={dt!r}")
 
@@ -71,7 +72,7 @@ class SwdWriter:
             vcs = np.zeros(nc, complex)  # not written, but SwdShape1and2 requires same length
 
         swd = SwdShape1and2(
-            wave.T,
+            wave.period,
             wave.length,
             wave.depth,
             vcs,

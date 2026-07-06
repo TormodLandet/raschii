@@ -54,7 +54,7 @@ def check_breaking_criteria(
 
         # We do not know the wave model, so we assume it is Airy
         # which should give a ballpark OK-ish answer
-        from .airy import compute_length_from_period
+        from .wave_airy import compute_length_from_period
 
         length = compute_length_from_period(depth=depth, period=period)
 
