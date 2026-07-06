@@ -10,7 +10,7 @@ from numpy import (
 )
 from numpy.typing import NDArray
 
-from .base_classes import WaveModel, AirPhaseModel
+from .base_classes import AirPhaseModel, WaveModel
 from .common import (
     NonConvergenceError,
     RaschiiError,
@@ -72,7 +72,7 @@ class AiryWave(WaveModel):
         else:
             # Finite depth
             self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
-        
+
         #: Wave celerity (phase speed)
         self.c = self.omega / self.k
 

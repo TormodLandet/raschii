@@ -99,21 +99,21 @@ class StokesWave(WaveModel):
         d = min(d, 50 * pi / self.k)
 
         c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(self.g / k)
-        Q = (c * d * sqrt(k**3 / self.g) + data["D2"] * eps**2 + data["D4"] * eps**4) * sqrt(
-            self.g / k**3
-        )
 
         #: Wave celerity (phase speed) in [m/s]
         self.c = c
-
-        # Mean Stokes drift speed in [m/s]. TODO: verify this ...
-        self.cs = c - Q
 
         #: Wave period in [s]
         self.period = self.length / self.c
 
         #: Wave frequency in [rad/s]
         self.omega = self.c * self.k
+
+        # The same (??) Q as the one in for the Fenton stream-function wave
+        Q = (c * d * sqrt(k**3 / self.g) + data["D2"] * eps**2 + data["D4"] * eps**4) * sqrt(
+            self.g / k**3
+        )
+        self.Q: float = Q
 
     def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         x2 = x[np.newaxis, :] - self.c * t[:, np.newaxis]  # (T, N)

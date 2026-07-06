@@ -133,9 +133,6 @@ class FentonWave(WaveModel):
         #: Wave celerity (phase speed) in [m/s]
         self.c = data["c"]
 
-        # Mean Stokes drift speed in [m/s]. TODO: verify this ...
-        self.cs = self.c - data["Q"]
-
         #: Wave period in [s]
         self.period = self.length / self.c
 
@@ -147,6 +144,9 @@ class FentonWave(WaveModel):
         self.E = zeros(N + 1, float)
         J = arange(0, N + 1)
         self.E = trapezoid_integration(self.eta * cos(J * J[:, newaxis] * pi / N))
+
+        #: The value *Q* from the Fenton stream-function wave
+        self.Q = data["Q"]
 
     def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
