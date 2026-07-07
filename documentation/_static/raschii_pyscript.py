@@ -1,8 +1,13 @@
 import pyscript
-from pyscript.web import page
+from pyscript import web, display
 
 import raschii
 import numpy as np
+
+# We store the current wave object in a global cache so that we can access it
+# when the user clicks on the SVG plot to get the particle velocities at the
+# clicked point.
+GLOBAL_CACHE = {"wave": None}
 
 
 @pyscript.when("click", "#generate_wave")
@@ -18,19 +23,18 @@ def plot_wave():
     - Show warnings and errors in the info area
 
     """
-    global current_raschii_wave
-    current_raschii_wave = None
+    GLOBAL_CACHE["wave"] = None
 
-    page.find("#raschii p.info").textContent = "Generating wave..."
-    page.find("#raschii p.warning").textContent = ""
-    page.find("#raschii p.error").textContent = ""
-    page.find("#raschii_out").textContent = ""
+    find_one("#raschii p.info").textContent = "Generating wave..."
+    find_one("#raschii p.warning").textContent = ""
+    find_one("#raschii p.error").textContent = ""
+    find_one("#raschii_out").textContent = ""
 
     # Read the user input
     wave_input = WaveInput()
     wave_input.load_from_page()
     if not wave_input.is_ok:
-        page.find("#raschii p.error").textContent = wave_input.error_message
+        find_one("#raschii p.error").textContent = wave_input.error_message
         return
 
     # Check the breaking criteria
@@ -38,8 +42,8 @@ def plot_wave():
         height=wave_input.height, depth=wave_input.depth, length=wave_input.length
     )
     if breaking_errors:
-        page.find("#raschii p.info").textContent = "Breaking criterion triggered!"
-        page.find("#raschii p.error").textContent = breaking_errors
+        find_one("#raschii p.info").textContent = "Breaking criterion triggered!"
+        find_one("#raschii p.error").textContent = breaking_errors
         return
 
     # Load the wave model class and generate the wave
@@ -53,8 +57,8 @@ def plot_wave():
 
     # Show wave model output
     if not breaking_errors:
-        page.find("#raschii p.info").textContent = "Wave generated successfully!"
-    page.find("#raschii p.warning").textContent = f"{breaking_warnings}\n\n{wave.warnings}"
+        find_one("#raschii p.info").textContent = "Wave generated successfully!"
+    find_one("#raschii p.warning").textContent = f"{breaking_warnings}\n\n{wave.warnings}"
 
     # The wave elevation
     t = 0.0  # Time at which to evaluate the wave
@@ -62,7 +66,6 @@ def plot_wave():
     eta = wave.surface_elevation(x, t)
     Uc = wave.velocity(x[0], eta[0], all_points_wet=True).flatten()
     Ut = wave.velocity(x[-1], eta[-1], all_points_wet=True).flatten()
-
     outputs = [
         "Summary of results:",
         f"  Surface elevation maximum = {eta.max():.3f}",
@@ -77,9 +80,10 @@ def plot_wave():
         "Numerical details:",
         *[f"  {key}: {value}" for key, value in wave.data.items()],
     ]
-    page.find("#raschii_out").textContent = "\n".join(outputs)
-    current_raschii_wave = wave
-    page.find("#raschii_plot").innerHTML = wave_profile_to_svg(x, eta)
+    find_one("#raschii_out").textContent = "\n".join(outputs)
+
+    GLOBAL_CACHE["wave"] = wave
+    find_one("#raschii_plot").innerHTML = wave_profile_to_svg(x, eta)
 
 
 @pyscript.when("click", "#raschii_plot")
@@ -91,26 +95,26 @@ def show_info_when_clicking_plot(mouse_event):
     - Show information about the clicked point, including particle velocities
 
     """
-    global current_raschii_wave
-    if current_raschii_wave is None:
-        page.find("#raschii p.info").textContent = "No wave data available."
+    if GLOBAL_CACHE["wave"] is None:
+        find_one("#raschii p.info").textContent = "No wave data available."
         return
+    wave = GLOBAL_CACHE["wave"]
 
     # Get the coordinates of the clicked point in the wave coordinate system
     x, z = get_physical_coordinates(mouse_event)
 
     # Show the information about the clicked point
     info = f"You clicked on x = {x:.3f} m, z = {z:.3f} m (from the bottom)"
-    eta = current_raschii_wave.surface_elevation(x, t=0.0)
+    eta = wave.surface_elevation(x, t=0.0)
     if z > eta:
         info += "<br>(Air)"
     else:
         info += "<br>(Water)"
-        vel = current_raschii_wave.velocity(x, z, all_points_wet=True)
+        vel = wave.velocity(x, z, all_points_wet=True)
         info += f"<br>Horizontal particle velocity: {vel[0]:.3f}"
         info += f"<br>Vertical particle velocity:   {vel[1]:.3f}"
 
-    page.find("#raschii p.info").innerHTML = info
+    find_one("#raschii p.info").innerHTML = info
 
 
 class WaveInput:
@@ -147,14 +151,14 @@ class WaveInput:
 
     def _get_page_input_value(self, name: str, converter):
         try:
-            element = page.find(f"#raschii_{name}")
+            element = find_one(f"#raschii_{name}")
         except Exception:
             self.is_ok = False
             self.error_message += f"Input element '{name}' not found.\n"
             return None
 
         try:
-            value = element[0].value
+            value = element.value
         except IndexError:
             self.is_ok = False
             self.error_message += f"Input element '{name}' is empty!\n"
@@ -212,7 +216,7 @@ def get_physical_coordinates(mouse_event) -> tuple[float, float]:
     y = mouse_event.clientY
 
     # Convert coordinates to the SVG coordinate system
-    svg_element = page["#raschii_plot svg"][0]
+    svg_element = find_one("#raschii_plot svg")
     cr = svg_element.getBoundingClientRect()
     fx = (x - cr.left) / cr.width
     fy = (y - cr.top) / cr.height
@@ -225,3 +229,19 @@ def get_physical_coordinates(mouse_event) -> tuple[float, float]:
     z_wave *= -1  # Invert the y-coordinate to match the wave coordinate system
 
     return x_wave, z_wave
+
+
+def find_one(selector: str, parent: web.Page | web.Element = web.page) -> web.Element:
+    """
+    Find a single element matching the selector in the parent element.
+    """
+    elements = parent.find(selector)
+    if len(elements) == 0:
+        display(f"Logic error in PyScript Raschii: no element found for selector '{selector}'")
+    elif len(elements) > 1:
+        display(
+            f"Logic error in PyScript Raschii: multiple elements found for selector '{selector}'"
+        )
+    else:
+        return elements[0]
+    raise RuntimeError(f"Logic error in PyScript Raschii: got {elements} for selector '{selector}'")

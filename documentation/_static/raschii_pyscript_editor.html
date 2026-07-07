@@ -7,11 +7,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
     <!-- PyScript CSS -->
-    <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
+    <link rel="stylesheet" href="https://pyscript.net/releases/2026.7.1/core.css">
 
     <!-- This script tag bootstraps PyScript -->
     <script src="./mini-coi.js"></script>
-    <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
+    <script type="module" src="https://pyscript.net/releases/2026.7.1/core.js"></script>
 
     <title>Raschii Web editor using PyScript</title>
 </head>
@@ -33,7 +33,7 @@
         ax.fill_between(x, eta, eta*0, color='blue', alpha=0.5)
 
         # Clear any prior output from the web page
-        web.page["#raschii_editor_output"].innerHTML = ""
+        web.page.find("#raschii_editor_output")[0].innerHTML = ""
 
         # Display the matplotlib figure
         display(fig, target="#raschii_editor_output")
