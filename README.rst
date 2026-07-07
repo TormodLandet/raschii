@@ -163,6 +163,9 @@ New features:
   In addition TormodLandet has added a few more vectorized methods and changed the output shape of
   some methods for consistency (see below).
 
+- Fluid particle acceleration for Fenton waves. Thanks to jasperpato in
+  `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_! 
+
 A few **backwards incompatible** changes were made in this release:
 
 - Rename class ``RasciiError`` to ``RaschiiError``. Also thanks to jasperpato for spotting the
