@@ -151,7 +151,7 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
-Version 2.0.0 - July ?. 2026
+Version 2.0.0 - July 7. 2026
 ............................
 
 New features:

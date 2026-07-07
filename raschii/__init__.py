@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 from typing import overload
 
 #: The three-digit version number of Raschii
-__version__ = "2.0.0rc1"
+__version__ = "2.0.0"
 version = __version__
 
 from .common import check_breaking_criteria, RaschiiError, NonConvergenceError
