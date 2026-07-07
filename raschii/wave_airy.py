@@ -65,22 +65,28 @@ class AiryWave(WaveModel):
 
         self.warnings: str = ""  #: Warnings raised when generating this wave
 
-        self.k = 2 * pi / length
+        #: Wave number (2 * pi / wavelength) in [1/m]
+        self.k: float = 2 * pi / length
+
+        # Wave angular frequency from the linear dispersion relation
         if self.depth < 0:
             # Infinite depth
-            self.omega = (self.k * g) ** 0.5
+            omega: float = (self.k * g) ** 0.5
         else:
             # Finite depth
-            self.omega = (self.k * g * tanh(self.k * depth)) ** 0.5
+            omega = (self.k * g * tanh(self.k * depth)) ** 0.5
 
-        #: Wave celerity (phase speed)
-        self.c = self.omega / self.k
+        #: Wave angular frequency in [rad/s]
+        self.omega: float = omega
 
-        #: Wave period
-        self.period = self.length / self.c
+        #: Wave celerity (phase speed) in [m/s]
+        self.c: float = self.omega / self.k
+
+        #: Wave period in [s]
+        self.period: float = self.length / self.c
 
         # For evaluating velocities close to the free surface
-        self.eta_eps = self.height / 1e5
+        self.eta_eps: float = self.height / 1e5
 
         # Provide velocities also in the air phase
         if self.air is not None:

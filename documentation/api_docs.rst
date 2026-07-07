@@ -35,18 +35,16 @@ following attributes and methods.
 
    * - Attribute / Method
      - Description
-   * - ``height``, ``depth``, ``length``, ``g``
-     - Input parameters, stored as instance attributes.
-   * - ``T``
-     - Wave period [s].
+   * - ``height``, ``depth``, ``length``, ``period``, ``g``
+     - Constructor input parameters, stored as instance attributes.
    * - ``omega``
-     - Angular frequency [rad/s].
+     - Angular frequency [rad/s] (attribute).
    * - ``k``
-     - Wave number [1/m].
+     - Wave number [1/m]  (attribute).
    * - ``c``
-     - Phase speed [m/s].
+     - Phase speed [m/s]  (attribute).
    * - ``warnings``
-     - String with any warnings raised during construction (empty if none).
+     - String with any warnings raised during construction (empty if none, attribute).
    * - ``surface_elevation(x, t=0, include_depth=True)``
      - Free-surface elevation.  Returns a scalar when both *x* and *t* are
        scalar, an ndarray otherwise (NumPy scalar-in / scalar-out convention).
@@ -82,9 +80,6 @@ The following methods are only available on specific wave model classes.
      - Fluid acceleration.  Water-phase only; returns zero above the free
        surface (air blending is not yet implemented for accelerations).
      - :class:`~raschii.FentonWave`
-   * - ``cs``
-     - Mean Stokes drift speed [m/s].
-     - :class:`~raschii.FentonWave`, :class:`~raschii.StokesWave`
 
 
 Wave model classes
@@ -99,6 +94,7 @@ Raschii linear waves, see :ref:`the Airy wave model <theory_airy>`.
 .. autoclass:: raschii.AiryWave
     :class-doc-from: init
     :members:
+    :inherited-members: raschii.WaveModel
 
 
 Stokes waves
@@ -109,6 +105,7 @@ Raschii implements the Stokes 1st through 5th order wave models, see :ref:`the S
 .. autoclass:: raschii.StokesWave
     :class-doc-from: init
     :members:
+    :inherited-members: raschii.WaveModel
 
 
 Fenton stream-function waves
@@ -119,6 +116,7 @@ Raschii implements the Fenton stream-function wave model as described in :ref:`t
 .. autoclass:: raschii.FentonWave
     :class-doc-from: init
     :members:
+    :inherited-members: raschii.WaveModel
 
 
 Air model classes
@@ -135,11 +133,12 @@ construct consistent initial and boundary conditions.
 .. autoclass:: raschii.FentonAirPhase
     :class-doc-from: init
     :members:
-
+    :inherited-members: raschii.AirPhaseModel
 
 .. autoclass:: raschii.ConstantAirPhase
     :class-doc-from: init
     :members:
+    :inherited-members: raschii.AirPhaseModel
 
 
 Exceptions
@@ -166,15 +165,26 @@ Other
 C++ code generators
 -------------------
 
-Each wave model exposes a ``wave.cpp`` attribute that can generate C++ code
-strings for use in e.g. FEniCS boundary conditions.  The available methods are
-``wave.cpp.elevation()``, ``wave.cpp.velocity()``, ``wave.cpp.stream_function()``,
-and ``wave.cpp.slope()`` (the last two are implemented only for
-:class:`~raschii.FentonWave`).
+Each wave model exposes a ``wave.cpp`` attribute that can generate C++ code strings for use in e.g.
+FEniCS boundary conditions.  The available methods are
+
+* ``wave.cpp.elevation()``
+* ``wave.cpp.velocity(all_points_wet=False)``
+* ``wave.cpp.stream_function(frame=Frame.EARTH)``
+* ``wave.cpp.slope()``
+
+(the last two are implemented only for :class:`~raschii.FentonWave`).
+
+The air-phase model classes expose a ``air.cpp`` attribute that can generate C++ code strings for
+the air-phase velocity field.  The available methods are
+
+* ``air.cpp.velocity()``
+* ``air.cpp.stream_function(frame=Frame.EARTH)``
+
+which are available in both air-phase models.
 
 .. warning::
 
-   The C++ code generation interface (``wave.cpp.*``) is **experimental**.
-   Its API may change or be removed in a future release without following the
-   normal deprecation cycle. It is currently not used by anyone as far as the
-   author of Raschii is aware.
+   The C++ code generation interfaces (``wave.cpp.*`` and ``air.cpp.*``) are **experimental**.
+   The code-generation API may change or be removed in a future release without following the normal
+   deprecation cycle. They are currently not used as far as the author of Raschii is aware.

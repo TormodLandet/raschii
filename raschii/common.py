@@ -35,7 +35,7 @@ class Frame(StrEnum):
 
 def check_breaking_criteria(
     height: float, depth: float, length: float | None = None, period: float | None = None
-):
+) -> tuple[str, str]:
     """
     Return two empty strings if everything is OK, else a string with
     warnings about breaking criteria and a string with warnings about
@@ -47,6 +47,18 @@ def check_breaking_criteria(
     * length: the periodic length of the wave (optional, if not given then period is used)
     * period: the wave period (optional, if not given then length is used)
       Since we need the wave length we assume Airy to convert period to length!
+
+    Example of use:
+
+    .. code-block:: python
+
+        err, warn = check_breaking_criteria(wave_height, water_depth, wave_length)
+        if err:
+            print(err)
+        if warn:
+            print(warn)
+        if err:
+            raise RaschiiError("Breaking criteria exceeded, see above for details")
     """
     if length is None:
         if period is None:
