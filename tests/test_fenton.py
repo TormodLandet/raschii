@@ -36,7 +36,7 @@ def test_fenton_jacobian():
     M = array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 
     # Compute the jacobian using the two methods
-    from raschii.fenton import fprime, fprime_num
+    from raschii.wave_fenton import fprime, fprime_num
 
     jacA = fprime(coeffs, H, k, D, J, M)
     jacN = fprime_num(coeffs, H, k, D, J, M)
@@ -76,7 +76,7 @@ def test_compare_fenton_m_01():
     length = 2
     N = 30
     print(*check_breaking_criteria(height, depth, length))
-    fwave = FentonWave(height, depth, length, N)
+    fwave = FentonWave(height, depth, length, N=N)
     py_res = fwave.data
 
     ml_eta = array(
@@ -234,28 +234,28 @@ def test_fenton_stream_function_and_slope():
     depth = 200.0
     length = 100.0
     N = 5
-    fwave = FentonWave(height, depth, length, N)
+    fwave = FentonWave(height, depth, length, N=N)
 
     # Compare velocities with numerical differentiation of the stream function
     eps = 1e-7
     for x in numpy.linspace(0, length, 21):
         z = depth + height / 2
         vel = fwave.velocity(x, z, all_points_wet=True)
-        sf0 = fwave.stream_function(x, z, frame="c")
-        sfX = fwave.stream_function(x + eps, z, frame="c")
-        sfZ = fwave.stream_function(x, z + eps, frame="c")
-        assert vel.shape == (1, 2) and sf0.shape == (1,) and sfX.shape == (1,)
+        sf0 = fwave.stream_function(x, z, frame="WAVE")
+        sfX = fwave.stream_function(x + eps, z, frame="WAVE")
+        sfZ = fwave.stream_function(x, z + eps, frame="WAVE")
+        assert vel.shape == (2,) and sf0.shape == (1,) and sfX.shape == (1,)
         sfvel_x = (sfZ[0] - sf0) / eps
         sfvel_z = -(sfX[0] - sf0) / eps
         print("x: %r, z: %r, vel: %r, vel_num: %r" % (x, z, vel, (sfvel_x, sfvel_z)))
-        assert abs(vel[0, 0] - sfvel_x) < 1e-5
-        assert abs(vel[0, 1] - sfvel_z) < 1e-5
+        assert abs(vel[0] - sfvel_x) < 1e-5
+        assert abs(vel[1] - sfvel_z) < 1e-5
 
     # Compare slope with numerical differentiation of the elevation
     for x in numpy.linspace(0, length, 21):
         e0 = fwave.surface_elevation(x)
         slope = fwave.surface_slope(x)
-        assert e0.shape == (1,) and slope.shape == (1,)
+        assert numpy.ndim(e0) == 0 and slope.shape == (1,)
 
         e1 = fwave.surface_elevation(x + eps)
         slope_num = (e1 - e0) / eps

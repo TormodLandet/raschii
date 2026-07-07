@@ -26,7 +26,7 @@ def wave_with_air_model(request):
     from raschii import FentonAirPhase, FentonWave
 
     air = FentonAirPhase(height_air, blending_height)
-    fwave = FentonWave(height, depth, length, N, air=air)
+    fwave = FentonWave(height, depth, length, N=N, air=air)
     return fwave, air, time, plot
 
 
@@ -48,9 +48,9 @@ def test_fenton_air_with_fenton(wave_with_air_model):
 
     # Compare velocities with numerical differentiation of the stream function
     avel = air.velocity(xr, zr, time)
-    sf0 = air.stream_function(xr, zr, time, frame="c")
-    sfX = air.stream_function(xr + eps, zr, time, frame="c")
-    sfZ = air.stream_function(xr, zr + eps, time, frame="c")
+    sf0 = air.stream_function(xr, zr, time, frame="WAVE")
+    sfX = air.stream_function(xr + eps, zr, time, frame="WAVE")
+    sfZ = air.stream_function(xr, zr + eps, time, frame="WAVE")
     sfvel_x = (sfZ - sf0) / eps
     sfvel_z = -(sfX - sf0) / eps
     err = abs(avel[:, 0] - sfvel_x) + abs(avel[:, 1] - sfvel_z)
@@ -132,7 +132,7 @@ def test_fenton_air_with_fenton_cpp_divergence(tmpdir, wave_with_air_model):
     cache_dir = tmpdir.ensure("jit_cache", dir=True)
 
     # Check that the wave model produces the same results in C++ and Python
-    cppx, cppz = fwave.velocity_cpp()
+    cppx, cppz = fwave.cpp.velocity()
 
     cpp = (
         cpp_wrapper.replace("CODE_X_GOES_HERE", cppx)

@@ -119,9 +119,10 @@ manner.
 ConstantAir
 ===========
 
-The velocity in the air phase is horizontal with speed equal to the wave phase
-speed. This is mostly useful when using a blended total field, see
-:ref:`sec_blending`.
+The air is at rest in the earth frame (zero velocity). This is the simplest
+possible air-phase model and is a reasonable approximation when the air motion
+is negligible compared to the water-phase velocities. The wave-frame stream
+function contains a backward drift at the wave phase speed.
 
 
 FentonAir

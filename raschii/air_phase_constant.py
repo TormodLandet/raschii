@@ -1,11 +1,17 @@
 import numpy as np
-from .common import AIR_BLENDING_HEIGHT_FACTOR, np2py
+
+from .common import AIR_BLENDING_HEIGHT_FACTOR, Frame
+from .base_classes import AirPhaseModel
 
 
-class ConstantAirPhase:
+class ConstantAirPhase(AirPhaseModel):
     def __init__(self, height, blending_height=None):
         """
-        Constant horizontal velocity equal to the phase speed
+        Air phase model with zero velocity in the earth frame (still air).
+
+        The wave-frame stream function contains a backward drift at the wave
+        phase speed, which allows divergence-free blending with the water-phase
+        velocity field across the free surface.
         """
         self.height = height
         self.blending_height = blending_height
@@ -20,18 +26,29 @@ class ConstantAirPhase:
         if self.blending_height is None:
             self.blending_height = AIR_BLENDING_HEIGHT_FACTOR * wave.height
 
-    def stream_function(self, x, z, t=0, frame="b"):
+        from .cpp import ConstantAirCppGenerator
+
+        self.cpp = ConstantAirCppGenerator(self)
+
+    def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
-        Compute the stream function at time t for position(s) x
+        Compute the stream function at time t for position(s) x.
+
+        * frame: :class:`~raschii.Frame` – ``Frame.EARTH`` (default) returns
+          zero (still air in the earth frame); ``Frame.WAVE`` returns ``-c*z``
+          (air appears to move backward at the wave phase speed in the
+          co-moving frame).
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
         z = np.asarray(z, dtype=float)
 
-        if frame == "e":
-            return self.c * z
-        elif frame == "c":
-            return 0.0 * z
+        if frame == Frame.EARTH:
+            return np.zeros_like(z)
+        elif frame == Frame.WAVE:
+            return -self.c * z
+        else:
+            raise ValueError(f"Unknown frame {frame!r}; use Frame.EARTH or Frame.WAVE")
 
     def velocity(self, x, z, t=0):
         """
@@ -46,29 +63,6 @@ class ConstantAirPhase:
         z = np.asarray(z, dtype=float)
 
         return np.zeros((x.size, 2), float)
-
-    def stream_function_cpp(self, frame="b"):
-        """
-        Return C++ code for evaluating the stream function of this specific
-        wave. The positive traveling direction is x[0] and the vertical
-        coordinate is x[2] which is zero at the bottom and equal to +depth at
-        the mean water level.
-        """
-        if frame == "b":
-            return f"{np2py(self.c)!r} * x[2]"
-        elif frame == "c":
-            return "0.0"
-
-    def velocity_cpp(self):
-        """
-        Return C++ code for evaluating the particle velocities of this specific
-        wave. Returns the x and z components only with z positive upwards. The
-        positive traveling direction is x[0] and the vertical coordinate is x[2]
-        which is zero at the bottom and equal to +depth at the mean water level.
-        """
-        cpp_x = "0.0"
-        cpp_z = "0.0"
-        return (cpp_x, cpp_z)
 
     def __repr__(self):
         return f"ConstantAirPhase(height={self.height}, blending_height={self.blending_height})"

@@ -1,19 +1,36 @@
 import math
+from enum import StrEnum
 from math import pi, tanh
-import numpy as np
 
+import numpy as np
 
 # If the air phase blending_height is None then the wave height times this
 # default factor will be used
 AIR_BLENDING_HEIGHT_FACTOR = 2
 
 
-class RasciiError(Exception):
+class RaschiiError(Exception):
     pass
 
 
-class NonConvergenceError(RasciiError):
+class NonConvergenceError(RaschiiError):
     pass
+
+
+class Frame(StrEnum):
+    """
+    Reference frame
+
+    Currently only used for stream-function evaluations.
+    """
+
+    #: EARTH: earth/lab frame (stationary observer).
+    #: This includes the constant base-flow term.
+    EARTH = "EARTH"
+
+    #: WAVE: wave/co-moving frame (observer travelling with the wave crest).
+    #: The constant base-flow term is excluded.
+    WAVE = "WAVE"
 
 
 def check_breaking_criteria(
@@ -33,14 +50,14 @@ def check_breaking_criteria(
     """
     if length is None:
         if period is None:
-            raise RasciiError("Either length or period must be given")
+            raise RaschiiError("Either length or period must be given")
 
         # We do not know the wave model, so we assume it is Airy
         # which should give a ballpark OK-ish answer
-        from .airy import compute_length_from_period
+        from .wave_airy import compute_length_from_period
 
         length = compute_length_from_period(depth=depth, period=period)
-    
+
     if depth < 0.0:
         # Use a large depth for infinite depth waves, same as is used
         # in the stokes_coefficients and fenton_coefficients functions
@@ -157,8 +174,8 @@ def blend_air_and_wave_velocities(x, z, t, wave, air, vel, eta_eps):
             eb = ea[blend]
             Z = (zb - eb) / (d - eb)
             vel_water = vel[above]
-            psi_wave = wave.stream_function(xb, zb, t, frame="c")
-            psi_air = air.stream_function(xb, zb, t, frame="c")
+            psi_wave = wave.stream_function(xb, zb, t, frame=Frame.WAVE)
+            psi_air = air.stream_function(xb, zb, t, frame=Frame.WAVE)
             detadx = wave.surface_slope(xb, t)
 
             if False:

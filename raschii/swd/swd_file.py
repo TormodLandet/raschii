@@ -1,7 +1,9 @@
+import json
 from datetime import datetime
 from struct import pack, unpack
 
 import numpy as np
+from numpy.typing import NDArray
 
 from raschii import version as raschii_version
 
@@ -12,9 +14,9 @@ class SwdShape1and2:
         t_wave: float,
         length: float,
         depth: float,
-        c_cofs: list[complex],
-        h_cofs: list[complex],
-        input_data: str,
+        c_cofs: list[complex] | NDArray,
+        h_cofs: list[complex] | NDArray,
+        input_data: dict,
         g: float = 9.81,
         order_zpos: int = -1,
     ):
@@ -61,7 +63,7 @@ class SwdShape1and2:
         self.h_cofs = h_cofs
         self.g = g
         self.lscale = 1.0
-        self.input_data = str(input_data).encode("utf-8")
+        self.input_data = json.dumps(input_data).encode("utf-8")
 
     def write(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """

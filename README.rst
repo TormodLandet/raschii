@@ -83,9 +83,9 @@ This will output:
 
 .. code:: output
 
-    [0.67352456]
+    0.67352456
     [0.67352456 0.61795882 0.57230232 0.53352878]
-    [[0.27263788 0.        ]]
+    [0.27263788 0.        ]
 
 See the `documentation <https://raschii.readthedocs.io/en/latest/usage.html>`_ for more
 information on the available parameters, methods and attributes of the wave classes.
@@ -114,8 +114,11 @@ An example of using Raschii from the command line:
   # Some information about the wave is also shown
   python -m raschii.cmd.plot -N 5 Fenton 0.2 1.5 2
 
+  # The same, specified by wave period instead of wave length
+  python -m raschii.cmd.plot -N 5 --period 1.2 Fenton 0.2 1.5
+
   # Save the same stream function wave to a SWD file
-  python -m raschii.cmd.swd -N 5 fenton.swd Fenton 0.2 1.5 2  
+  python -m raschii.cmd.swd -N 5 fenton.swd Fenton 0.2 1.5 2
 
 The plot tool allows comparing multiple waves, the SWD file writer only
 supports a single wave at a time and does currently not support Airy waves.
@@ -147,6 +150,50 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 
 Releases
 --------
+
+Version 2.0.0 - July 7. 2026
+............................
+
+New features:
+
+- More vectorization of inputs is now implemented, you can compute elevations and velocities for
+  multiple positions and multiple time steps at the same time. Thanks to jasperpato in
+  `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_!
+  
+  In addition TormodLandet has added a few more vectorized methods and changed the output shape of
+  some methods for consistency (see below).
+
+A few **backwards incompatible** changes were made in this release:
+
+- Rename class ``RasciiError`` to ``RaschiiError``. Also thanks to jasperpato for spotting the
+  typo in the class name in `pull request #7 <https://github.com/TormodLandet/raschii/pull/7>`_.
+
+- Rename attribute ``T`` to ``period`` for the wave classes. The classes allready have attrubutes
+  named the same as the constructor inputs: ``height``, ``depth``, and ``length``. The attribute was
+  the odd one out that did not match the constructor input name. Other short-name attributes like
+  the celerity attribute ``c`` are not renamed since they are not constructor inputs.
+
+- Return scalar surface elevation (and velocity potential) when the input are all scalar.
+  If you give arguments ``(x=1.0, t=0.0)``, the return value will be a scalar, but if you give
+  arguments ``(x=[1.0], t=0.0)`` the return value will be a 1D array with one element.
+  
+  This is the same convention as used by numpy, and is a bit more consistent now that we support
+  more vectorized operations.
+
+- Wave-model-class constructors arguments: only height, depth, and length are allowed to be
+  positional, all other arguments (N, period etc) must be keyword arguments.
+
+- Move the ``*_cpp`` methods to a separate ``raschii.cpp`` module. If you are one of the extremely
+  few users of the C++ code generator you must replace, e.g., ``wave.velocity_cpp`` with the new
+  ``wave.cpp.velocity``. This reduces the size of the main wave classes and keeps little-used
+  functionality separate from the main code base.
+
+- Other internal API renames and moves. The wave classes are moved to different module names which
+  is not considered a breaking change since the wave classes should be imported directly from the
+  ``raschii`` module, e.g. ``from raschii import FentonWave``.
+
+- Bumped minimum version of Python to 3.11 (first release in 2022) and the minimum version of our
+  only dependency, numpy, to 2.2 (first release in 2024).
 
 Version 1.2.0 - July 3. 2026
 ............................

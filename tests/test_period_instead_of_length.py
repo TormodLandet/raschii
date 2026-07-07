@@ -8,7 +8,7 @@ def test_period_instead_of_length_airy():
     wave = WaveModel(height=12, depth=200, period=15)
 
     assert abs(wave.length - 350.7521) < 1e-2
-    assert abs(wave.T - 15.0) < 1e-2
+    assert abs(wave.period - 15.0) < 1e-2
 
 
 @pytest.mark.parametrize("order", [1, 2, 3, 5])
@@ -20,7 +20,7 @@ def test_period_instead_of_length_stokes(order: int):
 
     if order == 5:
         assert abs(wave.length - 354.7048) < 1e-2
-    assert abs(wave.T - 15.0) < 1e-2
+    assert abs(wave.period - 15.0) < 1e-2
 
 
 @pytest.mark.parametrize("order", [1, 2, 3, 5, 10, 20])
@@ -32,4 +32,4 @@ def test_period_instead_of_length_fenton(order: int):
 
     if order == 5:
         assert abs(wave.length - 354.7048) < 1e-2
-    assert abs(wave.T - 15.0) < 1e-2
+    assert abs(wave.period - 15.0) < 1e-2

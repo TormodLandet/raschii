@@ -68,7 +68,7 @@ def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     air_model, height, depth, length = air_model
 
     # Check that the wave model produces the same results in C++ and Python
-    cpp = air_model.stream_function_cpp(frame="c")
+    cpp = air_model.cpp.stream_function(frame="WAVE")
     cpp = cpp_wrapper.replace("CODE_GOES_HERE", cpp).replace("x[2]", "x[1]")
     mod = jit_compile(cpp, cache_dir)
 
@@ -80,7 +80,7 @@ def test_cpp_vs_py_air_stream_function(tmpdir, air_model):
     sf_cpp = numpy.zeros_like(xr)
     for i in range(xr.size):
         sf_cpp[i] = mod.sfunc([xr[i], zr[i]], t)
-    sf_py = air_model.stream_function(xr, zr, t, frame="c")
+    sf_py = air_model.stream_function(xr, zr, t, frame="WAVE")
 
     # Check the results
     test_name = "%s C++ stream function" % air_model.__class__.__name__
@@ -119,7 +119,7 @@ def test_cpp_vs_py_air_velocity(tmpdir, air_model):
     air_model, height, depth, length = air_model
 
     # Check that the wave model produces the same results in C++ and Python
-    cppx, cppz = air_model.velocity_cpp()
+    cppx, cppz = air_model.cpp.velocity()
     cpp = (
         cpp_wrapper.replace("CODE_X_GOES_HERE", cppx)
         .replace("CODE_Z_GOES_HERE", cppz)
@@ -149,8 +149,8 @@ def test_cpp_vs_py_air_velocity(tmpdir, air_model):
 def test_cpp_air_stream_function_nocompile(air_model):
     # Check that the wave model produces valid C++ code
     air_model, height, depth, length = air_model
-    cpp = air_model.stream_function_cpp(frame="c")
-    if 'np.' in cpp or 'numpy' in cpp:
+    cpp = air_model.cpp.stream_function(frame="WAVE")
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False
 
@@ -158,7 +158,7 @@ def test_cpp_air_stream_function_nocompile(air_model):
 def test_cpp_air_velocity_nocompile(air_model):
     # Check that the wave model produces valid C++ code
     air_model, height, depth, length = air_model
-    cpp = air_model.velocity_cpp()
-    if 'np.' in cpp or 'numpy' in cpp:
+    cpp = air_model.cpp.velocity()
+    if "np." in cpp or "numpy" in cpp:
         print(cpp)
         assert False

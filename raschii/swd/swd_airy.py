@@ -10,7 +10,7 @@ class SwdWriterAiry:
     """
 
     def __init__(self, wave):
-        from raschii.stokes import StokesWave
+        from raschii.wave_stokes import StokesWave
 
         # Build a Stokes N=1 wave from the Airy parameters.
         # The air model does not affect SWD output.

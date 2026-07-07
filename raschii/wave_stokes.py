@@ -1,7 +1,10 @@
-from math import pi, sinh, tanh, exp, sqrt, pow
+from math import exp, pi, pow, sinh, sqrt, tanh
+
 import numpy as np
-from .common import blend_air_and_wave_velocities, RasciiError, NonConvergenceError
-from .base_classes import WaveModel
+from numpy.typing import NDArray
+
+from .base_classes import AirPhaseModel, WaveModel
+from .common import NonConvergenceError, RaschiiError, blend_air_and_wave_velocities
 
 
 class StokesWave(WaveModel):
@@ -13,9 +16,10 @@ class StokesWave(WaveModel):
         height: float,
         depth: float,
         length: float | None = None,
+        *,
         N: int = 5,
         period: float | None = None,
-        air=None,
+        air: AirPhaseModel | None = None,
         g: float = 9.81,
     ):
         """
@@ -31,25 +35,39 @@ class StokesWave(WaveModel):
         """
         if length is None:
             if period is None:
-                raise RasciiError("Either length or period must be given, both are None!")
+                raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(height=height, depth=depth, period=period, N=N, g=g)
 
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.order: int = N  #: The approximation order
-        self.air = air  #: The optional air-phase model
-        self.g: float = g  #: The acceleration of gravity
-        self.warnings: str = ""  #: Warnings raised when generating this wave
+        #: The wave height
+        self.height: float = height
+
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The approximation order
+        self.order: int = N
+
+        #: The optional air-phase model
+        self.air: AirPhaseModel | None = air
+
+        #: The acceleration of gravity
+        self.g: float = g
+
+        #: Warnings raised when generating this wave
+        self.warnings: str = ""
 
         if N < 1:
             self.warnings = "Stokes order must be at least 1, using order 1"
             self.order = 1
         elif N > 5:
             self.warnings = "Stokes order is maximum 5, using order 5"
-            self.order = 4
+            self.order = 5
 
         # Find the coeffients through explicit formulas
+        #: The wave number
         self.k = 2 * pi / length  # The wave number
         data = stokes_coefficients(self.k * depth, self.order)
         self.set_data(data)
@@ -60,6 +78,11 @@ class StokesWave(WaveModel):
         # Provide velocities also in the air phase
         if self.air is not None:
             self.air.set_wave(self)
+
+        from .cpp import StokesCppGenerator
+
+        # Niche use use case: Provide a C++ code generator for this wave model
+        self.cpp = StokesCppGenerator(self)
 
     def set_data(self, data):
         """
@@ -76,24 +99,24 @@ class StokesWave(WaveModel):
         d = min(d, 50 * pi / self.k)
 
         c = (data["C0"] + pow(eps, 2) * data["C2"] + pow(eps, 4) * data["C4"]) * sqrt(self.g / k)
+
+        #: Wave celerity (phase speed) in [m/s]
+        self.c = c
+
+        #: Wave period in [s]
+        self.period = self.length / self.c
+
+        #: Wave frequency in [rad/s]
+        self.omega = self.c * self.k
+
+        # The same (??) Q as the one in for the Fenton stream-function wave
         Q = (c * d * sqrt(k**3 / self.g) + data["D2"] * eps**2 + data["D4"] * eps**4) * sqrt(
             self.g / k**3
         )
+        self.Q: float = Q
 
-        self.c = c  # Phase speed
-        self.cs = c - Q  # Mean Stokes drift speed (TODO: verify this!)
-        self.T = self.length / self.c  # Wave period
-        self.omega = self.c * self.k  # Wave frequency
-
-    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
-        """
-        Compute the surface elavation at time t for position(s) x
-        """
-        if isinstance(x, (float, int)):
-            x = np.array([x], float)
-        x = np.asarray(x)
-        x2 = x - self.c * t
-
+    def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
+        x2 = x[np.newaxis, :] - self.c * t[:, np.newaxis]  # (T, N)
         k = self.k
         eps = k * self.height / 2
         D = self.data
@@ -110,34 +133,22 @@ class StokesWave(WaveModel):
                 + D["B55"] * cos(5 * k * x2)
             )
         ) / k
-
         if include_depth:
             if self.depth < 0:
-                raise RasciiError("Cannot include depth in elevation for infinite depth")
+                raise RaschiiError("Cannot include depth in elevation for infinite depth")
             offset = self.depth
         else:
             offset = 0.0
-
         return offset + eta
 
-    def velocity(
-        self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
-        all_points_wet: bool = False,
-    ):
-        """
-        Compute the fluid velocity at time t for position(s) (x, z)
-        where z is 0 at the bottom and equal to depth at the free surface
-        """
+    def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
         if self.depth < 0:
-            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
-        if isinstance(x, (float, int)):
-            x, z = [x], [z]
-        x = np.asarray(x, dtype=float)
-        z = np.asarray(z, dtype=float)
-        x2 = x - self.c * t
+            raise RaschiiError("Cannot currently compute velocity for infinite depth waves")
+        x_1d, z_1d, t_1d = x, z, t  # save (N,), (N,), (T,) before reshaping
+        x = x[np.newaxis, :]  # (1, N)
+        z = z[np.newaxis, :]  # (1, N)
+        t = t[:, np.newaxis]  # (T, 1)
+        x2 = x - self.c * t  # (T, N)
 
         def my_cosh_cos(i, j):
             n = "A%d%d" % (i, j)
@@ -168,8 +179,7 @@ class StokesWave(WaveModel):
                 )
 
         eps = self.k * self.height / 2
-        vel = np.zeros((x.size, 2), float)
-        vel[:, 0] = (
+        vel_x = (
             my_cosh_cos(1, 1)
             + my_cosh_cos(2, 2)
             + my_cosh_cos(3, 1)
@@ -180,7 +190,7 @@ class StokesWave(WaveModel):
             + my_cosh_cos(5, 3)
             + my_cosh_cos(5, 5)
         )
-        vel[:, 1] = (
+        vel_z = (
             my_sinh_sin(1, 1)
             + my_sinh_sin(2, 2)
             + my_sinh_sin(3, 1)
@@ -191,11 +201,13 @@ class StokesWave(WaveModel):
             + my_sinh_sin(5, 3)
             + my_sinh_sin(5, 5)
         )
-        vel *= self.data["C0"] * sqrt(self.g / self.k**3)
-
+        scale = self.data["C0"] * sqrt(self.g / self.k**3)
+        vel = np.stack([vel_x * scale, vel_z * scale], axis=-1)  # (T, N, 2)
         if not all_points_wet:
-            blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
-
+            for i, ti in enumerate(t_1d):
+                blend_air_and_wave_velocities(
+                    x_1d, z_1d, float(ti), self, self.air, vel[i], self.eta_eps
+                )
         return vel
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
@@ -221,49 +233,24 @@ class StokesWave(WaveModel):
 
         SwdWriterStokes(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
 
-    def velocity_potential(
-        self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
-    ):
-        """
-        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
-
-        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
-        The gradient ∇φ equals the oscillatory fluid velocity as returned by
-        :meth:`velocity`; the constant phase-speed term is excluded.
-
-        Works for both finite and infinite depth.  For infinite-depth waves
-        (``depth=-1``) an effective depth of 50π/k is used internally; z should
-        be supplied in the same coordinate system (z=0 at the effective sea floor).
-        """
-        if isinstance(x, (float, int)):
-            x, z = [x], [z]
-        x = np.asarray(x, dtype=float)
-        z = np.asarray(z, dtype=float)
-
+    def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
         if self.depth < 0:
             depth = 50 * pi / self.k
         else:
             depth = min(self.depth, 50 * pi / self.k)
-
         k = self.k
         eps = k * self.height / 2
         D = self.data
-        x2 = x - self.c * t
+        c = self.c
         scale = D["C0"] * sqrt(self.g / k**3)
-
-        phi = np.zeros(x.size, float)
+        x2 = x[np.newaxis, :] - c * t[:, np.newaxis]  # (T, M)
+        phi = np.zeros((t.size, x.size), float)
 
         def add_term(i, j):
             Aij = D.get("A%d%d" % (i, j), 0.0)
             if Aij == 0.0:
                 return
-            # Stokes A_ij contains 1/sinh(j k d) factors that prevent overflow
-            # of cosh(j k z) for normal finite depths (kd <= 50 pi). The
-            # zero-check avoids 0 * inf = nan for deep-water high harmonics.
-            phi[:] += pow(eps, i) * Aij * np.cosh(j * k * z) * np.sin(j * k * x2)
+            phi[:] += pow(eps, i) * Aij * np.cosh(j * k * z[np.newaxis, :]) * np.sin(j * k * x2)
 
         add_term(1, 1)
         add_term(2, 2)
@@ -274,9 +261,7 @@ class StokesWave(WaveModel):
         add_term(5, 1)
         add_term(5, 3)
         add_term(5, 5)
-
-        phi *= scale
-        return phi
+        return phi * scale  # (T, M)
 
 
 def sech(x):
@@ -465,7 +450,7 @@ def compute_length_from_period(
     This would be much faster if we had an implementation of the Stokes wave
     theory dispersion relation, which should be not too hard to implement ...
     """
-    from .airy import compute_length_from_period as airy_compute_length_from_period
+    from .wave_airy import compute_length_from_period as airy_compute_length_from_period
 
     # Initial guess is based on the linear dispersion relation for deep water waves
     length = airy_compute_length_from_period(depth=depth, period=period, g=g)
@@ -481,14 +466,14 @@ def compute_length_from_period(
         length = length_N
 
         # New guess for the wave length by interpolation
-        f = (period - wave1.T) / (wave2.T - wave1.T)
+        f = (period - wave1.period) / (wave2.period - wave1.period)
         length_N = wave1.length + (wave2.length - wave1.length) * f
 
         # Resulting wave period for the new length from the dispersion relation
         waveN = StokesWave(height=height, depth=depth, length=length_N, N=N, g=g)
 
         # Update the two points used for the interpolation in the next iteration
-        if waveN.T < period:
+        if waveN.period < period:
             wave1 = waveN
         else:
             wave2 = waveN

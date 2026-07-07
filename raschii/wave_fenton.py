@@ -1,31 +1,38 @@
 import math
+
 from numpy import (
-    pi,
-    cos,
-    sin,
-    zeros,
     arange,
-    isfinite,
-    newaxis,
-    asarray,
-    linspace,
-    cosh,
-    sinh,
     array,
+    asarray,
+    atleast_1d,
+    broadcast_arrays,
+    cos,
+    cosh,
+    isfinite,
+    linspace,
+    newaxis,
+    pi,
+    sin,
+    sinh,
+    stack,
+    sum,
+    zeros,
 )
 from numpy.linalg import solve
+from numpy.typing import NDArray
+
+from .base_classes import AirPhaseModel, WaveModel
 from .common import (
+    Frame,
     NonConvergenceError,
-    sinh_by_cosh,
+    RaschiiError,
+    blend_air_and_wave_velocities,
     cosh_by_cosh,
     cosh_ratio,
-    blend_air_and_wave_velocities,
-    blend_air_and_wave_velocity_cpp,
+    sinh_by_cosh,
     trapezoid_integration,
-    np2py,
-    RasciiError,
 )
-from .base_classes import WaveModel
+from .cpp import FentonCppGenerator
 
 
 class FentonWave(WaveModel):
@@ -37,11 +44,14 @@ class FentonWave(WaveModel):
         height: float,
         depth: float,
         length: float | None = None,
+        *,
         N: int = 5,
         period: float | None = None,
-        air=None,
+        air: AirPhaseModel | None = None,
         g: float = 9.81,
         relax: float = 0.5,
+        maxiter: int = 500,
+        num_steps: int | None = None,
     ):
         """
         Implement stream function waves based on the paper by Rienecker and
@@ -56,26 +66,43 @@ class FentonWave(WaveModel):
         """
         if length is None:
             if period is None:
-                raise RasciiError("Either length or period must be given, both are None!")
+                raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(
                 height=height, depth=depth, period=period, N=N, g=g, relax=relax
             )
 
-        self.height: float = height  #: The wave height
-        self.depth: float = depth  #: The water depth
-        self.length: float = length  #: The wave length
-        self.order: int = N  #: The approximation order
-        self.air = air  #: The optional air-phase model
-        self.g: float = g  #: The acceleration of gravity
-        self.relax: float = relax  #: The numerical relaxation in the optimization loop
-        self.warnings: str = ""  #: Warnings raised when generating this wave
+        #: The wave height
+        self.height: float = height
+
+        #: The water depth
+        self.depth: float = depth
+
+        #: The wave length
+        self.length: float = length
+
+        #: The approximation order
+        self.order: int = N
+
+        #: The optional air-phase model
+        self.air: AirPhaseModel | None = air
+
+        #: The acceleration of gravity
+        self.g: float = g
+
+        #: The numerical relaxation in the optimization loop
+        self.relax: float = relax
+
+        #: Warnings raised when generating this wave
+        self.warnings: str = ""
 
         if N < 1:
             self.warnings = "Fenton order must be at least 1, using order 1"
             self.order = 1
 
         # Find the coeffients through optimization
-        data = fenton_coefficients(height, depth, length, N, g, relax=relax)
+        data = fenton_coefficients(
+            height, depth, length, N, g, relax=relax, maxiter=maxiter, num_steps=num_steps
+        )
         self.set_data(data)
 
         # For evaluating velocities close to the free surface
@@ -85,18 +112,32 @@ class FentonWave(WaveModel):
         if self.air is not None:
             self.air.set_wave(self)
 
+        # Niche use use case: Provide a C++ code generator for this wave model
+        self.cpp = FentonCppGenerator(self)
+
     def set_data(self, data):
         """
         Update the coefficients defining this stream-function wave
         """
         self.data = data
-        self.eta = data["eta"]  # Wave elevation at colocation points
-        self.x = data["x"]  # Positions of colocation points
-        self.k = data["k"]  # Wave number
-        self.c = data["c"]  # Phase speed
-        self.cs = self.c - data["Q"]  # Mean Stokes drift speed
-        self.T = self.length / self.c  # Wave period
-        self.omega = self.c * self.k  # Wave frequency
+
+        #: Wave elevation at colocation points
+        self.eta = data["eta"]
+
+        #: Positions of colocation points
+        self.x = data["x"]
+
+        #: Wave number (2 pi / wavelength) in [1/m]
+        self.k = data["k"]
+
+        #: Wave celerity (phase speed) in [m/s]
+        self.c = data["c"]
+
+        #: Wave period in [s]
+        self.period = self.length / self.c
+
+        #: Wave frequency in [rad/s]
+        self.omega = self.c * self.k
 
         # Cosine series coefficients for the elevation
         N = len(self.eta) - 1
@@ -104,9 +145,16 @@ class FentonWave(WaveModel):
         J = arange(0, N + 1)
         self.E = trapezoid_integration(self.eta * cos(J * J[:, newaxis] * pi / N))
 
-    def stream_function(self, x, z, t=0, frame="b"):
+        #: The value *Q* from the Fenton stream-function wave
+        self.Q = data["Q"]
+
+    def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
-        Compute the stream function at time t for position(s) x
+        Compute the stream function at time t for position(s) x.
+
+        * frame: :class:`~raschii.Frame` – ``Frame.EARTH`` (default) includes
+          the constant base-flow term; ``Frame.WAVE`` returns only the
+          oscillatory part.
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
@@ -121,33 +169,28 @@ class FentonWave(WaveModel):
 
         psi = (sinh(J * k * z2) / cosh(J * k * self.depth) * cos(J * k * x2)).dot(B[1:])
 
-        if frame == "b":
+        if frame == Frame.EARTH:
             return B[0] * z + psi
-        elif frame == "c":
+        elif frame == Frame.WAVE:
             return psi
+        else:
+            raise ValueError(f"Unknown frame {frame!r}; use Frame.EARTH or Frame.WAVE")
 
-    def surface_elevation(self, x: float | list[float], t: float = 0.0, include_depth: bool = True):
-        """
-        Compute the surface elevation at time t for position(s) x
-        """
-        if isinstance(x, (float, int)):
-            x = array([x], float)
-        x = asarray(x)
-
-        # Cosine transformation of the elevation
+    def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
         k, c = self.k, self.c
-        eta = 2 * trapezoid_integration(self.E * cos(J * k * (x[:, newaxis] - c * t))) / N
-
+        x_r = x[newaxis, :, newaxis]  # (1, n_x, 1)
+        t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
+        J_r = J[newaxis, newaxis, :]  # (1, 1, N+1)
+        eta = 2 * trapezoid_integration(self.E * cos(J_r * k * (x_r - c * t_r)), axis=-1) / N
+        # eta shape: (T, n_x)
         if include_depth:
             if self.depth < 0:
-                raise RasciiError("Cannot include depth in elevation for infinite depth")
+                raise RaschiiError("Cannot include depth in elevation for infinite depth")
             subtract = 0.0
         else:
-            # Apply consistent water depth limitation with 'fenton_coefficients'
             subtract = 25 * self.length if self.depth < 0 else self.depth
-
         return eta - subtract
 
     def surface_slope(self, x, t=0):
@@ -164,226 +207,146 @@ class FentonWave(WaveModel):
         k, c = self.k, self.c
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
-    def velocity(
-        self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
-        all_points_wet: bool = False,
-    ):
-        """
-        Compute the fluid velocity at time t for position(s) (x, z)
-        where z is 0 at the bottom and equal to depth at the free surface
-        """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently compute velocity for infinite depth waves")
-        if isinstance(x, (float, int)):
-            x, z = [x], [z]
-        x = asarray(x, dtype=float)
-        z = asarray(z, dtype=float)
+    def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
+        x_1d, z_1d, t_1d = x, z, t  # save (N,), (N,), (T,) before reshaping
+        x = x[newaxis, :]  # (1, n_points)
+        z = z[newaxis, :]  # (1, n_points)
+        t = t[:, newaxis]  # (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
         c = self.c
+        depth = self.depth
         J = arange(1, N + 1)
 
-        vel = zeros((x.size, 2), float)
-        vel[:, 0] = k * (
-            B[1:]
-            * cos(J * k * (x[:, newaxis] - c * t))
-            * cosh(J * k * z[:, newaxis])
-            / cosh(J * k * self.depth)
-        ).dot(J)
-        vel[:, 1] = k * (
-            B[1:]
-            * sin(J * k * (x[:, newaxis] - c * t))
-            * sinh(J * k * z[:, newaxis])
-            / cosh(J * k * self.depth)
-        ).dot(J)
+        phase = J * k * (x - c * t)[..., newaxis]  # (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]  # (1, n_points, N)
+        kh = J * k * depth  # (N,)
+
+        vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
+        vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
+        vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
 
         if not all_points_wet:
-            blend_air_and_wave_velocities(x, z, t, self, self.air, vel, self.eta_eps)
+            for i, ti in enumerate(t_1d):
+                blend_air_and_wave_velocities(
+                    x_1d, z_1d, float(ti), self, self.air, vel[i], self.eta_eps
+                )
 
         return vel
 
-    def stream_function_cpp(self, frame="b"):
-        """
-        Return C++ code for evaluating the stream function of this specific
-        wave. The positive traveling direction is x[0] and the vertical
-        coordinate is x[2] which is zero at the bottom and equal to +depth at
-        the mean water level.
-        """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
-        N = len(self.eta) - 1
-        J = arange(1, N + 1)
-        B = self.data["B"]
-        k = self.k
-
-        Jk = J * k
-        facs = B[1:] / cosh(Jk * self.depth)
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        c = np2py(self.c)
-        Jk = np2py(Jk)
-        facs = np2py(facs)
-
-        cpp = " + ".join(
-            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r}* t)) * sinh({Jk[i]!r} * x[2])"
-            for i in range(N)
-        )
-
-        if frame == "b":
-            return f"{np2py(B[0])!r} * x[2] + {cpp}"
-        elif frame == "c":
-            return cpp
-
-    def elevation_cpp(self):
-        """
-        Return C++ code for evaluating the elevation of this specific wave.
-        The positive traveling direction is x[0]
-        """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
-        N = self.E.size - 1
-        facs = self.E * 2 / N
-        facs[0] *= 0.5
-        facs[-1] *= 0.5
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        k = np2py(self.k)
-        c = np2py(self.c)
-        facs = np2py(facs)
-
-        code = " + ".join(
-            f"{facs[j]!r} * cos({j:d} * {k!r} * (x[0] - {c!r} * t))" for j in range(0, N + 1)
-        )
-        return code
-
-    def slope_cpp(self):
-        """
-        Return C++ code for evaluating the surface slope of this specific wave.
-        The positive traveling direction is x[0]
-        """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
-        N = self.E.size - 1
-        facs = self.E * 2 / N * self.k * -1.0
-        facs[0] *= 0.5
-        facs[-1] *= 0.5
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        k = np2py(self.k)
-        c = np2py(self.c)
-        facs = np2py(facs)
-
-        code = " + ".join(
-            f"{facs[j]!r} * {j:d} * sin({j:d} * {k!r} * (x[0] - {c!r} * t))"
-            for j in range(0, N + 1)
-        )
-        return code
-
-    def velocity_cpp(self, all_points_wet=False):
-        """
-        Return C++ code for evaluating the particle velocities of this specific
-        wave. Returns the x and z components only with z positive upwards. The
-        positive traveling direction is x[0] and the vertical coordinate is x[2]
-        which is zero at the bottom and equal to +depth at the mean water level.
-        """
-        if self.depth < 0:
-            raise RasciiError("Cannot currently generate C++ code for infinite depth waves")
-        N = len(self.eta) - 1
-        J = arange(1, N + 1)
-        B = self.data["B"]
-        k = self.k
-        c = self.c
-
-        Jk = J * k
-        facs = J * B[1:] * k / cosh(Jk * self.depth)
-
-        # Repr of np.float64(42.0) is "np.float64(42.0)" and not "42.0"
-        # We use repr to make Python output a "smart" amount of digits
-        c = np2py(self.c)
-        Jk = np2py(Jk)
-        facs = np2py(facs)
-
-        cpp_x = " + ".join(
-            f"{facs[i]!r} * cos({Jk[i]!r} * (x[0] - {c!r} * t)) * cosh({Jk[i]!r} * x[2])"
-            for i in range(N)
-        )
-        cpp_z = " + ".join(
-            f"{facs[i]!r} * sin({Jk[i]!r} * (x[0] - {c!r} * t)) * sinh({Jk[i]!r} * x[2])"
-            for i in range(N)
-        )
-
-        if all_points_wet:
-            return cpp_x, cpp_z
-
-        # Handle velocities above the free surface
-        e_cpp = self.elevation_cpp()
-        cpp_ax = cpp_az = None
-        cpp_psiw = cpp_psia = cpp_slope = None
-        if self.air is not None:
-            cpp_ax, cpp_az = self.air.velocity_cpp()
-            cpp_psiw = self.stream_function_cpp(frame="c")
-            cpp_psia = self.air.stream_function_cpp(frame="c")
-            cpp_slope = self.slope_cpp()
-
-        cpp_x = blend_air_and_wave_velocity_cpp(
-            cpp_x, cpp_ax, e_cpp, "x", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope
-        )
-        cpp_z = blend_air_and_wave_velocity_cpp(
-            cpp_z, cpp_az, e_cpp, "z", self.eta_eps, self.air, cpp_psiw, cpp_psia, cpp_slope
-        )
-
-        return cpp_x, cpp_z
-
-    def velocity_potential(
+    def acceleration(
         self,
-        x: float | list[float],
-        z: float | list[float],
-        t: float = 0,
+        x: float | NDArray,
+        z: float | NDArray,
+        t: float | NDArray = 0.0,
+        all_points_wet: bool = False,
     ):
         """
-        Compute the earth-frame velocity potential φ at time t for position(s) (x, z).
+        Compute the horizontal and vertical fluid acceleration at each position
+        ``(x, z)`` at each time ``t``.
 
-        z is measured from the sea floor (z=0 at bottom, z≈depth at calm surface).
-        The gradient ∇φ equals the oscillatory fluid velocity as returned by
-        :meth:`velocity`; the mean-flow current term (B₀·x) is excluded.
+        .. note::
 
-        Works for both finite and infinite depth.  For infinite-depth waves
-        (``depth=-1``) an effective depth of 25 × wave_length is used internally;
-        z should be supplied in the same coordinate system.
+           This method is **water-phase only**.  Acceleration above the free
+           surface is set to zero when ``all_points_wet=False`` (the default).
+           Air-phase blending for accelerations is not yet implemented.  If an
+           air model is attached and you query points above the free surface with
+           ``all_points_wet=False``, a :exc:`~raschii.RaschiiError` is raised.
+
+        Parameters
+        ----------
+        x : float | array
+            Horizontal position(s).
+        z : float | array
+            Vertical position(s) where z = 0 at the sea floor and
+            z = depth at the free surface.
+        t : float | array, optional
+            Time(s) at which to compute the acceleration (default 0).
+        all_points_wet : bool, optional
+            If ``True``, evaluate the wave formula at all points regardless of
+            whether they are above the free surface.  Useful for testing.
+
+        Returns
+        -------
+        ndarray
+            Shape ``(2,)`` for scalar inputs, ``(N, 2)`` for array points and
+            scalar time, ``(T, 2)`` for scalar point and array time,
+            ``(T, N, 2)`` for array points and array time.
         """
-        if self.depth < 0:
-            depth = 25.0 * self.length
-        else:
-            depth = self.depth
+        time_is_scalar = asarray(t).ndim == 0
+        point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
 
-        if isinstance(x, (float, int)):
-            x, z = [x], [z]
-        x = asarray(x, dtype=float)
-        z = asarray(z, dtype=float)
+        x_1d = atleast_1d(asarray(x, dtype=float))
+        z_1d = atleast_1d(asarray(z, dtype=float))
+        t_1d = atleast_1d(asarray(t, dtype=float))
+        x_1d, z_1d = broadcast_arrays(x_1d, z_1d)
+
+        x = x_1d[newaxis, :]  # shape (1, n_points)
+        z = z_1d[newaxis, :]  # shape (1, n_points)
+        t = t_1d[:, newaxis]  # shape (n_times, 1)
 
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
         c = self.c
+        depth = self.depth
         J = arange(1, N + 1)
 
-        # phi = sum_{j=1}^{N} B_j * cosh(j k z) / cosh(j k depth) * sin(j k (x - c t))
-        # cosh_ratio is used for numerical stability in deep water.
-        x2 = x[:, newaxis] - c * t  # (M, 1) for broadcasting with J
-        phi = (
-            B[1:]
-            * sin(J * k * x2)                                           # (M, N)
-            * cosh_ratio(J * k * z[:, newaxis], J * k * depth)          # (M, N)
-        ).sum(axis=1)
-        return phi
+        phase = J * k * (x - c * t)[..., newaxis]  # shape (n_times, n_points, N)
+        kz = J * k * z[..., newaxis]  # shape (1, n_points, N)
+        kh = J * k * depth  # shape (N,)
+
+        acc_x = k * sum(J * B[1:] * J * k * c * sin(phase) * cosh(kz) / cosh(kh), axis=-1)
+        acc_z = k * sum(J * B[1:] * J * k * -c * cos(phase) * sinh(kz) / cosh(kh), axis=-1)
+
+        acc = stack([acc_x, acc_z], axis=-1)  # shape (n_times, n_points, 2)
+
+        if not all_points_wet:
+            if self.air is not None:
+                eta = asarray(
+                    [self.surface_elevation(x_1d, float(ti)) for ti in t_1d], dtype=float
+                )  # (n_times, n_points)
+                above = z_1d[newaxis, :] > eta + self.eta_eps  # (n_times, n_points)
+                if above.any():
+                    raise RaschiiError(
+                        "acceleration() does not support air-phase blending. "
+                        "Points above the free surface were detected. "
+                        "Use all_points_wet=True to evaluate the raw wave formula, "
+                        "or only query points below the free surface."
+                    )
+            else:
+                # Zero out accelerations above the free surface (no air model)
+                for i, ti in enumerate(t_1d):
+                    eta_i = asarray(self.surface_elevation(x_1d, float(ti)), dtype=float)
+                    above_i = z_1d > eta_i + self.eta_eps
+                    if above_i.any():
+                        acc[i, above_i] = 0.0
+
+        if time_is_scalar and point_is_scalar:
+            return acc.squeeze()  # shape (2,)
+        elif time_is_scalar:
+            return acc[0]  # shape (n_points, 2)
+        elif point_is_scalar:
+            return acc[:, 0]  # shape (n_times, 2)
+
+        return acc  # shape (n_times, n_points, 2)
+
+    def _velocity_potential(self, x: NDArray, z: NDArray, t: NDArray) -> NDArray:
+        depth = 25.0 * self.length if self.depth < 0 else self.depth
+        N = len(self.eta) - 1
+        B = self.data["B"]
+        k = self.k
+        c = self.c
+        J = arange(1, N + 1)
+        x_r = x[newaxis, :, newaxis]  # (1, M, 1)
+        t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
+        z_r = z[newaxis, :, newaxis]  # (1, M, 1)
+        J_r = J[newaxis, newaxis, :]  # (1, 1, N)
+        return (
+            B[1:] * sin(J_r * k * (x_r - c * t_r)) * cosh_ratio(J_r * k * z_r, J_r * k * depth)
+        ).sum(axis=-1)  # (T, M)
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
@@ -663,7 +626,7 @@ def compute_length_from_period(
     This would be much faster if we had an implementation of the Fenton wave
     theory dispersion relation for arbitrary order N
     """
-    from .airy import compute_length_from_period as airy_compute_length_from_period
+    from .wave_airy import compute_length_from_period as airy_compute_length_from_period
 
     # Initial guess is based on the linear dispersion relation for deep water waves
     length = airy_compute_length_from_period(depth=depth, period=period, g=g)
@@ -679,14 +642,14 @@ def compute_length_from_period(
         length = length_N
 
         # New guess for the wave length by interpolation
-        f = (period - wave1.T) / (wave2.T - wave1.T)
+        f = (period - wave1.period) / (wave2.period - wave1.period)
         length_N = wave1.length + (wave2.length - wave1.length) * f
 
         # Resulting wave period for the new length from the dispersion relation
         waveN = FentonWave(height=height, depth=depth, length=length_N, N=N, g=g, relax=relax)
 
         # Update the two points used for the interpolation in the next iteration
-        if waveN.T < period:
+        if waveN.period < period:
             wave1 = waveN
         else:
             wave2 = waveN

@@ -9,7 +9,7 @@ on:
 
 jobs:
   install-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +26,7 @@ jobs:
         run: pip3 install "pybind11[global]"
 
       - name: Install Raschii with its dependencies
-        run: pip3 install .
+        run: pip3 install ".[plot]"
 
       - name: Run unit tests with system Python
         env:
@@ -50,7 +50,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies with uv
-        run: uv sync
+        run: uv sync --extra plot
 
       - name: Run unit tests with uv
         run: |
