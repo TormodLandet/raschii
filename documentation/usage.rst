@@ -77,6 +77,19 @@ Wave *period*:
   given in seconds.
   *Only used when the wave length is None*.
 
+Wave *current* (Fenton waves only):
+  the mean current in m/s, default 0. A positive value is in the direction of wave
+  propagation. The wave period is then the period observed at a fixed point, which is
+  Doppler shifted by the current, so the same period gives a different wave length.
+  See *current_criterion*. Not supported together with air phase models, SWD output
+  or the C++ code generators.
+
+Wave *current_criterion* (Fenton waves only):
+  how the current is defined, following Fenton's Fourier program.
+  ``"euler"`` (default) is the mean velocity at a fixed point below the wave troughs.
+  ``"stokes"`` is the mean mass transport velocity, which is the Eulerian current plus
+  the volume flux due to the waves divided by the depth.
+
 Wave order, *N*:
   the order of the wave model to use.
   For Airy waves this is always 1, for Stokes waves it can be 1, 2, or 5,

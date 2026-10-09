@@ -98,6 +98,17 @@ used in the Newton-iterations can be found in the original paper, available on
 `John D. Fenton's web pages
 <http://johndfenton.com/Papers/Papers-John%20Fenton.html>`_.
 
+**Current.** The equations above are solved in the frame where the mean Eulerian
+current is zero, and :math:`B_0` is then the wave celerity :math:`c` relative to
+the water. A current :math:`U` moves the whole wave field, so the phase speed seen
+from a fixed point is :math:`c + U`, the observed period is
+:math:`T = \lambda / (c + U)`, and :math:`U` is added to the horizontal velocity.
+Following Fenton's Fourier program the current can be given either as the Eulerian
+mean current (``current_criterion="euler"``) or as the mean mass transport velocity
+(``"stokes"``), :math:`U_s = U + q/D`, where :math:`q = cD - Q` is the volume flux
+due to the waves. For the Stokes criterion the Eulerian current is
+:math:`U = U_s - q/D`.
+
 
 .. #############################################################################
 

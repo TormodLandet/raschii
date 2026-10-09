@@ -16,6 +16,10 @@ class FentonCppGenerator:
     def __init__(self, wave: FentonWave):
         self.wave: FentonWave = wave
 
+    def _check_no_current(self):
+        if self.wave.current != 0.0:
+            raise RaschiiError("Cannot currently generate C++ code for waves with a current")
+
     def stream_function(self, frame: Frame = Frame.EARTH):
         """
         Return C++ code for evaluating the stream function of this specific
@@ -23,6 +27,7 @@ class FentonCppGenerator:
         coordinate is x[2] which is zero at the bottom and equal to +depth at
         the mean water level.
         """
+        self._check_no_current()
         wave = self.wave
         if wave.depth < 0:
             raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
@@ -55,6 +60,7 @@ class FentonCppGenerator:
         Return C++ code for evaluating the elevation of this specific wave.
         The positive traveling direction is x[0]
         """
+        self._check_no_current()
         wave = self.wave
         if wave.depth < 0:
             raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
@@ -79,6 +85,7 @@ class FentonCppGenerator:
         Return C++ code for evaluating the surface slope of this specific wave.
         The positive traveling direction is x[0]
         """
+        self._check_no_current()
         wave = self.wave
         if wave.depth < 0:
             raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")
@@ -106,6 +113,7 @@ class FentonCppGenerator:
         positive traveling direction is x[0] and the vertical coordinate is x[2]
         which is zero at the bottom and equal to +depth at the mean water level.
         """
+        self._check_no_current()
         wave = self.wave
         if wave.depth < 0:
             raise RaschiiError("Cannot currently generate C++ code for infinite depth waves")

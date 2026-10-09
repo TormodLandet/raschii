@@ -52,6 +52,8 @@ class FentonWave(WaveModel):
         relax: float = 0.5,
         maxiter: int = 500,
         num_steps: int | None = None,
+        current: float = 0.0,
+        current_criterion: str = "euler",
     ):
         """
         Implement stream function waves based on the paper by Rienecker and
@@ -62,14 +64,39 @@ class FentonWave(WaveModel):
           in meters, but you can give -1.0 for infinite depth
         * length: the periodic length of the wave (optional, if not given then period is used)
         * N: the number of coefficients in the truncated Fourier series
-        * period: the wave period (optional, if not given then length is used)
+        * period: the wave period (optional, if not given then length is used).
+          This is the period observed at a fixed point, so a current Doppler shifts it
+        * current: the mean current in m/s, default 0. The wave shape is found in the frame
+          where the Eulerian mean current is zero (as in Fenton's Fourier program) and the
+          wave field is then moved by the current. See ``current_criterion``
+        * current_criterion: how ``current`` is defined, following Fenton's Fourier program:
+          ``"euler"`` (default) is the mean velocity at a fixed point below the wave troughs,
+          ``"stokes"`` is the mean mass transport velocity (Eulerian current plus the
+          volume flux due to the waves divided by the depth)
         """
+        current_criterion = _check_current_criterion(current_criterion)
+        if current != 0.0 and air is not None:
+            raise RaschiiError("Air-phase models do not support a current")
+
         if length is None:
             if period is None:
                 raise RaschiiError("Either length or period must be given, both are None!")
             length = compute_length_from_period(
-                height=height, depth=depth, period=period, N=N, g=g, relax=relax
+                height=height,
+                depth=depth,
+                period=period,
+                N=N,
+                g=g,
+                relax=relax,
+                current=current,
+                current_criterion=current_criterion,
             )
+
+        #: The mean current in [m/s] as specified, see :attr:`current_criterion`
+        self.current_input: float = float(current)
+
+        #: How the current is specified: "euler" or "stokes"
+        self.current_criterion: str = current_criterion
 
         #: The wave height
         self.height: float = height
@@ -130,14 +157,9 @@ class FentonWave(WaveModel):
         #: Wave number (2 pi / wavelength) in [1/m]
         self.k = data["k"]
 
-        #: Wave celerity (phase speed) in [m/s]
+        #: Wave celerity in [m/s] relative to the water, i.e., in the frame where the
+        #: Eulerian mean current is zero
         self.c = data["c"]
-
-        #: Wave period in [s]
-        self.period = self.length / self.c
-
-        #: Wave frequency in [rad/s]
-        self.omega = self.c * self.k
 
         # Cosine series coefficients for the elevation
         N = len(self.eta) - 1
@@ -147,6 +169,30 @@ class FentonWave(WaveModel):
 
         #: The value *Q* from the Fenton stream-function wave
         self.Q = data["Q"]
+
+        # Volume flux due to the waves q = c d - Q, where the mean mass transport
+        # (Stokes) current is the Eulerian current plus q / d, see Fenton's Fourier program
+        d = 25 * self.length if self.depth < 0 else self.depth
+        q = self.c * d - self.Q
+
+        #: The mean Eulerian current in [m/s]
+        self.current: float = self.current_input
+        if self.current_criterion == "stokes":
+            self.current = self.current_input - q / d
+
+        #: The mean mass transport (Stokes) current in [m/s]
+        self.current_stokes: float = self.current + q / d
+
+        #: Wave phase speed in [m/s] as seen from a fixed point
+        self.phase_speed: float = self.c + self.current
+        if self.phase_speed <= 0.0:
+            raise RaschiiError("The current is too strong against the waves, they cannot propagate")
+
+        #: Wave period in [s] observed at a fixed point
+        self.period = self.length / self.phase_speed
+
+        #: Wave frequency in [rad/s] observed at a fixed point
+        self.omega = self.phase_speed * self.k
 
     def stream_function(self, x, z, t=0, frame=Frame.EARTH):
         """
@@ -158,7 +204,7 @@ class FentonWave(WaveModel):
         """
         if isinstance(x, (float, int)):
             x, z = [x], [z]
-        x2 = asarray(x, dtype=float) - self.c * t
+        x2 = asarray(x, dtype=float) - self.phase_speed * t
         z2 = asarray(z, dtype=float)
         x2, z2 = x2[:, newaxis], z2[:, newaxis]
 
@@ -179,7 +225,7 @@ class FentonWave(WaveModel):
     def _surface_elevation(self, x: NDArray, t: NDArray, include_depth: bool) -> NDArray:
         N = len(self.eta) - 1
         J = arange(0, N + 1)
-        k, c = self.k, self.c
+        k, c = self.k, self.phase_speed
         x_r = x[newaxis, :, newaxis]  # (1, n_x, 1)
         t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
         J_r = J[newaxis, newaxis, :]  # (1, 1, N+1)
@@ -204,7 +250,7 @@ class FentonWave(WaveModel):
         # Cosine transformation of the elevation
         N = len(self.eta) - 1
         J = arange(0, N + 1)
-        k, c = self.k, self.c
+        k, c = self.k, self.phase_speed
         return -2 * trapezoid_integration(self.E * J * k * sin(J * k * (x[:, newaxis] - c * t))) / N
 
     def _velocity(self, x: NDArray, z: NDArray, t: NDArray, all_points_wet: bool) -> NDArray:
@@ -216,7 +262,7 @@ class FentonWave(WaveModel):
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
-        c = self.c
+        c = self.phase_speed
         depth = self.depth
         J = arange(1, N + 1)
 
@@ -226,6 +272,7 @@ class FentonWave(WaveModel):
 
         vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
         vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
+        vel_x = vel_x + self.current  # the current moves the whole wave field
         vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
 
         if not all_points_wet:
@@ -290,7 +337,7 @@ class FentonWave(WaveModel):
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
-        c = self.c
+        c = self.phase_speed
         depth = self.depth
         J = arange(1, N + 1)
 
@@ -338,15 +385,16 @@ class FentonWave(WaveModel):
         N = len(self.eta) - 1
         B = self.data["B"]
         k = self.k
-        c = self.c
+        c = self.phase_speed
         J = arange(1, N + 1)
         x_r = x[newaxis, :, newaxis]  # (1, M, 1)
         t_r = t[:, newaxis, newaxis]  # (T, 1, 1)
         z_r = z[newaxis, :, newaxis]  # (1, M, 1)
         J_r = J[newaxis, newaxis, :]  # (1, 1, N)
-        return (
+        phi = (
             B[1:] * sin(J_r * k * (x_r - c * t_r)) * cosh_ratio(J_r * k * z_r, J_r * k * depth)
         ).sum(axis=-1)  # (T, M)
+        return phi + self.current * x[newaxis, :]
 
     def write_swd(self, path, dt, tmax=None, nperiods=None, amp: int = 1):
         """
@@ -367,6 +415,9 @@ class FentonWave(WaveModel):
         * https://spectral-wave-data.readthedocs.io/en/latest/shape_2.html
         * https://spectral-wave-data.readthedocs.io/en/latest/swd_format.html
         """
+        if self.current != 0.0:
+            raise RaschiiError("Writing SWD files is not supported for waves with a current")
+
         from .swd import SwdWriterFenton
 
         SwdWriterFenton(self).write(path, dt, tmax=tmax, nperiods=nperiods, amp=amp)
@@ -612,6 +663,13 @@ def fprime(coeffs, H, k, D, J, M):
     return jac
 
 
+def _check_current_criterion(current_criterion: str) -> str:
+    crit = str(current_criterion).lower()
+    if crit not in ("euler", "stokes"):
+        raise RaschiiError(f"current_criterion must be 'euler' or 'stokes', not {current_criterion!r}")
+    return crit
+
+
 def compute_length_from_period(
     height: float,
     depth: float,
@@ -619,9 +677,14 @@ def compute_length_from_period(
     N: int = 5,
     g: float = 9.81,
     relax: float = 0.5,
+    current: float = 0.0,
+    current_criterion: str = "euler",
 ):
     """
     Compute the wave length from the wave period using the Fenton wave theory
+
+    The period is the one observed at a fixed point, so a current gives a Doppler
+    shift and a different wave length than without a current.
 
     This would be much faster if we had an implementation of the Fenton wave
     theory dispersion relation for arbitrary order N
@@ -630,10 +693,30 @@ def compute_length_from_period(
 
     # Initial guess is based on the linear dispersion relation for deep water waves
     length = airy_compute_length_from_period(depth=depth, period=period, g=g)
+    if current != 0.0:
+        # The linear dispersion relation with a Doppler shifted period: L = (c(L) + U) T
+        for _ in range(50):
+            k = 2 * pi / length
+            c_airy = math.sqrt(g / k * (1.0 if depth < 0 else math.tanh(k * depth)))
+            length_new = (c_airy + current) * period
+            if length_new <= 0.0:
+                raise RaschiiError("The current is too strong against the waves for this period")
+            if abs(length_new - length) < 1e-6 * length:
+                break
+            length = 0.5 * (length + length_new)
 
     # Find the length by Newton iterations
-    wave1 = FentonWave(height=height, depth=depth, length=length * 0.95, N=N, g=g, relax=relax)
-    wave2 = FentonWave(height=height, depth=depth, length=length * 1.05, N=N, g=g, relax=relax)
+    kw = dict(
+        height=height,
+        depth=depth,
+        N=N,
+        g=g,
+        relax=relax,
+        current=current,
+        current_criterion=current_criterion,
+    )
+    wave1 = FentonWave(length=length * 0.95, **kw)
+    wave2 = FentonWave(length=length * 1.05, **kw)
 
     length_N = 0.0
     iter = 0
@@ -646,7 +729,7 @@ def compute_length_from_period(
         length_N = wave1.length + (wave2.length - wave1.length) * f
 
         # Resulting wave period for the new length from the dispersion relation
-        waveN = FentonWave(height=height, depth=depth, length=length_N, N=N, g=g, relax=relax)
+        waveN = FentonWave(length=length_N, **kw)
 
         # Update the two points used for the interpolation in the next iteration
         if waveN.period < period:

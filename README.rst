@@ -151,6 +151,17 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
+Unreleased
+..........
+
+New features:
+
+- ``FentonWave`` accepts a mean ``current`` in m/s (default 0) and a ``current_criterion``,
+  ``"euler"`` (default) or ``"stokes"``, following the definitions in Fenton's Fourier program.
+  The wave period is the period observed at a fixed point, so a current Doppler shifts it and
+  changes the wave length computed from a given period. Not yet supported together with air
+  phase models, SWD output or the C++ code generators.
+
 Version 2.0.0 - July 7. 2026
 ............................
 
