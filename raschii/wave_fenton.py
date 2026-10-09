@@ -16,6 +16,7 @@ from numpy import (
     sinh,
     stack,
     sum,
+    tanh,
     zeros,
 )
 from numpy.linalg import solve
@@ -217,15 +218,19 @@ class FentonWave(WaveModel):
         B = self.data["B"]
         k = self.k
         c = self.c
-        depth = self.depth
+        depth = 25.0 * self.length if self.depth < 0 else self.depth
         J = arange(1, N + 1)
 
         phase = J * k * (x - c * t)[..., newaxis]  # (n_times, n_points, N)
         kz = J * k * z[..., newaxis]  # (1, n_points, N)
         kh = J * k * depth  # (N,)
 
-        vel_x = k * sum(J * B[1:] * cos(phase) * cosh(kz) / cosh(kh), axis=-1)
-        vel_z = k * sum(J * B[1:] * sin(phase) * sinh(kz) / cosh(kh), axis=-1)
+        # Overflow-safe cosh(kz)/cosh(kh) and sinh(kz)/cosh(kh) (z >= 0)
+        C = cosh_ratio(kz, kh)
+        S = C * tanh(kz)
+
+        vel_x = k * sum(J * B[1:] * cos(phase) * C, axis=-1)
+        vel_z = k * sum(J * B[1:] * sin(phase) * S, axis=-1)
         vel = stack([vel_x, vel_z], axis=-1)  # (n_times, n_points, 2)
 
         if not all_points_wet:
