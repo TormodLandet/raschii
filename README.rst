@@ -151,6 +151,17 @@ Raschii is automatically tested using pytest and GitHub Actions and the current 
 Releases
 --------
 
+Unreleased
+..........
+
+Bug fixes:
+
+- ``FentonWave.acceleration()`` now returns the fluid particle acceleration Du/Dt as documented.
+  Previously it returned only the local time derivative ∂u/∂t and omitted the convective term.
+  The old behaviour is available with ``acceleration(..., kind="local")``. This **changes the
+  default output** of ``acceleration()``. Also fixes NaN results in deep water, see
+  `issue #10 <https://github.com/TormodLandet/raschii/issues/10>`_.
+
 Version 2.0.0 - July 7. 2026
 ............................
 

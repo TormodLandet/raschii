@@ -16,6 +16,7 @@ from numpy import (
     sinh,
     stack,
     sum,
+    tanh,
     zeros,
 )
 from numpy.linalg import solve
@@ -242,10 +243,15 @@ class FentonWave(WaveModel):
         z: float | NDArray,
         t: float | NDArray = 0.0,
         all_points_wet: bool = False,
+        kind: str = "material",
     ):
         """
         Compute the horizontal and vertical fluid acceleration at each position
         ``(x, z)`` at each time ``t``.
+
+        By default the *material* (particle) acceleration Du/Dt = ∂u/∂t +
+        (u·∇)u is returned. Use ``kind="local"`` for the local time derivative
+        ∂u/∂t at a fixed point, which omits the convective term.
 
         .. note::
 
@@ -267,6 +273,9 @@ class FentonWave(WaveModel):
         all_points_wet : bool, optional
             If ``True``, evaluate the wave formula at all points regardless of
             whether they are above the free surface.  Useful for testing.
+        kind : str, optional
+            ``"material"`` (default) for the particle acceleration Du/Dt, or
+            ``"local"`` for the local derivative ∂u/∂t.
 
         Returns
         -------
@@ -275,6 +284,9 @@ class FentonWave(WaveModel):
             scalar time, ``(T, 2)`` for scalar point and array time,
             ``(T, N, 2)`` for array points and array time.
         """
+        if kind not in ("material", "local"):
+            raise ValueError(f"Unknown acceleration kind {kind!r}; use 'material' or 'local'")
+
         time_is_scalar = asarray(t).ndim == 0
         point_is_scalar = asarray(x).ndim == 0 and asarray(z).ndim == 0
 
@@ -291,15 +303,33 @@ class FentonWave(WaveModel):
         B = self.data["B"]
         k = self.k
         c = self.c
-        depth = self.depth
+        depth = 25.0 * self.length if self.depth < 0 else self.depth
         J = arange(1, N + 1)
 
         phase = J * k * (x - c * t)[..., newaxis]  # shape (n_times, n_points, N)
         kz = J * k * z[..., newaxis]  # shape (1, n_points, N)
         kh = J * k * depth  # shape (N,)
 
-        acc_x = k * sum(J * B[1:] * J * k * c * sin(phase) * cosh(kz) / cosh(kh), axis=-1)
-        acc_z = k * sum(J * B[1:] * J * k * -c * cos(phase) * sinh(kz) / cosh(kh), axis=-1)
+        # Overflow-safe cosh(kz)/cosh(kh) and sinh(kz)/cosh(kh) (z >= 0)
+        C = cosh_ratio(kz, kh)
+        S = C * tanh(kz)
+        cos_p, sin_p = cos(phase), sin(phase)
+        JB = J * B[1:]
+
+        # The wave is steady in the frame moving with speed c, so
+        # ∂/∂t = -c ∂/∂x and the x-derivatives follow from the series
+        du_dx = -k * sum(JB * J * k * sin_p * C, axis=-1)
+        dw_dx = k * sum(JB * J * k * cos_p * S, axis=-1)
+        acc_x = -c * du_dx
+        acc_z = -c * dw_dx
+
+        if kind == "material":
+            # Add the convective term (u·∇)u, using u_z = ∂w/∂x and w_z = -u_x
+            # (irrotational, incompressible flow)
+            vel_x = k * sum(JB * cos_p * C, axis=-1)
+            vel_z = k * sum(JB * sin_p * S, axis=-1)
+            acc_x = acc_x + vel_x * du_dx + vel_z * dw_dx
+            acc_z = acc_z + vel_x * dw_dx - vel_z * du_dx
 
         acc = stack([acc_x, acc_z], axis=-1)  # shape (n_times, n_points, 2)
 
